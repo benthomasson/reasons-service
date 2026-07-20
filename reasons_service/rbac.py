@@ -11,7 +11,7 @@ class Action(StrEnum):
     CHAT = "chat"
     EDIT_BELIEFS = "edit_beliefs"
     MANAGE_SOURCES = "manage_sources"
-    MANAGE_PROJECTS = "manage_projects"
+    MANAGE_DOMAINS = "manage_domains"
     ADMIN = "admin"
 
 

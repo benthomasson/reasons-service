@@ -73,7 +73,7 @@ class Settings(BaseModel):
 
     @property
     def hub_mode(self) -> bool:
-        """Public hub mode — disables login UI and authenticated project pages."""
+        """Public hub mode — disables login UI and authenticated domain pages."""
         return os.getenv("REASONS_HUB_MODE", os.getenv("EXPERT_HUB_MODE", "false")).lower() in ("true", "1", "yes")
 
 

@@ -18,23 +18,23 @@ from reasons_service.db.models import Entry, Source, SourceChunk, Topic, entry_s
 from reasons_service.db.search import fts_clause
 from reasons_service.rms import api as rms_api
 
-router = APIRouter(prefix="/api/projects/{project_id}", tags=["data"])
+router = APIRouter(prefix="/api/domains/{domain_id}", tags=["data"])
 
 
 @router.get("/sources")
-async def list_sources(project_id: UUID, session: AsyncSession = Depends(get_session)):
+async def list_sources(domain_id: UUID, session: AsyncSession = Depends(get_session)):
     result = await session.execute(
         select(Source.id, Source.slug, Source.url, Source.word_count, Source.fetched_at)
-        .where(Source.project_id == project_id)
+        .where(Source.domain_id == domain_id)
         .order_by(Source.fetched_at.desc())
     )
     return [dict(r._mapping) for r in result.all()]
 
 
 @router.get("/sources/{slug}")
-async def get_source(project_id: UUID, slug: str, session: AsyncSession = Depends(get_session)):
+async def get_source(domain_id: UUID, slug: str, session: AsyncSession = Depends(get_session)):
     result = await session.execute(
-        select(Source).where(Source.project_id == project_id, Source.slug == slug)
+        select(Source).where(Source.domain_id == domain_id, Source.slug == slug)
     )
     source = result.scalar_one_or_none()
     if not source:
@@ -56,18 +56,18 @@ async def get_source(project_id: UUID, slug: str, session: AsyncSession = Depend
 
 @router.get("/sources/{slug}/entries")
 async def list_source_entries(
-    project_id: UUID, slug: str, session: AsyncSession = Depends(get_session)
+    domain_id: UUID, slug: str, session: AsyncSession = Depends(get_session)
 ):
     """List all entries linked to a source."""
     source = await session.execute(
-        select(Source.id).where(Source.project_id == project_id, Source.slug == slug)
+        select(Source.id).where(Source.domain_id == domain_id, Source.slug == slug)
     )
     source_id = source.scalar_one_or_none()
     if source_id is None:
         return {"error": "Source not found"}
     result = await session.execute(
         select(Entry.id, Entry.topic, Entry.title, Entry.created_at)
-        .join(entry_sources, (entry_sources.c.entry_id == Entry.id) & (entry_sources.c.entry_project_id == Entry.project_id))
+        .join(entry_sources, (entry_sources.c.entry_id == Entry.id) & (entry_sources.c.entry_domain_id == Entry.domain_id))
         .where(entry_sources.c.source_id == source_id)
         .order_by(Entry.created_at.desc())
     )
@@ -76,12 +76,12 @@ async def list_source_entries(
 
 @router.get("/entries")
 async def list_entries(
-    project_id: UUID,
+    domain_id: UUID,
     topic: str | None = None,
     session: AsyncSession = Depends(get_session),
 ):
     q = select(Entry).options(selectinload(Entry.sources)).where(
-        Entry.project_id == project_id
+        Entry.domain_id == domain_id
     )
     if topic:
         q = q.where(Entry.topic == topic)
@@ -100,11 +100,11 @@ async def list_entries(
 
 
 @router.get("/entries/{entry_id}")
-async def get_entry(project_id: UUID, entry_id: str, session: AsyncSession = Depends(get_session)):
+async def get_entry(domain_id: UUID, entry_id: str, session: AsyncSession = Depends(get_session)):
     result = await session.execute(
         select(Entry)
         .options(selectinload(Entry.sources))
-        .where(Entry.project_id == project_id, Entry.id == entry_id)
+        .where(Entry.domain_id == domain_id, Entry.id == entry_id)
     )
     entry = result.scalar_one_or_none()
     if not entry:
@@ -124,35 +124,35 @@ async def get_entry(project_id: UUID, entry_id: str, session: AsyncSession = Dep
 
 @router.get("/beliefs")
 async def list_beliefs(
-    project_id: UUID,
+    domain_id: UUID,
     status: str | None = None,
     user: UserInfo = Depends(verify_auth_or_public),
 ):
     result = await asyncio.to_thread(
-        rms_api.list_nodes, project_id, status=status, visible_to=user.visible_tags
+        rms_api.list_nodes, domain_id, status=status, visible_to=user.visible_tags
     )
     return result
 
 
 @router.get("/beliefs/status")
-async def beliefs_status(project_id: UUID, user: UserInfo = Depends(verify_auth_or_public)):
-    result = await asyncio.to_thread(rms_api.get_status, project_id, visible_to=user.visible_tags)
+async def beliefs_status(domain_id: UUID, user: UserInfo = Depends(verify_auth_or_public)):
+    result = await asyncio.to_thread(rms_api.get_status, domain_id, visible_to=user.visible_tags)
     return result
 
 
 @router.get("/issues")
-async def find_issues(project_id: UUID, user: UserInfo = Depends(verify_auth_or_public)):
+async def find_issues(domain_id: UUID, user: UserInfo = Depends(verify_auth_or_public)):
     """Find issues in the belief network: gated beliefs and negative candidates."""
     vt = user.visible_tags
-    gated = await asyncio.to_thread(rms_api.list_gated, project_id, visible_to=vt)
-    negative = await asyncio.to_thread(rms_api.list_negative_candidates, project_id, visible_to=vt)
+    gated = await asyncio.to_thread(rms_api.list_gated, domain_id, visible_to=vt)
+    negative = await asyncio.to_thread(rms_api.list_negative_candidates, domain_id, visible_to=vt)
     return {"gated": gated, "negative": negative}
 
 
 @router.get("/beliefs/{node_id}")
-async def get_belief(project_id: UUID, node_id: str, user: UserInfo = Depends(verify_auth_or_public)):
+async def get_belief(domain_id: UUID, node_id: str, user: UserInfo = Depends(verify_auth_or_public)):
     try:
-        result = await asyncio.to_thread(rms_api.show_node, project_id, node_id, visible_to=user.visible_tags)
+        result = await asyncio.to_thread(rms_api.show_node, domain_id, node_id, visible_to=user.visible_tags)
     except KeyError:
         return {"error": "Belief not found", "id": node_id}
     except PermissionError:
@@ -161,9 +161,9 @@ async def get_belief(project_id: UUID, node_id: str, user: UserInfo = Depends(ve
 
 
 @router.get("/beliefs/{node_id}/explain")
-async def explain_belief(project_id: UUID, node_id: str, user: UserInfo = Depends(verify_auth_or_public)):
+async def explain_belief(domain_id: UUID, node_id: str, user: UserInfo = Depends(verify_auth_or_public)):
     try:
-        result = await asyncio.to_thread(rms_api.explain_node, project_id, node_id, visible_to=user.visible_tags)
+        result = await asyncio.to_thread(rms_api.explain_node, domain_id, node_id, visible_to=user.visible_tags)
     except KeyError:
         return {"error": "Belief not found", "id": node_id}
     except PermissionError:
@@ -172,17 +172,17 @@ async def explain_belief(project_id: UUID, node_id: str, user: UserInfo = Depend
 
 
 @router.get("/beliefs/{node_id}/what-if")
-async def what_if_belief(project_id: UUID, node_id: str, action: str = "retract"):
+async def what_if_belief(domain_id: UUID, node_id: str, action: str = "retract"):
     if action == "assert":
-        result = await asyncio.to_thread(rms_api.what_if_assert, project_id, node_id)
+        result = await asyncio.to_thread(rms_api.what_if_assert, domain_id, node_id)
     else:
-        result = await asyncio.to_thread(rms_api.what_if_retract, project_id, node_id)
+        result = await asyncio.to_thread(rms_api.what_if_retract, domain_id, node_id)
     return result
 
 
 @router.get("/search")
 async def search(
-    project_id: UUID,
+    domain_id: UUID,
     q: str = Query(..., min_length=1),
     user: UserInfo = Depends(verify_auth_or_public),
     session: AsyncSession = Depends(get_session),
@@ -195,23 +195,23 @@ async def search(
     # Search entries
     entry_text = "coalesce(title, '') || ' ' || content"
     ew, eo, ep = fts_clause(entry_text, q)
-    ep["pid"] = str(project_id)
+    ep["pid"] = str(domain_id)
     order_clause = f"ORDER BY {eo}" if eo else ""
     entry_results = await session.execute(
         text(
             f"SELECT id, title, topic FROM entries "
-            f"WHERE project_id = :pid AND {ew} "
+            f"WHERE domain_id = :pid AND {ew} "
             f"{order_clause} LIMIT 20"
         ),
         ep,
     )
 
     # Search RMS beliefs (routed through rms_api for SQLite compatibility)
-    belief_rows = await asyncio.to_thread(rms_api.search_beliefs_fts, project_id, q, 20, visible_to=user.visible_tags)
+    belief_rows = await asyncio.to_thread(rms_api.search_beliefs_fts, domain_id, q, 20, visible_to=user.visible_tags)
 
     # Search source chunks
     cw, co, cp = fts_clause("c.text", q)
-    cp["pid"] = str(project_id)
+    cp["pid"] = str(domain_id)
     chunk_order = f"ORDER BY {co}" if co else ""
     # Use substr() instead of left() for SQLite compatibility
     snippet_expr = "substr(c.text, 1, 500)" if settings.db_backend == "sqlite" else "left(c.text, 500)"
@@ -221,7 +221,7 @@ async def search(
             f"  {snippet_expr} AS snippet "
             f"FROM source_chunks c "
             f"JOIN sources s ON s.id = c.source_id "
-            f"WHERE c.project_id = :pid AND {cw} "
+            f"WHERE c.domain_id = :pid AND {cw} "
             f"{chunk_order} LIMIT 20"
         ),
         cp,
@@ -236,7 +236,7 @@ async def search(
 
 @router.get("/deep-search")
 async def deep_search(
-    project_id: UUID,
+    domain_id: UUID,
     q: str = Query(..., min_length=1),
 ):
     """Dual-path retrieval with IDF ranking — no LLM, just structured context.
@@ -250,8 +250,8 @@ async def deep_search(
     from reasons_service.db.search import quick_belief_search, search_source_chunks
 
     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(
-        asyncio.to_thread(quick_belief_search, project_id, q, 20),
-        asyncio.to_thread(search_source_chunks, project_id, q, 10),
+        asyncio.to_thread(quick_belief_search, domain_id, q, 20),
+        asyncio.to_thread(search_source_chunks, domain_id, q, 10),
     )
 
     return {
@@ -313,7 +313,7 @@ class ClaimsImportRequest(BaseModel):
 
 @router.post("/import/sources", dependencies=[Depends(verify_auth)])
 async def import_sources(
-    project_id: UUID,
+    domain_id: UUID,
     data: SourcesImportRequest,
     session: AsyncSession = Depends(get_session),
 ):
@@ -323,14 +323,14 @@ async def import_sources(
 
     for s in data.sources:
         existing = await session.execute(
-            select(Source.id).where(Source.project_id == project_id, Source.slug == s.slug)
+            select(Source.id).where(Source.domain_id == domain_id, Source.slug == s.slug)
         )
         if existing.scalar_one_or_none() is not None:
             skipped += 1
             continue
 
         source = Source(
-            project_id=project_id,
+            domain_id=domain_id,
             slug=s.slug,
             url=s.url,
             content=s.content,
@@ -341,7 +341,7 @@ async def import_sources(
 
         for c in chunk_markdown(s.content):
             session.add(SourceChunk(
-                project_id=project_id,
+                domain_id=domain_id,
                 source_id=source.id,
                 chunk_index=c["chunk_index"],
                 section=c["section"],
@@ -355,7 +355,7 @@ async def import_sources(
 
 @router.post("/import/entries", dependencies=[Depends(verify_auth)])
 async def import_entries(
-    project_id: UUID,
+    domain_id: UUID,
     data: EntriesImportRequest,
     session: AsyncSession = Depends(get_session),
 ):
@@ -366,14 +366,14 @@ async def import_entries(
 
     # Pre-load source slug→id map for auto-matching
     source_result = await session.execute(
-        select(Source.slug, Source.id).where(Source.project_id == project_id)
+        select(Source.slug, Source.id).where(Source.domain_id == domain_id)
     )
     source_map = {row.slug: row.id for row in source_result.all()}
 
     for e in data.entries:
         # Check if already exists
         existing = await session.execute(
-            select(Entry.id).where(Entry.project_id == project_id, Entry.id == e.id)
+            select(Entry.id).where(Entry.domain_id == domain_id, Entry.id == e.id)
         )
         if existing.scalar_one_or_none() is not None:
             skipped += 1
@@ -381,7 +381,7 @@ async def import_entries(
 
         entry = Entry(
             id=e.id,
-            project_id=project_id,
+            domain_id=domain_id,
             topic=e.topic,
             title=e.title,
             content=e.content,
@@ -396,7 +396,7 @@ async def import_entries(
             await session.execute(
                 insert(entry_sources).values(
                     entry_id=e.id,
-                    entry_project_id=project_id,
+                    entry_domain_id=domain_id,
                     source_id=source_map[e.topic],
                 )
             )
@@ -408,7 +408,7 @@ async def import_entries(
 
 @router.post("/import/beliefs", dependencies=[Depends(verify_auth)])
 async def import_beliefs(
-    project_id: UUID,
+    domain_id: UUID,
     data: ClaimsImportRequest,
 ):
     """Bulk import beliefs into RMS from a file-based expert repo."""
@@ -418,7 +418,7 @@ async def import_beliefs(
         skipped = 0
 
         # Check existing nodes
-        existing_status = rms_api.get_status(project_id)
+        existing_status = rms_api.get_status(domain_id)
         existing_ids = {n["id"] for n in existing_status["nodes"]}
 
         for c in data.claims:
@@ -427,7 +427,7 @@ async def import_beliefs(
                 continue
 
             rms_api.add_node(
-                project_id,
+                domain_id,
                 node_id=c.id,
                 text=c.text,
                 source=c.source or "",
@@ -435,7 +435,7 @@ async def import_beliefs(
 
             # Match original status
             if c.status == "OUT":
-                rms_api.retract_node(project_id, c.id)
+                rms_api.retract_node(domain_id, c.id)
 
             imported += 1
 
@@ -446,7 +446,7 @@ async def import_beliefs(
 
 @router.post("/link-entries-sources", dependencies=[Depends(verify_auth)])
 async def link_entries_sources(
-    project_id: UUID,
+    domain_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
     """Backfill entry-source links by matching entry.topic to source.slug.
@@ -459,14 +459,14 @@ async def link_entries_sources(
 
     # 1. Migrate existing source_id FK values into join table
     entries_with_fk = await session.execute(
-        select(Entry.id, Entry.project_id, Entry.source_id)
-        .where(Entry.project_id == project_id, Entry.source_id.isnot(None))
+        select(Entry.id, Entry.domain_id, Entry.source_id)
+        .where(Entry.domain_id == domain_id, Entry.source_id.isnot(None))
     )
     for row in entries_with_fk.all():
         existing = await session.execute(
             select(entry_sources.c.source_id).where(
                 entry_sources.c.entry_id == row.id,
-                entry_sources.c.entry_project_id == row.project_id,
+                entry_sources.c.entry_domain_id == row.domain_id,
                 entry_sources.c.source_id == row.source_id,
             )
         )
@@ -474,7 +474,7 @@ async def link_entries_sources(
             await session.execute(
                 insert(entry_sources).values(
                     entry_id=row.id,
-                    entry_project_id=row.project_id,
+                    entry_domain_id=row.domain_id,
                     source_id=row.source_id,
                 )
             )
@@ -482,13 +482,13 @@ async def link_entries_sources(
 
     # 2. Auto-match unlinked entries by topic == slug
     source_result = await session.execute(
-        select(Source.slug, Source.id).where(Source.project_id == project_id)
+        select(Source.slug, Source.id).where(Source.domain_id == domain_id)
     )
     source_map = {row.slug: row.id for row in source_result.all()}
 
     all_entries = await session.execute(
-        select(Entry.id, Entry.project_id, Entry.topic)
-        .where(Entry.project_id == project_id)
+        select(Entry.id, Entry.domain_id, Entry.topic)
+        .where(Entry.domain_id == domain_id)
     )
     for row in all_entries.all():
         if row.topic not in source_map:
@@ -497,7 +497,7 @@ async def link_entries_sources(
         existing = await session.execute(
             select(entry_sources.c.source_id).where(
                 entry_sources.c.entry_id == row.id,
-                entry_sources.c.entry_project_id == row.project_id,
+                entry_sources.c.entry_domain_id == row.domain_id,
                 entry_sources.c.source_id == source_map[row.topic],
             )
         )
@@ -507,7 +507,7 @@ async def link_entries_sources(
         await session.execute(
             insert(entry_sources).values(
                 entry_id=row.id,
-                entry_project_id=row.project_id,
+                entry_domain_id=row.domain_id,
                 source_id=source_map[row.topic],
             )
         )
@@ -519,12 +519,12 @@ async def link_entries_sources(
 
 @router.post("/chunk-sources", dependencies=[Depends(verify_auth)])
 async def chunk_sources(
-    project_id: UUID,
+    domain_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
     """Backfill source_chunks for all sources that haven't been chunked yet."""
     sources = await session.execute(
-        select(Source).where(Source.project_id == project_id)
+        select(Source).where(Source.domain_id == domain_id)
     )
     chunked = 0
     total_chunks = 0
@@ -537,7 +537,7 @@ async def chunk_sources(
         chunks = chunk_markdown(source.content)
         for c in chunks:
             session.add(SourceChunk(
-                project_id=project_id,
+                domain_id=domain_id,
                 source_id=source.id,
                 chunk_index=c["chunk_index"],
                 section=c["section"],
@@ -554,13 +554,13 @@ async def chunk_sources(
 
 @router.get("/topics")
 async def list_topics(
-    project_id: UUID,
+    domain_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    """List stored topics for a project."""
+    """List stored topics for a domain."""
     result = await session.execute(
         select(Topic)
-        .where(Topic.project_id == project_id)
+        .where(Topic.domain_id == domain_id)
         .order_by(Topic.belief_count.desc())
     )
     return [
@@ -577,17 +577,17 @@ async def list_topics(
 
 @router.post("/topics/generate", dependencies=[Depends(verify_auth)])
 async def generate_topics(
-    project_id: UUID,
+    domain_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
     """Generate topics from belief node IDs (word frequency) and store them.
 
     Replaces non-curated topics; keeps any manually curated ones.
     """
-    raw = await asyncio.to_thread(rms_api.topics, project_id, 50)
+    raw = await asyncio.to_thread(rms_api.topics, domain_id, 50)
 
     existing = await session.execute(
-        select(Topic).where(Topic.project_id == project_id)
+        select(Topic).where(Topic.domain_id == domain_id)
     )
     existing_map = {t.name: t for t in existing.scalars().all()}
 
@@ -606,7 +606,7 @@ async def generate_topics(
                 generated += 1
         else:
             session.add(Topic(
-                project_id=project_id,
+                domain_id=domain_id,
                 name=name,
                 belief_count=count,
             ))
@@ -635,7 +635,7 @@ class TopicsImportRequest(BaseModel):
 
 @router.post("/import/topics", dependencies=[Depends(verify_auth)])
 async def import_topics(
-    project_id: UUID,
+    domain_id: UUID,
     data: TopicsImportRequest,
     session: AsyncSession = Depends(get_session),
 ):
@@ -644,7 +644,7 @@ async def import_topics(
     updated = 0
 
     existing = await session.execute(
-        select(Topic).where(Topic.project_id == project_id)
+        select(Topic).where(Topic.domain_id == domain_id)
     )
     existing_map = {t.name: t for t in existing.scalars().all()}
 
@@ -658,7 +658,7 @@ async def import_topics(
             updated += 1
         else:
             session.add(Topic(
-                project_id=project_id,
+                domain_id=domain_id,
                 name=item.name,
                 label=item.label,
                 description=item.description,
@@ -709,20 +709,20 @@ class SetBeliefTagsRequest(BaseModel):
 
 
 @router.put("/beliefs/{node_id}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
-async def set_belief_tags(project_id: UUID, node_id: str, data: SetBeliefTagsRequest):
+async def set_belief_tags(domain_id: UUID, node_id: str, data: SetBeliefTagsRequest):
     """Set access_tags on a belief (admin only)."""
     try:
-        result = await asyncio.to_thread(rms_api.set_access_tags, project_id, node_id, data.access_tags)
+        result = await asyncio.to_thread(rms_api.set_access_tags, domain_id, node_id, data.access_tags)
     except KeyError:
         return {"error": "Belief not found", "id": node_id}
     return result
 
 
 @router.get("/beliefs/{node_id}/tags")
-async def get_belief_tags(project_id: UUID, node_id: str, user: UserInfo = Depends(verify_auth_or_public)):
+async def get_belief_tags(domain_id: UUID, node_id: str, user: UserInfo = Depends(verify_auth_or_public)):
     """Get access_tags for a belief, including inherited tags from dependencies."""
     try:
-        result = await asyncio.to_thread(rms_api.trace_access_tags, project_id, node_id, visible_to=user.visible_tags)
+        result = await asyncio.to_thread(rms_api.trace_access_tags, domain_id, node_id, visible_to=user.visible_tags)
     except KeyError:
         return {"error": "Belief not found", "id": node_id}
     except PermissionError:

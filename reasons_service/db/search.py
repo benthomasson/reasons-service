@@ -128,15 +128,15 @@ def _build_or_tsquery(question: str) -> str:
     return " | ".join(terms)
 
 
-def _compute_idf(session, project_id: str, terms: list[str],
+def _compute_idf(session, domain_id: str, terms: list[str],
                  table: str, text_col: str = "text",
                  extra_where: str = "") -> dict[str, float]:
     if settings.db_backend == "sqlite":
         return {}
-    where = f"WHERE project_id = :pid {extra_where}"
+    where = f"WHERE domain_id = :pid {extra_where}"
     total = session.execute(
         sa_text(f"SELECT count(*) FROM {table} {where}"),
-        {"pid": project_id},
+        {"pid": domain_id},
     ).scalar() or 0
     if total == 0:
         return {}
@@ -148,7 +148,7 @@ def _compute_idf(session, project_id: str, terms: list[str],
                 f"{where} "
                 f"AND to_tsvector('english', {text_col}) @@ to_tsquery('english', :term)"
             ),
-            {"pid": project_id, "term": term},
+            {"pid": domain_id, "term": term},
         ).scalar() or 0
         idfs[term] = math.log((total + 1) / (df + 1))
     return idfs
@@ -176,18 +176,18 @@ def _source_title_from_path(path: str) -> str:
     return name.strip().title()
 
 
-def quick_belief_search(project_id: UUID, question: str, limit: int = 10) -> tuple[str, list[SourceRef]]:
+def quick_belief_search(domain_id: UUID, question: str, limit: int = 10) -> tuple[str, list[SourceRef]]:
     """Fast belief search with IDF re-ranking.
 
     Returns (context_string, source_refs).
     """
-    belief_rows = rms_api.search_beliefs_fts(project_id, question, limit * 3)
+    belief_rows = rms_api.search_beliefs_fts(domain_id, question, limit * 3)
     if not belief_rows:
         return "", []
 
     if settings.db_backend == "postgresql":
         terms = _get_terms(question)
-        pid = str(project_id)
+        pid = str(domain_id)
         with get_sync_session() as session:
             idfs = _compute_idf(session, pid, terms, "rms_nodes",
                                 extra_where="AND truth_value = 'IN'")
@@ -218,7 +218,7 @@ def quick_belief_search(project_id: UUID, question: str, limit: int = 10) -> tup
             label = f'{domain}, "{title}"' if domain else f'"{title}"'
             url = source_url or ""
             if not url and "/" in source:
-                url = f"/projects/{project_id}/source/{source}"
+                url = f"/domains/{domain_id}/source/{source}"
         else:
             title = rid.split(":", 1)[-1].replace("-", " ").title()
             label = f'{domain}, "{title}"' if domain else f'"{title}"'
@@ -234,7 +234,7 @@ def quick_belief_search(project_id: UUID, question: str, limit: int = 10) -> tup
     return context, sources
 
 
-def search_source_chunks(project_id: UUID, query: str, limit: int = 10) -> tuple[str, list[SourceRef]]:
+def search_source_chunks(domain_id: UUID, query: str, limit: int = 10) -> tuple[str, list[SourceRef]]:
     """FTS search over source_chunks with IDF re-ranking.
 
     Returns (context_string, source_refs).
@@ -242,7 +242,7 @@ def search_source_chunks(project_id: UUID, query: str, limit: int = 10) -> tuple
     terms = _get_terms(query)
     if not terms:
         return "", []
-    pid = project_id.hex if settings.db_backend == "sqlite" else str(project_id)
+    pid = domain_id.hex if settings.db_backend == "sqlite" else str(domain_id)
     idfs = {}
 
     if settings.db_backend == "sqlite":
@@ -255,7 +255,7 @@ def search_source_chunks(project_id: UUID, query: str, limit: int = 10) -> tuple
                         "FROM source_chunks c "
                         "JOIN source_chunks_fts f ON f.id = c.id "
                         "JOIN sources s ON s.id = c.source_id "
-                        "WHERE c.project_id = :pid "
+                        "WHERE c.domain_id = :pid "
                         "AND source_chunks_fts MATCH :q "
                         "ORDER BY f.rank "
                         "LIMIT :lim"
@@ -271,7 +271,7 @@ def search_source_chunks(project_id: UUID, query: str, limit: int = 10) -> tuple
                         f"SELECT c.text, c.section, s.slug, s.url "
                         f"FROM source_chunks c "
                         f"JOIN sources s ON s.id = c.source_id "
-                        f"WHERE c.project_id = :pid "
+                        f"WHERE c.domain_id = :pid "
                         f"AND {where} "
                         f"LIMIT :lim"
                     ),
@@ -289,7 +289,7 @@ def search_source_chunks(project_id: UUID, query: str, limit: int = 10) -> tuple
                     f"SELECT c.text, c.section, s.slug, s.url "
                     f"FROM source_chunks c "
                     f"JOIN sources s ON s.id = c.source_id "
-                    f"WHERE c.project_id = :pid "
+                    f"WHERE c.domain_id = :pid "
                     f"AND {where} "
                     f"{order_clause} "
                     f"LIMIT :lim"
@@ -323,7 +323,7 @@ def search_source_chunks(project_id: UUID, query: str, limit: int = 10) -> tuple
             label = f'"{r.slug}"'
         url = r.url or ""
         if not url:
-            url = f"/projects/{project_id}/source/{r.slug}"
+            url = f"/domains/{domain_id}/source/{r.slug}"
         sources.append(SourceRef(
             label=label,
             slug=r.slug,

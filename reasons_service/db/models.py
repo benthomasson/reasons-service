@@ -43,52 +43,52 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
-class Project(Base):
-    __tablename__ = "projects"
+class Domain(Base):
+    __tablename__ = "domains"
 
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     name = Column(String, nullable=False, unique=True)
-    domain = Column(String, nullable=False)
+    description = Column(String, nullable=False)
     config = Column(JSON, default=dict)
     public = Column(Boolean, nullable=False, default=False, server_default="false")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    sources = relationship("Source", back_populates="project", cascade="all, delete-orphan")
-    entries = relationship("Entry", back_populates="project", cascade="all, delete-orphan")
-    nogoods = relationship("Nogood", back_populates="project", cascade="all, delete-orphan")
-    assessments = relationship("Assessment", back_populates="project", cascade="all, delete-orphan")
-    topics = relationship("Topic", back_populates="project", cascade="all, delete-orphan")
+    sources = relationship("Source", back_populates="domain", cascade="all, delete-orphan")
+    entries = relationship("Entry", back_populates="domain", cascade="all, delete-orphan")
+    nogoods = relationship("Nogood", back_populates="domain", cascade="all, delete-orphan")
+    assessments = relationship("Assessment", back_populates="domain", cascade="all, delete-orphan")
+    topics = relationship("Topic", back_populates="domain", cascade="all, delete-orphan")
 
 
 entry_sources = Table(
     "entry_sources",
     Base.metadata,
     Column("entry_id", String, nullable=False),
-    Column("entry_project_id", Uuid(as_uuid=True), nullable=False),
+    Column("entry_domain_id", Uuid(as_uuid=True), nullable=False),
     Column("source_id", Uuid(as_uuid=True), ForeignKey("sources.id", ondelete="CASCADE"), nullable=False),
     ForeignKeyConstraint(
-        ["entry_id", "entry_project_id"],
-        ["entries.id", "entries.project_id"],
+        ["entry_id", "entry_domain_id"],
+        ["entries.id", "entries.domain_id"],
         ondelete="CASCADE",
     ),
-    UniqueConstraint("entry_id", "entry_project_id", "source_id"),
+    UniqueConstraint("entry_id", "entry_domain_id", "source_id"),
 )
 
 
 class Source(Base):
     __tablename__ = "sources"
-    __table_args__ = (UniqueConstraint("project_id", "slug"),)
+    __table_args__ = (UniqueConstraint("domain_id", "slug"),)
 
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
     url = Column(String)
     slug = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     word_count = Column(Integer)
     fetched_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    project = relationship("Project", back_populates="sources")
+    domain = relationship("Domain", back_populates="sources")
     entries = relationship("Entry", secondary=entry_sources, back_populates="sources")
 
 
@@ -96,7 +96,7 @@ class Entry(Base):
     __tablename__ = "entries"
 
     id = Column(String, primary_key=True)
-    project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), primary_key=True)
     topic = Column(String, nullable=False)
     title = Column(String)
     content = Column(Text, nullable=False)
@@ -104,7 +104,7 @@ class Entry(Base):
     metadata_ = Column("metadata", JSON)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    project = relationship("Project", back_populates="entries")
+    domain = relationship("Domain", back_populates="entries")
     sources = relationship("Source", secondary=entry_sources, back_populates="entries")
 
 
@@ -112,28 +112,28 @@ class Nogood(Base):
     __tablename__ = "nogoods"
 
     id = Column(String, primary_key=True)
-    project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), primary_key=True)
     description = Column(Text, nullable=False)
     resolution = Column(Text)
     claim_ids = Column(JSON)
     discovered_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     resolved_at = Column(DateTime(timezone=True))
 
-    project = relationship("Project", back_populates="nogoods")
+    domain = relationship("Domain", back_populates="nogoods")
 
 
 class Assessment(Base):
     __tablename__ = "assessments"
 
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
     assessment_type = Column(String, nullable=False)
     input_data = Column(JSON)
     results = Column(JSON, nullable=False)
     score = Column(JSON)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    project = relationship("Project", back_populates="assessments")
+    domain = relationship("Domain", back_populates="assessments")
 
 
 class SourceChunk(Base):
@@ -141,7 +141,7 @@ class SourceChunk(Base):
     __table_args__ = (UniqueConstraint("source_id", "chunk_index"),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
     source_id = Column(Uuid(as_uuid=True), ForeignKey("sources.id", ondelete="CASCADE"), nullable=False)
     chunk_index = Column(Integer, nullable=False)
     section = Column(String, default="")
@@ -150,10 +150,10 @@ class SourceChunk(Base):
 
 class Topic(Base):
     __tablename__ = "topics"
-    __table_args__ = (UniqueConstraint("project_id", "name"),)
+    __table_args__ = (UniqueConstraint("domain_id", "name"),)
 
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     label = Column(String)
     description = Column(String)
@@ -161,7 +161,7 @@ class Topic(Base):
     curated = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    project = relationship("Project", back_populates="topics")
+    domain = relationship("Domain", back_populates="topics")
 
 
 if _has_pgvector:
@@ -170,7 +170,7 @@ if _has_pgvector:
         __tablename__ = "embeddings"
 
         id = Column(Integer, primary_key=True, autoincrement=True)
-        project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+        domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
         source_table = Column(String, nullable=False)
         source_id = Column(String, nullable=False)
         label = Column(String)

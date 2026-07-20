@@ -1,4 +1,4 @@
-"""Project CRUD API routes."""
+"""Domain CRUD API routes."""
 
 import asyncio
 import tempfile
@@ -12,23 +12,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import Entry, Project, Source
+from reasons_service.db.models import Entry, Domain, Source
 from reasons_service.rms import api as rms_api
 
-router = APIRouter(prefix="/api/projects", tags=["projects"])
+router = APIRouter(prefix="/api/domains", tags=["domains"])
 
 
-class ProjectCreate(BaseModel):
+class DomainCreate(BaseModel):
     name: str
-    domain: str
+    description: str
     config: dict = {}
     public: bool = False
 
 
-class ProjectResponse(BaseModel):
+class DomainResponse(BaseModel):
     id: UUID
     name: str
-    domain: str
+    description: str
     config: dict
     public: bool = False
     created_at: str
@@ -39,44 +39,44 @@ class ProjectResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.post("", response_model=ProjectResponse)
-async def create_project(data: ProjectCreate, session: AsyncSession = Depends(get_session)):
-    project = Project(name=data.name, domain=data.domain, config=data.config, public=data.public)
-    session.add(project)
+@router.post("", response_model=DomainResponse)
+async def create_domain(data: DomainCreate, session: AsyncSession = Depends(get_session)):
+    domain_obj = Domain(name=data.name, description=data.description, config=data.config, public=data.public)
+    session.add(domain_obj)
     await session.commit()
-    await session.refresh(project)
-    return ProjectResponse(
-        id=project.id,
-        name=project.name,
-        domain=project.domain,
-        config=project.config or {},
-        public=project.public,
-        created_at=project.created_at.isoformat(),
+    await session.refresh(domain_obj)
+    return DomainResponse(
+        id=domain_obj.id,
+        name=domain_obj.name,
+        description=domain_obj.description,
+        config=domain_obj.config or {},
+        public=domain_obj.public,
+        created_at=domain_obj.created_at.isoformat(),
     )
 
 
-async def _project_counts(session: AsyncSession, project_id):
-    """Get source, entry, and belief counts for a project."""
-    src = await session.execute(select(func.count()).where(Source.project_id == project_id))
-    ent = await session.execute(select(func.count()).where(Entry.project_id == project_id))
-    blf = await asyncio.to_thread(rms_api.count_beliefs, project_id, None)
+async def _domain_counts(session: AsyncSession, domain_id):
+    """Get source, entry, and belief counts for a domain."""
+    src = await session.execute(select(func.count()).where(Source.domain_id == domain_id))
+    ent = await session.execute(select(func.count()).where(Entry.domain_id == domain_id))
+    blf = await asyncio.to_thread(rms_api.count_beliefs, domain_id, None)
     return src.scalar() or 0, ent.scalar() or 0, blf
 
 
 @router.get("")
-async def list_projects(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Project).order_by(Project.created_at.desc()))
-    projects = result.scalars().all()
+async def list_domains(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Domain).order_by(Domain.created_at.desc()))
+    domains = result.scalars().all()
     responses = []
-    for p in projects:
-        sc, ec, cc = await _project_counts(session, p.id)
-        responses.append(ProjectResponse(
-            id=p.id,
-            name=p.name,
-            domain=p.domain,
-            config=p.config or {},
-            public=p.public,
-            created_at=p.created_at.isoformat(),
+    for d in domains:
+        sc, ec, cc = await _domain_counts(session, d.id)
+        responses.append(DomainResponse(
+            id=d.id,
+            name=d.name,
+            description=d.description,
+            config=d.config or {},
+            public=d.public,
+            created_at=d.created_at.isoformat(),
             source_count=sc,
             entry_count=ec,
             belief_count=cc,
@@ -84,66 +84,66 @@ async def list_projects(session: AsyncSession = Depends(get_session)):
     return responses
 
 
-@router.get("/{project_id}")
-async def get_project(project_id: UUID, session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    sc, ec, cc = await _project_counts(session, project.id)
-    return ProjectResponse(
-        id=project.id,
-        name=project.name,
-        domain=project.domain,
-        config=project.config or {},
-        public=project.public,
-        created_at=project.created_at.isoformat(),
+@router.get("/{domain_id}")
+async def get_domain(domain_id: UUID, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain_obj = result.scalar_one_or_none()
+    if not domain_obj:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    sc, ec, cc = await _domain_counts(session, domain_obj.id)
+    return DomainResponse(
+        id=domain_obj.id,
+        name=domain_obj.name,
+        description=domain_obj.description,
+        config=domain_obj.config or {},
+        public=domain_obj.public,
+        created_at=domain_obj.created_at.isoformat(),
         source_count=sc,
         entry_count=ec,
         belief_count=cc,
     )
 
 
-class ProjectUpdate(BaseModel):
+class DomainUpdate(BaseModel):
     name: str | None = None
-    domain: str | None = None
+    description: str | None = None
     config: dict | None = None
     public: bool | None = None
 
 
-@router.patch("/{project_id}", response_model=ProjectResponse)
-async def update_project(project_id: UUID, data: ProjectUpdate, session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+@router.patch("/{domain_id}", response_model=DomainResponse)
+async def update_domain(domain_id: UUID, data: DomainUpdate, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain_obj = result.scalar_one_or_none()
+    if not domain_obj:
+        raise HTTPException(status_code=404, detail="Domain not found")
     update_fields = data.model_dump(exclude_unset=True)
     for field, value in update_fields.items():
-        setattr(project, field, value)
+        setattr(domain_obj, field, value)
     await session.commit()
-    await session.refresh(project)
-    if "name" in update_fields or "domain" in update_fields:
-        sc, ec, cc = await _project_counts(session, project.id)
-    return ProjectResponse(
-        id=project.id,
-        name=project.name,
-        domain=project.domain,
-        config=project.config or {},
-        public=project.public,
-        created_at=project.created_at.isoformat(),
+    await session.refresh(domain_obj)
+    if "name" in update_fields or "description" in update_fields:
+        sc, ec, cc = await _domain_counts(session, domain_obj.id)
+    return DomainResponse(
+        id=domain_obj.id,
+        name=domain_obj.name,
+        description=domain_obj.description,
+        config=domain_obj.config or {},
+        public=domain_obj.public,
+        created_at=domain_obj.created_at.isoformat(),
         source_count=sc,
         entry_count=ec,
         belief_count=cc,
     )
 
 
-@router.delete("/{project_id}")
-async def delete_project(project_id: UUID, session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    await session.delete(project)
+@router.delete("/{domain_id}")
+async def delete_domain(domain_id: UUID, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain_obj = result.scalar_one_or_none()
+    if not domain_obj:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    await session.delete(domain_obj)
     await session.commit()
     return {"status": "deleted"}
 
@@ -181,21 +181,21 @@ def _load_network_from_upload(content: bytes, filename: str):
         tmp_path.unlink(missing_ok=True)
 
 
-@router.post("/{project_id}/import-reasons")
+@router.post("/{domain_id}/import-reasons")
 async def upsert_reasons(
-    project_id: UUID,
+    domain_id: UUID,
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
 ):
-    """Upsert beliefs from a reasons.db or network.json file into an existing project.
+    """Upsert beliefs from a reasons.db or network.json file into an existing domain.
 
     Nodes that already exist are skipped (preserving API-added beliefs).
     New nodes and their justifications are added.
     """
-    result = await session.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain_obj = result.scalar_one_or_none()
+    if not domain_obj:
+        raise HTTPException(status_code=404, detail="Domain not found")
 
     content = await file.read()
     try:
@@ -210,28 +210,28 @@ async def upsert_reasons(
                 meta = getattr(node, "metadata", {}) or {}
                 try:
                     rms_api.add_node(
-                        project_id, node.id, node.text,
+                        domain_id, node.id, node.text,
                         source=node.source or "",
                         example=meta.get("example"),
                     )
                     added += 1
                 except ValueError:
                     rms_api.update_node(
-                        project_id, node.id,
+                        domain_id, node.id,
                         text=node.text,
                         source=node.source or "",
                         example=meta.get("example"),
                     )
                     updated += 1
                 if node.truth_value == "OUT":
-                    rms_api.retract_node(project_id, node.id)
+                    rms_api.retract_node(domain_id, node.id)
                 else:
-                    rms_api.assert_node(project_id, node.id)
+                    rms_api.assert_node(domain_id, node.id)
 
         await asyncio.to_thread(_do_upsert)
-    
+
         return {
-            "project_id": str(project_id),
+            "domain_id": str(domain_id),
             "added": added,
             "updated": updated,
             "total_in_file": len(network.nodes),
@@ -245,41 +245,37 @@ async def upsert_reasons(
 @router.post("/import-reasons")
 async def import_reasons(
     name: str = Form(...),
-    domain: str = Form(""),
+    description: str = Form(""),
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
 ):
-    """Import a reasons.db file to create a new project with beliefs.
+    """Import a reasons.db file to create a new domain with beliefs.
 
-    Creates the project, then imports the network via rms_api.import_network.
+    Creates the domain, then imports the network via rms_api.import_network.
     """
-    # Save upload to temp file for validation and import
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
         tmp_path = Path(tmp.name)
         content = await file.read()
         tmp.write(content)
 
     try:
-        # Verify it's a valid reasons_lib database
         from reasons_lib.storage import Storage
         store = Storage(str(tmp_path))
         network = store.load()
         store.close()
 
-        # Create the project
-        project = Project(name=name, domain=domain)
-        session.add(project)
+        domain_obj = Domain(name=name, description=description)
+        session.add(domain_obj)
         await session.commit()
-        await session.refresh(project)
+        await session.refresh(domain_obj)
 
-        # Import via public API
         result = await asyncio.to_thread(
-            rms_api.import_network, project.id, network
+            rms_api.import_network, domain_obj.id, network
         )
-    
+
         return {
-            "project_id": str(project.id),
-            "name": project.name,
+            "domain_id": str(domain_obj.id),
+            "name": domain_obj.name,
             "beliefs": result["node_count"],
             "nogoods": result["nogood_count"],
         }

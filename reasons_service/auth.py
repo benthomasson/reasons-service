@@ -75,7 +75,7 @@ async def auth_callback(request: Request, session: AsyncSession = Depends(get_se
     request.session.clear()
     request.session["user_email"] = email
     request.session["user_name"] = userinfo.get("name", email)
-    return RedirectResponse(url="/projects")
+    return RedirectResponse(url="/domains")
 
 
 @router.get("/logout")
@@ -216,13 +216,13 @@ async def verify_auth_or_public(
     except HTTPException as e:
         if e.status_code != 401:
             raise
-    # Auth failed with 401 — check if this is a public project
-    project_id = request.path_params.get("project_id")
-    if project_id:
+    # Auth failed with 401 — check if this is a public domain
+    domain_id = request.path_params.get("domain_id")
+    if domain_id:
         from uuid import UUID
-        from reasons_service.db.models import Project
+        from reasons_service.db.models import Domain
         result = await session.execute(
-            select(Project.public).where(Project.id == UUID(str(project_id)))
+            select(Domain.public).where(Domain.id == UUID(str(domain_id)))
         )
         row = result.first()
         if row and row.public:

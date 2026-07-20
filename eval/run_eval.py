@@ -34,9 +34,9 @@ def main():
         help="Limit number of questions (for testing)",
     )
     parser.add_argument(
-        "--project-id",
+        "--domain-id",
         required=True,
-        help="Expert-service project UUID",
+        help="Expert-service domain UUID",
     )
     parser.add_argument(
         "--base-url",
@@ -77,7 +77,7 @@ def main():
         run_evaluation(
             systems=systems,
             questions=questions,
-            project_id=args.project_id,
+            domain_id=args.domain_id,
             base_url=args.base_url,
             aap_dir=args.aap_dir,
             limit=args.limit,

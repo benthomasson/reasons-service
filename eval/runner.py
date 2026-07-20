@@ -101,14 +101,14 @@ def format_mc_question(q: dict) -> str:
     return "\n".join(lines)
 
 
-def get_driver(system_name: str, project_id: str, base_url: str, aap_dir: str):
+def get_driver(system_name: str, domain_id: str, base_url: str, aap_dir: str):
     """Create a driver for the given system name."""
     if system_name == "claude-code":
         return ClaudeCodeDriver(cwd=aap_dir)
     elif system_name == "expert-service-gemini":
-        return ExpertServiceDriver(base_url, project_id, "gemini-2.5-pro")
+        return ExpertServiceDriver(base_url, domain_id, "gemini-2.5-pro")
     elif system_name == "expert-service-claude":
-        return ExpertServiceDriver(base_url, project_id, "claude-sonnet-4-5@20250929")
+        return ExpertServiceDriver(base_url, domain_id, "claude-sonnet-4-5@20250929")
     else:
         raise ValueError(f"Unknown system: {system_name}")
 
@@ -116,7 +116,7 @@ def get_driver(system_name: str, project_id: str, base_url: str, aap_dir: str):
 async def run_evaluation(
     systems: list[str],
     questions: list[dict],
-    project_id: str,
+    domain_id: str,
     base_url: str = "http://localhost:8000",
     aap_dir: str = "~/git/aap-expert",
     limit: int | None = None,
@@ -129,7 +129,7 @@ async def run_evaluation(
     all_system_results = {}
 
     for system_name in systems:
-        driver = get_driver(system_name, project_id, base_url, aap_dir)
+        driver = get_driver(system_name, domain_id, base_url, aap_dir)
         config = {"type": system_name}
         if isinstance(driver, ClaudeCodeDriver):
             config["cwd"] = driver.cwd

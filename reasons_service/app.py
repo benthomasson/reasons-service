@@ -14,12 +14,12 @@ from sqlalchemy import func, select, text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.sessions import SessionMiddleware
 
-from reasons_service.api import projects, data, ask, public
+from reasons_service.api import domains, data, ask, public
 from reasons_service.auth import router as auth_router, security, verify_auth, verify_auth_or_public, verify_auth_web, _LoginRedirect
 from fastapi.security import HTTPAuthorizationCredentials
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
-from reasons_service.db.models import Assessment, Entry, Project, Source, entry_sources
+from reasons_service.db.models import Assessment, Entry, Domain, Source, entry_sources
 from reasons_service.rbac import UserInfo
 from reasons_service.mcp import mcp as mcp_server
 from reasons_service.rms import api as rms_api
@@ -100,7 +100,7 @@ async def health():
 @app.get("/robots.txt", response_class=PlainTextResponse)
 async def robots_txt():
     return PlainTextResponse(
-        "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /projects/\n",
+        "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /domains/\n",
         media_type="text/plain",
     )
 
@@ -116,34 +116,34 @@ async def version():
     return {"version": __version__, "git_hash": _resolve_git_hash()}
 
 
-# Public project name resolution (must be before projects.router to avoid
-# /api/projects/{project_id} matching "resolve" as a project_id)
-@app.get("/api/projects/resolve")
-async def resolve_project_name(
+# Public domain name resolution (must be before domains.router to avoid
+# /api/domains/{domain_id} matching "resolve" as a domain_id)
+@app.get("/api/domains/resolve")
+async def resolve_domain_name(
     name: str,
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     session: AsyncSession = Depends(get_session),
 ):
-    """Resolve a project name to its ID. No auth needed for public projects."""
+    """Resolve a domain name to its ID. No auth needed for public domains."""
     result = await session.execute(
-        select(Project.id, Project.public).where(Project.name == name)
+        select(Domain.id, Domain.public).where(Domain.name == name)
     )
     row = result.first()
     if not row:
-        raise HTTPException(status_code=404, detail=f"Project '{name}' not found")
+        raise HTTPException(status_code=404, detail=f"Domain '{name}' not found")
     if row.public:
         return {"id": str(row.id), "name": name, "public": True}
-    # Private project — require auth
+    # Private domain — require auth
     await verify_auth(request, credentials, session)
     return {"id": str(row.id), "name": name, "public": False}
 
-# Public project views (no auth — gated by project.public flag)
+# Public domain views (no auth — gated by domain.public flag)
 app.include_router(public.landing_router)
 app.include_router(public.router)
 
 # API routes (protected by auth)
-app.include_router(projects.router, dependencies=[Depends(verify_auth)])
+app.include_router(domains.router, dependencies=[Depends(verify_auth)])
 app.include_router(data.router, dependencies=[Depends(verify_auth_or_public)])
 app.include_router(data.tag_router, dependencies=[Depends(verify_auth)])
 
@@ -153,6 +153,7 @@ app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public)])
 # Must be on the parent app — MCP clients look for these at the domain root,
 # not under the /mcp mount prefix.
 if settings.google_client_id and settings.google_client_secret:
+    from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
     from mcp.shared.auth import OAuthMetadata, ProtectedResourceMetadata
     from fastapi.responses import JSONResponse as _JSONResponse
 
@@ -214,15 +215,15 @@ templates.env.globals["hub_mode"] = settings.hub_mode
 async def home(request: Request, session: AsyncSession = Depends(get_session)):
     """Public landing page — lists public experts, links to login."""
     result = await session.execute(
-        select(Project).where(Project.public == True).order_by(Project.name)
+        select(Domain).where(Domain.public == True).order_by(Domain.name)
     )
-    projects = result.scalars().all()
+    domain_list = result.scalars().all()
     experts = []
-    for p in projects:
-        belief_count = await asyncio.to_thread(rms_api.count_beliefs, p.id, "IN")
+    for d in domain_list:
+        belief_count = await asyncio.to_thread(rms_api.count_beliefs, d.id, "IN")
         experts.append({
-            "name": p.name,
-            "domain": p.domain,
+            "name": d.name,
+            "description": d.description,
             "belief_count": belief_count,
         })
     return templates.TemplateResponse(request, "home.html", {
@@ -231,82 +232,82 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
 
 
 if not settings.hub_mode:
-    @app.get("/projects", response_class=HTMLResponse)
-    async def projects_list(request: Request, _user: UserInfo = Depends(verify_auth_web), session: AsyncSession = Depends(get_session)):
-        """Authenticated projects list page."""
-        result = await session.execute(select(Project).order_by(Project.created_at.desc()))
-        project_list = result.scalars().all()
+    @app.get("/domains", response_class=HTMLResponse)
+    async def domains_list(request: Request, _user: UserInfo = Depends(verify_auth_web), session: AsyncSession = Depends(get_session)):
+        """Authenticated domains list page."""
+        result = await session.execute(select(Domain).order_by(Domain.created_at.desc()))
+        all_domains = result.scalars().all()
 
-        projects_with_stats = []
-        for p in project_list:
+        domains_with_stats = []
+        for d in all_domains:
             source_count = await session.scalar(
-                select(func.count()).select_from(Source).where(Source.project_id == p.id)
+                select(func.count()).select_from(Source).where(Source.domain_id == d.id)
             )
             entry_count = await session.scalar(
-                select(func.count()).select_from(Entry).where(Entry.project_id == p.id)
+                select(func.count()).select_from(Entry).where(Entry.domain_id == d.id)
             )
-            belief_count = await asyncio.to_thread(rms_api.count_beliefs, p.id, "IN")
-            projects_with_stats.append({
-                "id": p.id,
-                "name": p.name,
-                "domain": p.domain,
+            belief_count = await asyncio.to_thread(rms_api.count_beliefs, d.id, "IN")
+            domains_with_stats.append({
+                "id": d.id,
+                "name": d.name,
+                "description": d.description,
                 "source_count": source_count or 0,
                 "entry_count": entry_count or 0,
                 "belief_count": belief_count or 0,
             })
 
-        return templates.TemplateResponse(request, "projects/list.html", {
-            "projects": projects_with_stats,
+        return templates.TemplateResponse(request, "domains/list.html", {
+            "domains": domains_with_stats,
         })
 
-    @app.get("/projects/new", response_class=HTMLResponse)
-    async def new_project_form(request: Request, _user: UserInfo = Depends(verify_auth_web)):
-        return templates.TemplateResponse(request, "projects/create.html")
+    @app.get("/domains/new", response_class=HTMLResponse)
+    async def new_domain_form(request: Request, _user: UserInfo = Depends(verify_auth_web)):
+        return templates.TemplateResponse(request, "domains/create.html")
 
-    @app.post("/projects/new")
-    async def create_project_form(
+    @app.post("/domains/new")
+    async def create_domain_form(
         request: Request,
         name: str = Form(...),
-        domain: str = Form(...),
+        description: str = Form(...),
         _user: UserInfo = Depends(verify_auth_web),
         session: AsyncSession = Depends(get_session),
     ):
-        project = Project(name=name, domain=domain)
-        session.add(project)
+        domain_obj = Domain(name=name, description=description)
+        session.add(domain_obj)
         await session.commit()
-        await session.refresh(project)
-        return RedirectResponse(f"/projects/{project.id}", status_code=303)
+        await session.refresh(domain_obj)
+        return RedirectResponse(f"/domains/{domain_obj.id}", status_code=303)
 
 
-@app.get("/projects/{project_id}", response_class=HTMLResponse)
-async def project_detail(
+@app.get("/domains/{domain_id}", response_class=HTMLResponse)
+async def domain_detail(
     request: Request,
-    project_id: UUID,
+    domain_id: UUID,
     _user: UserInfo = Depends(verify_auth_web),
     session: AsyncSession = Depends(get_session),
 ):
-    result = await session.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        return HTMLResponse("Project not found", status_code=404)
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain_obj = result.scalar_one_or_none()
+    if not domain_obj:
+        return HTMLResponse("Domain not found", status_code=404)
 
     stats = {
         "sources": await session.scalar(
-            select(func.count()).select_from(Source).where(Source.project_id == project_id)
+            select(func.count()).select_from(Source).where(Source.domain_id == domain_id)
         ) or 0,
         "entries": await session.scalar(
-            select(func.count()).select_from(Entry).where(Entry.project_id == project_id)
+            select(func.count()).select_from(Entry).where(Entry.domain_id == domain_id)
         ) or 0,
-        "beliefs": await asyncio.to_thread(rms_api.count_beliefs, project_id, "IN"),
-        "nogoods": await asyncio.to_thread(rms_api.count_nogoods, project_id),
+        "beliefs": await asyncio.to_thread(rms_api.count_beliefs, domain_id, "IN"),
+        "nogoods": await asyncio.to_thread(rms_api.count_nogoods, domain_id),
         "assessments": await session.scalar(
-            select(func.count()).select_from(Assessment).where(Assessment.project_id == project_id)
+            select(func.count()).select_from(Assessment).where(Assessment.domain_id == domain_id)
         ) or 0,
     }
 
     entry_result = await session.execute(
         select(Entry.id, Entry.topic, Entry.title, Entry.created_at)
-        .where(Entry.project_id == project_id)
+        .where(Entry.domain_id == domain_id)
         .order_by(Entry.created_at.desc())
         .limit(10)
     )
@@ -314,131 +315,130 @@ async def project_detail(
     for e in entries:
         e["created_at"] = e["created_at"].isoformat() if e["created_at"] else ""
 
-    return templates.TemplateResponse(request, "projects/detail.html", {
-        "project": {"id": project_id, "name": project.name, "domain": project.domain},
+    return templates.TemplateResponse(request, "domains/detail.html", {
+        "domain": {"id": domain_id, "name": domain_obj.name, "description": domain_obj.description},
         "stats": stats,
         "entries": entries,
     })
 
 
-@app.get("/projects/{project_id}/sources/{slug}/view", response_class=HTMLResponse)
+@app.get("/domains/{domain_id}/sources/{slug}/view", response_class=HTMLResponse)
 async def source_content_view(
     request: Request,
-    project_id: UUID,
+    domain_id: UUID,
     slug: str,
     _user: UserInfo = Depends(verify_auth_web),
     session: AsyncSession = Depends(get_session),
 ):
     """Render a source document's original content."""
-    project = (await session.execute(
-        select(Project).where(Project.id == project_id)
+    domain_obj = (await session.execute(
+        select(Domain).where(Domain.id == domain_id)
     )).scalar_one_or_none()
-    if not project:
-        return HTMLResponse("Project not found", status_code=404)
+    if not domain_obj:
+        return HTMLResponse("Domain not found", status_code=404)
     source = (await session.execute(
-        select(Source).where(Source.project_id == project_id, Source.slug == slug)
+        select(Source).where(Source.domain_id == domain_id, Source.slug == slug)
     )).scalar_one_or_none()
     if not source:
         return HTMLResponse(f"Source not found: {slug}", status_code=404)
     return templates.TemplateResponse(request, "entries/view.html", {
-        "project": {"id": project_id, "name": project.name},
+        "domain": {"id": domain_id, "name": domain_obj.name},
         "entry": {"id": slug, "title": slug, "topic": slug},
         "content_json": json.dumps(source.content),
         "linked_sources": [],
     })
 
 
-@app.get("/projects/{project_id}/source/{path:path}", response_class=HTMLResponse)
+@app.get("/domains/{domain_id}/source/{path:path}", response_class=HTMLResponse)
 async def source_view(
     request: Request,
-    project_id: UUID,
+    domain_id: UUID,
     path: str,
     _user: UserInfo = Depends(verify_auth_web),
     session: AsyncSession = Depends(get_session),
 ):
     """Render a source document by its path (e.g. entries/2026/04/23/scan-ftl-reasons.md).
 
-    Looks up the entry by matching the topic (filename stem) against entries in the project.
+    Looks up the entry by matching the topic (filename stem) against entries in the domain.
     """
-    project = (await session.execute(
-        select(Project).where(Project.id == project_id)
+    domain_obj = (await session.execute(
+        select(Domain).where(Domain.id == domain_id)
     )).scalar_one_or_none()
-    if not project:
-        return HTMLResponse("Project not found", status_code=404)
+    if not domain_obj:
+        return HTMLResponse("Domain not found", status_code=404)
 
-    # Extract topic from path: "entries/2026/04/23/scan-ftl-reasons.md" → "scan-ftl-reasons"
     topic = Path(path).stem
 
     from sqlalchemy.orm import selectinload
     entry = (await session.execute(
         select(Entry).options(selectinload(Entry.sources))
-        .where(Entry.project_id == project_id, Entry.topic == topic).limit(1)
+        .where(Entry.domain_id == domain_id, Entry.topic == topic).limit(1)
     )).scalar_one_or_none()
     if not entry:
         return HTMLResponse(f"Source not found: {path}", status_code=404)
 
     return templates.TemplateResponse(request, "entries/view.html", {
-        "project": {"id": project_id, "name": project.name},
+        "domain": {"id": domain_id, "name": domain_obj.name},
         "entry": {"id": entry.id, "title": entry.title, "topic": entry.topic},
         "content_json": json.dumps(entry.content),
         "linked_sources": [{"slug": s.slug} for s in entry.sources],
     })
 
 
-@app.get("/projects/{project_id}/entries/{entry_id}/view", response_class=HTMLResponse)
+@app.get("/domains/{domain_id}/entries/{entry_id}/view", response_class=HTMLResponse)
 async def entry_view(
     request: Request,
-    project_id: UUID,
+    domain_id: UUID,
     entry_id: str,
     _user: UserInfo = Depends(verify_auth_web),
     session: AsyncSession = Depends(get_session),
 ):
     """Render an entry's markdown content in a simple viewer."""
-    project = (await session.execute(
-        select(Project).where(Project.id == project_id)
+    domain_obj = (await session.execute(
+        select(Domain).where(Domain.id == domain_id)
     )).scalar_one_or_none()
-    if not project:
-        return HTMLResponse("Project not found", status_code=404)
+    if not domain_obj:
+        return HTMLResponse("Domain not found", status_code=404)
 
     from sqlalchemy.orm import selectinload
     entry = (await session.execute(
         select(Entry).options(selectinload(Entry.sources))
-        .where(Entry.project_id == project_id, Entry.id == entry_id)
+        .where(Entry.domain_id == domain_id, Entry.id == entry_id)
     )).scalar_one_or_none()
     if not entry:
         return HTMLResponse("Entry not found", status_code=404)
 
     return templates.TemplateResponse(request, "entries/view.html", {
-        "project": {"id": project_id, "name": project.name},
+        "domain": {"id": domain_id, "name": domain_obj.name},
         "entry": {"id": entry.id, "title": entry.title, "topic": entry.topic},
         "content_json": json.dumps(entry.content),
         "linked_sources": [{"slug": s.slug} for s in entry.sources],
     })
 
 
-@app.get("/projects/{project_id}/entries/{entry_id}/report", response_class=HTMLResponse)
+@app.get("/domains/{domain_id}/entries/{entry_id}/report", response_class=HTMLResponse)
 async def entry_report(
     request: Request,
-    project_id: UUID,
+    domain_id: UUID,
     entry_id: str,
     _user: UserInfo = Depends(verify_auth_web),
     session: AsyncSession = Depends(get_session),
 ):
     """Render an entry as an interactive report with Explain/What-if buttons on belief references."""
-    project = (await session.execute(
-        select(Project).where(Project.id == project_id)
+    domain_obj = (await session.execute(
+        select(Domain).where(Domain.id == domain_id)
     )).scalar_one_or_none()
-    if not project:
-        return HTMLResponse("Project not found", status_code=404)
+    if not domain_obj:
+        return HTMLResponse("Domain not found", status_code=404)
 
     entry = (await session.execute(
-        select(Entry).where(Entry.project_id == project_id, Entry.id == entry_id)
+        select(Entry).where(Entry.domain_id == domain_id, Entry.id == entry_id)
     )).scalar_one_or_none()
     if not entry:
         return HTMLResponse("Entry not found", status_code=404)
 
     return templates.TemplateResponse(request, "reports/view.html", {
-        "project": {"id": project_id, "name": project.name},
+        "domain": {"id": domain_id, "name": domain_obj.name},
         "entry": {"id": entry.id, "title": entry.title, "topic": entry.topic},
         "content_json": json.dumps(entry.content),
     })

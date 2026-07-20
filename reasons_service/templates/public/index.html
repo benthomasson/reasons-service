@@ -12,7 +12,7 @@
     {% for e in experts %}
     <article>
         <header><h2 style="margin: 0; font-size: 1rem;">{{ e.name }}</h2></header>
-        {% if e.domain %}<p>{{ e.domain }}</p>{% endif %}
+        {% if e.description %}<p>{{ e.description }}</p>{% endif %}
         <dl class="stats-grid">
             <div class="stat-card">
                 <dd class="value">{{ e.belief_count }}</dd>

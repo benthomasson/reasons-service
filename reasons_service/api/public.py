@@ -1,6 +1,6 @@
-"""Public HTML/markdown/JSON beliefs views for public projects.
+"""Public HTML/markdown/JSON beliefs views for public domains.
 
-No authentication required — access is gated by project.public flag.
+No authentication required — access is gated by domain.public flag.
 Designed for Cloudflare caching: plain HTML, Cache-Control headers.
 """
 
@@ -19,10 +19,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import Depends
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import Entry, Project, Source
+from reasons_service.db.models import Entry, Domain, Source
 from reasons_service.rms import api as rms_api
 
-router = APIRouter(prefix="/public/{project_name}", tags=["public"])
+router = APIRouter(prefix="/public/{domain_name}", tags=["public"])
 landing_router = APIRouter(prefix="/public", tags=["public"])
 
 _templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -30,14 +30,14 @@ _templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templ
 _CACHE_MAX_AGE = 300  # 5 minutes
 
 
-async def _resolve_public_project(project_name: str, session: AsyncSession) -> Project:
+async def _resolve_public_domain(domain_name: str, session: AsyncSession) -> Domain:
     result = await session.execute(
-        select(Project).where(Project.name == project_name)
+        select(Domain).where(Domain.name == domain_name)
     )
-    project = result.scalar_one_or_none()
-    if not project or not project.public:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
+    domain_obj = result.scalar_one_or_none()
+    if not domain_obj or not domain_obj.public:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    return domain_obj
 
 
 # --- Markdown to HTML renderer (ported from agentic-mind-service) ---
@@ -204,10 +204,10 @@ def _append_topic_links(body: str, prefix: str) -> str:
 # --- Endpoints ---
 
 @router.get("/beliefs", response_class=HTMLResponse)
-async def beliefs_html(project_name: str, session: AsyncSession = Depends(get_session)):
-    project = await _resolve_public_project(project_name, session)
-    md = await asyncio.to_thread(rms_api.export_markdown, project.id)
-    prefix = f"/public/{project_name}"
+async def beliefs_html(domain_name: str, session: AsyncSession = Depends(get_session)):
+    domain_obj = await _resolve_public_domain(domain_name, session)
+    md = await asyncio.to_thread(rms_api.export_markdown, domain_obj.id)
+    prefix = f"/public/{domain_name}"
     md = _inject_belief_links(md, prefix)
     body = _md_to_html(md)
     nav = (
@@ -219,8 +219,8 @@ async def beliefs_html(project_name: str, session: AsyncSession = Depends(get_se
         f'</nav>'
     )
     html = _HTML_TEMPLATE.format(
-        title=f"{project.name} — Beliefs",
-        description=f"Belief registry for {project.name} — {project.domain or 'expert knowledge base'}",
+        title=f"{domain_obj.name} — Beliefs",
+        description=f"Belief registry for {domain_obj.name} — {domain_obj.description or 'expert knowledge base'}",
         body=nav + body,
     )
     return HTMLResponse(
@@ -230,10 +230,10 @@ async def beliefs_html(project_name: str, session: AsyncSession = Depends(get_se
 
 
 @router.get("/beliefs-in", response_class=HTMLResponse)
-async def beliefs_in_html(project_name: str, session: AsyncSession = Depends(get_session)):
-    project = await _resolve_public_project(project_name, session)
-    md = await asyncio.to_thread(rms_api.export_markdown, project.id, status="IN")
-    prefix = f"/public/{project_name}"
+async def beliefs_in_html(domain_name: str, session: AsyncSession = Depends(get_session)):
+    domain_obj = await _resolve_public_domain(domain_name, session)
+    md = await asyncio.to_thread(rms_api.export_markdown, domain_obj.id, status="IN")
+    prefix = f"/public/{domain_name}"
     md = _inject_belief_links(md, prefix)
     body = _md_to_html(md)
     nav = (
@@ -245,8 +245,8 @@ async def beliefs_in_html(project_name: str, session: AsyncSession = Depends(get
         f'</nav>'
     )
     html = _HTML_TEMPLATE.format(
-        title=f"{project.name} — Beliefs (IN)",
-        description=f"Active beliefs for {project.name} — {project.domain or 'expert knowledge base'}",
+        title=f"{domain_obj.name} — Beliefs (IN)",
+        description=f"Active beliefs for {domain_obj.name} — {domain_obj.description or 'expert knowledge base'}",
         body=nav + body,
     )
     return HTMLResponse(
@@ -256,9 +256,9 @@ async def beliefs_in_html(project_name: str, session: AsyncSession = Depends(get
 
 
 @router.get("/beliefs-in.md", response_class=PlainTextResponse)
-async def beliefs_in_markdown(project_name: str, session: AsyncSession = Depends(get_session)):
-    project = await _resolve_public_project(project_name, session)
-    md = await asyncio.to_thread(rms_api.export_markdown, project.id, status="IN")
+async def beliefs_in_markdown(domain_name: str, session: AsyncSession = Depends(get_session)):
+    domain_obj = await _resolve_public_domain(domain_name, session)
+    md = await asyncio.to_thread(rms_api.export_markdown, domain_obj.id, status="IN")
     return PlainTextResponse(
         md,
         media_type="text/markdown",
@@ -267,10 +267,10 @@ async def beliefs_in_markdown(project_name: str, session: AsyncSession = Depends
 
 
 @router.get("/beliefs-in.json")
-async def beliefs_in_json(project_name: str, session: AsyncSession = Depends(get_session)):
-    project = await _resolve_public_project(project_name, session)
-    result = await asyncio.to_thread(rms_api.list_nodes, project.id, status="IN")
-    prefix = f"/public/{project_name}"
+async def beliefs_in_json(domain_name: str, session: AsyncSession = Depends(get_session)):
+    domain_obj = await _resolve_public_domain(domain_name, session)
+    result = await asyncio.to_thread(rms_api.list_nodes, domain_obj.id, status="IN")
+    prefix = f"/public/{domain_name}"
     for n in result.get("nodes", []):
         n["url"] = f"{prefix}/belief/{n['id']}.json"
     return JSONResponse(
@@ -280,9 +280,9 @@ async def beliefs_in_json(project_name: str, session: AsyncSession = Depends(get
 
 
 @router.get("/beliefs.md", response_class=PlainTextResponse)
-async def beliefs_markdown(project_name: str, session: AsyncSession = Depends(get_session)):
-    project = await _resolve_public_project(project_name, session)
-    md = await asyncio.to_thread(rms_api.export_markdown, project.id)
+async def beliefs_markdown(domain_name: str, session: AsyncSession = Depends(get_session)):
+    domain_obj = await _resolve_public_domain(domain_name, session)
+    md = await asyncio.to_thread(rms_api.export_markdown, domain_obj.id)
     return PlainTextResponse(
         md,
         media_type="text/markdown",
@@ -291,10 +291,10 @@ async def beliefs_markdown(project_name: str, session: AsyncSession = Depends(ge
 
 
 @router.get("/beliefs.json")
-async def beliefs_json(project_name: str, session: AsyncSession = Depends(get_session)):
-    project = await _resolve_public_project(project_name, session)
-    result = await asyncio.to_thread(rms_api.list_nodes, project.id)
-    prefix = f"/public/{project_name}"
+async def beliefs_json(domain_name: str, session: AsyncSession = Depends(get_session)):
+    domain_obj = await _resolve_public_domain(domain_name, session)
+    result = await asyncio.to_thread(rms_api.list_nodes, domain_obj.id)
+    prefix = f"/public/{domain_name}"
     for n in result.get("nodes", []):
         n["url"] = f"{prefix}/belief/{n['id']}.json"
     return JSONResponse(
@@ -380,16 +380,16 @@ def _belief_to_html(node_id: str, detail: dict, explanation: dict, prefix: str) 
 
 @router.get("/belief/{node_id}.json")
 async def get_belief_json(
-    project_name: str,
+    domain_name: str,
     node_id: str,
     session: AsyncSession = Depends(get_session),
 ):
-    project = await _resolve_public_project(project_name, session)
+    domain_obj = await _resolve_public_domain(domain_name, session)
     try:
-        detail = await asyncio.to_thread(rms_api.show_node, project.id, node_id)
+        detail = await asyncio.to_thread(rms_api.show_node, domain_obj.id, node_id)
     except Exception:
         raise HTTPException(status_code=404, detail="Belief not found")
-    explanation = await asyncio.to_thread(rms_api.explain_node, project.id, node_id)
+    explanation = await asyncio.to_thread(rms_api.explain_node, domain_obj.id, node_id)
     detail["explanation"] = explanation
     return JSONResponse(
         detail,
@@ -399,17 +399,17 @@ async def get_belief_json(
 
 @router.get("/belief/{node_id}", response_class=HTMLResponse)
 async def get_belief(
-    project_name: str,
+    domain_name: str,
     node_id: str,
     format: str = "html",
     session: AsyncSession = Depends(get_session),
 ):
-    project = await _resolve_public_project(project_name, session)
+    domain_obj = await _resolve_public_domain(domain_name, session)
     try:
-        detail = await asyncio.to_thread(rms_api.show_node, project.id, node_id)
+        detail = await asyncio.to_thread(rms_api.show_node, domain_obj.id, node_id)
     except Exception:
         raise HTTPException(status_code=404, detail="Belief not found")
-    explanation = await asyncio.to_thread(rms_api.explain_node, project.id, node_id)
+    explanation = await asyncio.to_thread(rms_api.explain_node, domain_obj.id, node_id)
 
     if format == "json":
         detail["explanation"] = explanation
@@ -418,11 +418,11 @@ async def get_belief(
             headers={"Cache-Control": f"public, max-age={_CACHE_MAX_AGE}"},
         )
 
-    prefix = f"/public/{project_name}"
+    prefix = f"/public/{domain_name}"
     body = _belief_to_html(node_id, detail, explanation, prefix)
     belief_text = detail.get("text", "")[:160]
     html = _HTML_TEMPLATE.format(
-        title=f"{node_id} — {project.name}",
+        title=f"{node_id} — {domain_obj.name}",
         description=belief_text,
         body=body,
     )
@@ -434,21 +434,21 @@ async def get_belief(
 
 @router.get("/intro.json")
 async def intro_json(
-    project_name: str,
+    domain_name: str,
     session: AsyncSession = Depends(get_session),
 ):
-    project = await _resolve_public_project(project_name, session)
-    belief_count = await asyncio.to_thread(rms_api.count_beliefs, project.id, "IN")
-    nodes_result = await asyncio.to_thread(rms_api.list_nodes, project.id, status="IN")
+    domain_obj = await _resolve_public_domain(domain_name, session)
+    belief_count = await asyncio.to_thread(rms_api.count_beliefs, domain_obj.id, "IN")
+    nodes_result = await asyncio.to_thread(rms_api.list_nodes, domain_obj.id, status="IN")
     node_ids = [n["id"] for n in nodes_result.get("nodes", [])]
-    prefix = f"/public/{project_name}"
+    prefix = f"/public/{domain_name}"
     topics = _extract_topics(node_ids, limit=30)
     for t in topics:
         t["search_url"] = f"{prefix}/search?q={t['topic']}"
     return JSONResponse(
         {
-            "name": project.name,
-            "domain": project.domain,
+            "name": domain_obj.name,
+            "description": domain_obj.description,
             "belief_count": belief_count,
             "topics": topics,
             "endpoints": {
@@ -465,20 +465,20 @@ async def intro_json(
 
 @router.get("/entry/{entry_id}", response_class=HTMLResponse)
 async def get_entry(
-    project_name: str,
+    domain_name: str,
     entry_id: str,
     session: AsyncSession = Depends(get_session),
 ):
-    project = await _resolve_public_project(project_name, session)
+    domain_obj = await _resolve_public_domain(domain_name, session)
     from sqlalchemy.orm import selectinload
     result = await session.execute(
         select(Entry).options(selectinload(Entry.sources))
-        .where(Entry.project_id == project.id, Entry.id == entry_id)
+        .where(Entry.domain_id == domain_obj.id, Entry.id == entry_id)
     )
     entry = result.scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
-    prefix = f"/public/{project_name}"
+    prefix = f"/public/{domain_name}"
     nav = f'<nav><a href="{prefix}/beliefs">&larr; All beliefs</a></nav>'
     source_links = ""
     if entry.sources:
@@ -489,8 +489,8 @@ async def get_entry(
         source_links = f'<p><strong>Original source:</strong> {links}</p><hr>'
     body = _md_to_html(entry.content)
     html = _HTML_TEMPLATE.format(
-        title=f"{entry_id} — {project.name}",
-        description=f"{entry.title or entry_id} — analysis entry for {project.name}",
+        title=f"{entry_id} — {domain_obj.name}",
+        description=f"{entry.title or entry_id} — analysis entry for {domain_obj.name}",
         body=nav + source_links + body,
     )
     return HTMLResponse(
@@ -501,24 +501,24 @@ async def get_entry(
 
 @router.get("/source/{slug}")
 async def get_source(
-    project_name: str,
+    domain_name: str,
     slug: str,
     session: AsyncSession = Depends(get_session),
 ):
-    project = await _resolve_public_project(project_name, session)
+    domain_obj = await _resolve_public_domain(domain_name, session)
     result = await session.execute(
-        select(Source).where(Source.project_id == project.id, Source.slug == slug)
+        select(Source).where(Source.domain_id == domain_obj.id, Source.slug == slug)
     )
     source = result.scalar_one_or_none()
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
-    prefix = f"/public/{project_name}"
+    prefix = f"/public/{domain_name}"
     nav = f'<nav><a href="{prefix}/beliefs">&larr; All beliefs</a></nav>'
     title_html = f"<h1>{html_mod.escape(source.slug)}</h1>"
     body = _md_to_html(source.content)
     html = _HTML_TEMPLATE.format(
-        title=f"{slug} — {project.name}",
-        description=f"Source document: {slug} — {project.name}",
+        title=f"{slug} — {domain_obj.name}",
+        description=f"Source document: {slug} — {domain_obj.name}",
         body=nav + title_html + body,
     )
     return HTMLResponse(
@@ -529,14 +529,14 @@ async def get_source(
 
 @router.get("/search")
 async def search_beliefs(
-    project_name: str,
+    domain_name: str,
     q: str,
     limit: int = 20,
     offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
-    project = await _resolve_public_project(project_name, session)
-    result = await asyncio.to_thread(rms_api.search, project.id, q, limit=limit, offset=offset)
+    domain_obj = await _resolve_public_domain(domain_name, session)
+    result = await asyncio.to_thread(rms_api.search, domain_obj.id, q, limit=limit, offset=offset)
     return JSONResponse(
         result,
         headers={"Cache-Control": f"public, max-age={_CACHE_MAX_AGE}"},
@@ -545,16 +545,16 @@ async def search_beliefs(
 
 @router.get("/deep-search")
 async def deep_search(
-    project_name: str,
+    domain_name: str,
     q: str,
     session: AsyncSession = Depends(get_session),
 ):
     from reasons_service.db.search import quick_belief_search, search_source_chunks
 
-    project = await _resolve_public_project(project_name, session)
+    domain_obj = await _resolve_public_domain(domain_name, session)
     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(
-        asyncio.to_thread(quick_belief_search, project.id, q, 20),
-        asyncio.to_thread(search_source_chunks, project.id, q, 10),
+        asyncio.to_thread(quick_belief_search, domain_obj.id, q, 20),
+        asyncio.to_thread(search_source_chunks, domain_obj.id, q, 10),
     )
     return JSONResponse(
         {
@@ -583,15 +583,15 @@ async def deep_search(
 @landing_router.get("/", response_class=HTMLResponse)
 async def public_landing(request: Request, session: AsyncSession = Depends(get_session)):
     result = await session.execute(
-        select(Project).where(Project.public == True).order_by(Project.name)
+        select(Domain).where(Domain.public == True).order_by(Domain.name)
     )
-    projects = result.scalars().all()
+    domain_list = result.scalars().all()
     experts = []
-    for p in projects:
+    for p in domain_list:
         belief_count = await asyncio.to_thread(rms_api.count_beliefs, p.id, "IN")
         experts.append({
             "name": p.name,
-            "domain": p.domain,
+            "description": p.description,
             "belief_count": belief_count,
         })
     return _templates.TemplateResponse(

@@ -135,13 +135,13 @@ def find_entries(entries_dir: Path) -> list[dict]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Import expert repo into reasons-service")
+    parser = argparse.ArgumentParser(description="Import expert repo into a reasons-service domain")
     parser.add_argument("repo_path", type=Path, help="Path to expert repo (e.g., ~/git/aap-expert)")
-    parser.add_argument("--name", required=True, help="Project name")
-    parser.add_argument("--domain", required=True, help="Project domain")
+    parser.add_argument("--name", required=True, help="Domain name")
+    parser.add_argument("--domain", required=True, help="Domain subject area")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Service base URL")
     parser.add_argument("--api-key", default=os.environ.get("EXPERT_SERVICE_API_KEY", ""), help="API key for authentication")
-    parser.add_argument("--project-id", help="Use existing project ID instead of creating new")
+    parser.add_argument("--domain-id", help="Use existing domain ID instead of creating new")
     args = parser.parse_args()
 
     repo = args.repo_path.expanduser().resolve()
@@ -155,21 +155,21 @@ def main():
 
     client = httpx.Client(base_url=args.base_url, headers=headers, timeout=30)
 
-    # 1. Create or use existing project
-    if args.project_id:
-        project_id = args.project_id
-        resp = client.get(f"/api/projects/{project_id}")
+    # 1. Create or use existing domain
+    if args.domain_id:
+        domain_id = args.domain_id
+        resp = client.get(f"/api/domains/{domain_id}")
         if resp.status_code != 200:
-            print(f"Error: project {project_id} not found")
+            print(f"Error: domain {domain_id} not found")
             sys.exit(1)
-        print(f"Using existing project: {project_id}")
+        print(f"Using existing domain: {domain_id}")
     else:
-        resp = client.post("/api/projects", json={"name": args.name, "domain": args.domain})
+        resp = client.post("/api/domains", json={"name": args.name, "description": args.domain})
         if resp.status_code == 200:
-            project_id = resp.json()["id"]
-            print(f"Created project: {args.name} ({project_id})")
+            domain_id = resp.json()["id"]
+            print(f"Created domain: {args.name} ({domain_id})")
         else:
-            print(f"Error creating project: {resp.text}")
+            print(f"Error creating domain: {resp.text}")
             sys.exit(1)
 
     # 2. Import sources
@@ -179,7 +179,7 @@ def main():
         print(f"\nImporting {len(sources)} sources...")
 
         resp = client.post(
-            f"/api/projects/{project_id}/import/sources",
+            f"/api/domains/{domain_id}/import/sources",
             json={"sources": sources},
             timeout=60,
         )
@@ -198,7 +198,7 @@ def main():
         print(f"\nImporting {len(entries)} entries...")
 
         resp = client.post(
-            f"/api/projects/{project_id}/import/entries",
+            f"/api/domains/{domain_id}/import/entries",
             json={"entries": entries},
             timeout=60,
         )
@@ -222,7 +222,7 @@ def main():
         for i in range(0, len(claims), batch_size):
             batch = claims[i:i + batch_size]
             resp = client.post(
-                f"/api/projects/{project_id}/import/beliefs",
+                f"/api/domains/{domain_id}/import/beliefs",
                 json={"claims": batch},
                 timeout=300,
             )
@@ -243,10 +243,10 @@ def main():
         print(f"\nNogoods file found at {nogoods_path} (import not yet implemented)")
 
     # Summary
-    resp = client.get(f"/api/projects/{project_id}")
+    resp = client.get(f"/api/domains/{domain_id}")
     if resp.status_code == 200:
         p = resp.json()
-        print(f"\nProject: {p['name']}")
+        print(f"\nDomain: {p['name']}")
         print(f"  Sources: {p['source_count']}")
         print(f"  Entries: {p['entry_count']}")
         print(f"  Beliefs: {p['belief_count']}")

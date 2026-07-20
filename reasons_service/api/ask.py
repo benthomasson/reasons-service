@@ -10,7 +10,7 @@ from reasons_service.rms import api as rms_api
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/projects/{project_id}", tags=["ask"])
+router = APIRouter(prefix="/api/domains/{domain_id}", tags=["ask"])
 
 
 class AskRequest(BaseModel):
@@ -18,13 +18,13 @@ class AskRequest(BaseModel):
 
 
 @router.post("/ask")
-async def ask(project_id: UUID, data: AskRequest):
+async def ask(domain_id: UUID, data: AskRequest):
     try:
-        result = rms_api.search(project_id, data.question)
+        result = rms_api.search(domain_id, data.question)
         results = result.get("results", [])
         count = result.get("count", len(results))
     except Exception:
-        logger.exception("Search failed for project %s", project_id)
+        logger.exception("Search failed for domain %s", domain_id)
         raise HTTPException(status_code=500, detail="Search failed")
     compact = "\n".join(
         f"[{r.get('truth_value', 'UNKNOWN')}] {r.get('id', '?')} — {r.get('text', '')}"

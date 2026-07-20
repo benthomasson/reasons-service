@@ -16,11 +16,11 @@ Designed for users who need access to domain knowledge bases without installing 
 ┌──────────────────────────────────────────────┐
 │              Reasons Service                 │
 │                                              │
-│  ┌─────────┐  ┌─────────┐  ┌─────────────┐  │
-│  │ Search  │  │  Chat   │  │ MCP Server  │  │
-│  │ FTS +   │  │ LLM     │  │ Claude      │  │
-│  │ vector  │  │ synthesis│  │ Desktop     │  │
-│  └─────────┘  └─────────┘  └─────────────┘  │
+│  ┌─────────┐  ┌─────────────┐               │
+│  │ Search  │  │ MCP Server  │               │
+│  │ FTS +   │  │ Claude      │               │
+│  │ vector  │  │ Desktop     │               │
+│  └─────────┘  └─────────────┘               │
 │                                              │
 │  ┌──────────────────────────────────────┐    │
 │  │           PostgreSQL + pgvector      │    │
@@ -44,8 +44,8 @@ docker compose up -d
 open http://localhost:8000
 
 # Import a pre-built knowledge base
-python scripts/load_reasons_db.py ~/path/to/reasons.db project-name --domain "Your domain"
-python scripts/build_embeddings.py --project-id <uuid>
+python scripts/load_reasons_db.py ~/path/to/reasons.db domain-name --domain "Your domain"
+python scripts/build_embeddings.py --domain-id <uuid>
 ```
 
 ## MCP Server
@@ -60,7 +60,7 @@ The MCP server at `/mcp` exposes these tools to Claude Desktop and Claude Code:
 | `what_if` | Simulate retracting or asserting a belief |
 | `get_belief` | Full details for a specific belief |
 | `list_beliefs` | List beliefs with optional status filter |
-| `list_projects` | List available knowledge bases |
+| `list_domains` | List available knowledge bases |
 | `list_topics` | Browse topic structure of a knowledge base |
 | `list_entries` | List analysis entries by topic |
 | `get_entry` | Read full entry content |
@@ -81,24 +81,24 @@ Connect Claude Desktop by adding to your config:
 
 ```bash
 # Search a knowledge base
-curl localhost:8000/api/projects/{id}/search?q=drug+interactions
+curl localhost:8000/api/domains/{id}/search?q=drug+interactions
 
 # Deep search (IDF-ranked, dual-path retrieval)
-curl localhost:8000/api/projects/{id}/deep-search?q=clinical+trials
+curl localhost:8000/api/domains/{id}/deep-search?q=clinical+trials
 
 # List beliefs
-curl localhost:8000/api/projects/{id}/beliefs
+curl localhost:8000/api/domains/{id}/beliefs
 
 # Explain a belief
-curl localhost:8000/api/projects/{id}/beliefs/{node_id}/explain
+curl localhost:8000/api/domains/{id}/beliefs/{node_id}/explain
 
 # What-if analysis
-curl localhost:8000/api/projects/{id}/beliefs/{node_id}/what-if?action=retract
+curl localhost:8000/api/domains/{id}/beliefs/{node_id}/what-if?action=retract
 
 # Browse data
-curl localhost:8000/api/projects/{id}/sources
-curl localhost:8000/api/projects/{id}/entries
-curl localhost:8000/api/projects/{id}/topics
+curl localhost:8000/api/domains/{id}/sources
+curl localhost:8000/api/domains/{id}/entries
+curl localhost:8000/api/domains/{id}/topics
 ```
 
 ## Architecture
@@ -110,7 +110,7 @@ reasons-service/
 │   ├── config.py               # Settings (DB, API keys, model)
 │   ├── mcp.py                  # MCP server (streamable HTTP)
 │   ├── api/                    # REST API routes
-│   │   ├── projects.py         #   Project CRUD + import
+│   │   ├── domains.py          #   Domain CRUD + import
 │   │   ├── data.py             #   Sources, entries, beliefs, search
 │   │   └── ask.py              #   FTS-only ask (no LLM)
 │   ├── db/                     # PostgreSQL + pgvector
@@ -134,7 +134,7 @@ reasons-service/
 
 | Table | Purpose |
 |-------|---------|
-| `projects` | Multi-project knowledge base isolation |
+| `domains` | Multi-domain knowledge base isolation |
 | `sources` | Imported documentation chunks |
 | `entries` | Analysis entries and summaries |
 | `claims` | Beliefs with IN/OUT truth values |

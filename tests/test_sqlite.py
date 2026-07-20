@@ -9,7 +9,7 @@ from uuid import UUID
 import pytest
 
 
-FAKE_PROJECT_ID = UUID("00000000-0000-0000-0000-000000000001")
+FAKE_DOMAIN_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 # --- count_beliefs ---
@@ -18,7 +18,7 @@ FAKE_PROJECT_ID = UUID("00000000-0000-0000-0000-000000000001")
 class TestCountBeliefs:
     def _make_db(self, tmp_path, nodes=None):
         """Create a minimal reasons_lib-compatible SQLite database."""
-        db_path = tmp_path / str(FAKE_PROJECT_ID) / "reasons.db"
+        db_path = tmp_path / str(FAKE_DOMAIN_ID) / "reasons.db"
         db_path.parent.mkdir(parents=True)
         conn = sqlite3.connect(str(db_path))
         conn.execute(
@@ -50,7 +50,7 @@ class TestCountBeliefs:
         mock_settings.data_dir = data_dir
 
         from reasons_service.rms.api import count_beliefs
-        assert count_beliefs(FAKE_PROJECT_ID, None) == 3
+        assert count_beliefs(FAKE_DOMAIN_ID, None) == 3
 
     @patch("reasons_service.rms.api.settings")
     def test_count_in_beliefs(self, mock_settings, tmp_path):
@@ -63,7 +63,7 @@ class TestCountBeliefs:
         mock_settings.data_dir = data_dir
 
         from reasons_service.rms.api import count_beliefs
-        assert count_beliefs(FAKE_PROJECT_ID, "IN") == 2
+        assert count_beliefs(FAKE_DOMAIN_ID, "IN") == 2
 
     @patch("reasons_service.rms.api.settings")
     def test_count_out_beliefs(self, mock_settings, tmp_path):
@@ -75,7 +75,7 @@ class TestCountBeliefs:
         mock_settings.data_dir = data_dir
 
         from reasons_service.rms.api import count_beliefs
-        assert count_beliefs(FAKE_PROJECT_ID, "OUT") == 1
+        assert count_beliefs(FAKE_DOMAIN_ID, "OUT") == 1
 
     @patch("reasons_service.rms.api.settings")
     def test_count_empty_db(self, mock_settings, tmp_path):
@@ -84,8 +84,8 @@ class TestCountBeliefs:
         mock_settings.data_dir = data_dir
 
         from reasons_service.rms.api import count_beliefs
-        assert count_beliefs(FAKE_PROJECT_ID, "IN") == 0
-        assert count_beliefs(FAKE_PROJECT_ID, None) == 0
+        assert count_beliefs(FAKE_DOMAIN_ID, "IN") == 0
+        assert count_beliefs(FAKE_DOMAIN_ID, None) == 0
 
     @patch("reasons_service.rms.api.settings")
     def test_count_nonexistent_db(self, mock_settings, tmp_path):
@@ -93,7 +93,7 @@ class TestCountBeliefs:
         mock_settings.data_dir = tmp_path
 
         from reasons_service.rms.api import count_beliefs
-        assert count_beliefs(FAKE_PROJECT_ID, "IN") == 0
+        assert count_beliefs(FAKE_DOMAIN_ID, "IN") == 0
 
 
 # --- count_nogoods ---
@@ -101,7 +101,7 @@ class TestCountBeliefs:
 
 class TestCountNogoods:
     def _make_db(self, tmp_path, nogoods=None):
-        db_path = tmp_path / str(FAKE_PROJECT_ID) / "reasons.db"
+        db_path = tmp_path / str(FAKE_DOMAIN_ID) / "reasons.db"
         db_path.parent.mkdir(parents=True)
         conn = sqlite3.connect(str(db_path))
         conn.execute(
@@ -132,7 +132,7 @@ class TestCountNogoods:
         mock_settings.data_dir = data_dir
 
         from reasons_service.rms.api import count_nogoods
-        assert count_nogoods(FAKE_PROJECT_ID) == 2
+        assert count_nogoods(FAKE_DOMAIN_ID) == 2
 
     @patch("reasons_service.rms.api.settings")
     def test_count_nogoods_empty(self, mock_settings, tmp_path):
@@ -141,7 +141,7 @@ class TestCountNogoods:
         mock_settings.data_dir = data_dir
 
         from reasons_service.rms.api import count_nogoods
-        assert count_nogoods(FAKE_PROJECT_ID) == 0
+        assert count_nogoods(FAKE_DOMAIN_ID) == 0
 
     @patch("reasons_service.rms.api.settings")
     def test_count_nogoods_nonexistent_db(self, mock_settings, tmp_path):
@@ -149,7 +149,7 @@ class TestCountNogoods:
         mock_settings.data_dir = tmp_path
 
         from reasons_service.rms.api import count_nogoods
-        assert count_nogoods(FAKE_PROJECT_ID) == 0
+        assert count_nogoods(FAKE_DOMAIN_ID) == 0
 
 
 # --- init_db ---
@@ -187,7 +187,7 @@ class TestSearchBeliefsFts:
     def _make_db(self, tmp_path, nodes=None):
         """Create a full reasons_lib-compatible SQLite database with FTS5."""
         from reasons_lib.storage import SCHEMA
-        db_path = tmp_path / str(FAKE_PROJECT_ID) / "reasons.db"
+        db_path = tmp_path / str(FAKE_DOMAIN_ID) / "reasons.db"
         db_path.parent.mkdir(parents=True)
         conn = sqlite3.connect(str(db_path))
         conn.executescript(SCHEMA)
@@ -216,7 +216,7 @@ class TestSearchBeliefsFts:
         mock_settings.data_dir = data_dir
 
         from reasons_service.rms.api import search_beliefs_fts
-        results = search_beliefs_fts(FAKE_PROJECT_ID, "pipeline")
+        results = search_beliefs_fts(FAKE_DOMAIN_ID, "pipeline")
         # Only IN beliefs should be returned
         ids = {r["id"] for r in results}
         assert "b1" in ids
@@ -232,7 +232,7 @@ class TestSearchBeliefsFts:
         mock_settings.data_dir = data_dir
 
         from reasons_service.rms.api import search_beliefs_fts
-        results = search_beliefs_fts(FAKE_PROJECT_ID, "security")
+        results = search_beliefs_fts(FAKE_DOMAIN_ID, "security")
         assert len(results) == 0
 
 
@@ -255,13 +255,13 @@ class TestImportNetwork:
         net.add_node("n3", "Third belief")
         net.add_nogood(["n1", "n2"])
 
-        result = import_network(FAKE_PROJECT_ID, net)
+        result = import_network(FAKE_DOMAIN_ID, net)
         assert result["node_count"] == 3
         assert result["nogood_count"] == 1
 
         # Verify data persisted
-        assert count_beliefs(FAKE_PROJECT_ID, None) == 3
-        assert count_nogoods(FAKE_PROJECT_ID) == 1
+        assert count_beliefs(FAKE_DOMAIN_ID, None) == 3
+        assert count_nogoods(FAKE_DOMAIN_ID) == 1
 
     @patch("reasons_service.rms.api.settings")
     def test_import_network_preserves_truth_values(self, mock_settings, tmp_path):
@@ -276,9 +276,9 @@ class TestImportNetwork:
         net.add_node("n2", "OUT belief")
         net.retract("n2")
 
-        import_network(FAKE_PROJECT_ID, net)
-        assert count_beliefs(FAKE_PROJECT_ID, "IN") == 1
-        assert count_beliefs(FAKE_PROJECT_ID, "OUT") == 1
+        import_network(FAKE_DOMAIN_ID, net)
+        assert count_beliefs(FAKE_DOMAIN_ID, "IN") == 1
+        assert count_beliefs(FAKE_DOMAIN_ID, "OUT") == 1
 
     @patch("reasons_service.rms.api.settings")
     def test_import_empty_network(self, mock_settings, tmp_path):
@@ -289,10 +289,10 @@ class TestImportNetwork:
         mock_settings.data_dir = tmp_path
 
         net = Network()
-        result = import_network(FAKE_PROJECT_ID, net)
+        result = import_network(FAKE_DOMAIN_ID, net)
         assert result["node_count"] == 0
         assert result["nogood_count"] == 0
-        assert count_beliefs(FAKE_PROJECT_ID, None) == 0
+        assert count_beliefs(FAKE_DOMAIN_ID, None) == 0
 
 
 # --- import_reasons endpoint ---
@@ -315,7 +315,7 @@ class TestImportReasonsEndpoint:
 
     @patch("reasons_service.rms.api.settings")
     def test_import_reasons_sqlite(self, mock_settings, tmp_path):
-        """Full round-trip: upload reasons.db → project created → beliefs importd."""
+        """Full round-trip: upload reasons.db → domain created → beliefs imported."""
         from httpx import ASGITransport, AsyncClient
         import asyncio
 
@@ -332,14 +332,14 @@ class TestImportReasonsEndpoint:
         store.close()
 
         from reasons_service.rms.api import import_network
-        result = import_network(FAKE_PROJECT_ID, network)
+        result = import_network(FAKE_DOMAIN_ID, network)
         assert result["node_count"] == 2
         assert result["nogood_count"] == 1
 
         # Verify the beliefs are queryable
         from reasons_service.rms.api import count_beliefs, count_nogoods
-        assert count_beliefs(FAKE_PROJECT_ID, None) == 2
-        assert count_nogoods(FAKE_PROJECT_ID) == 1
+        assert count_beliefs(FAKE_DOMAIN_ID, None) == 2
+        assert count_nogoods(FAKE_DOMAIN_ID) == 1
 
     def test_tmp_file_cleanup_on_invalid_upload(self, tmp_path):
         """Temp file is cleaned up even when the upload is invalid."""

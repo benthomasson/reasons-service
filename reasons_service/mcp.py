@@ -154,13 +154,13 @@ def _headers() -> dict[str, str]:
     return {}
 
 
-async def _resolve(project: str) -> str:
-    if len(project) == 36 and project.count("-") == 4:
-        return project
+async def _resolve(domain: str) -> str:
+    if len(domain) == 36 and domain.count("-") == 4:
+        return domain
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/resolve",
-            params={"name": project},
+            f"{BASE_URL}/api/domains/resolve",
+            params={"name": domain},
             headers=_headers(),
             timeout=TIMEOUT,
         )
@@ -172,7 +172,7 @@ async def _resolve(project: str) -> str:
 
 
 @mcp.tool()
-async def deep_search(query: str, project: str) -> str:
+async def deep_search(query: str, domain: str) -> str:
     """Search beliefs and source documents with IDF-ranked results. No LLM call, sub-second response.
 
     This is the recommended search tool. It runs dual-path retrieval across
@@ -181,12 +181,12 @@ async def deep_search(query: str, project: str) -> str:
 
     Args:
         query: The question or search terms
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/deep-search",
+            f"{BASE_URL}/api/domains/{pid}/deep-search",
             params={"q": query},
             headers=_headers(),
             timeout=TIMEOUT,
@@ -197,7 +197,7 @@ async def deep_search(query: str, project: str) -> str:
 
 
 @mcp.tool()
-async def search(query: str, project: str) -> str:
+async def search(query: str, domain: str) -> str:
     """Full-text search across beliefs, entries, and source documents.
 
     Returns matching beliefs (with IN/OUT truth values), entry titles,
@@ -205,12 +205,12 @@ async def search(query: str, project: str) -> str:
 
     Args:
         query: Search terms
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/search",
+            f"{BASE_URL}/api/domains/{pid}/search",
             params={"q": query},
             headers=_headers(),
             timeout=TIMEOUT,
@@ -223,23 +223,23 @@ async def search(query: str, project: str) -> str:
 
 
 @mcp.tool()
-async def explain_belief(node_id: str, project: str) -> str:
+async def explain_belief(node_id: str, domain: str) -> str:
     """Explain why a belief is IN or OUT by tracing its justification chain.
 
     Args:
         node_id: The belief ID to explain
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         belief = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/beliefs/{node_id}",
+            f"{BASE_URL}/api/domains/{pid}/beliefs/{node_id}",
             headers=_headers(),
             timeout=TIMEOUT,
         )
         belief.raise_for_status()
         explanation = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/beliefs/{node_id}/explain",
+            f"{BASE_URL}/api/domains/{pid}/beliefs/{node_id}/explain",
             headers=_headers(),
             timeout=TIMEOUT,
         )
@@ -248,7 +248,7 @@ async def explain_belief(node_id: str, project: str) -> str:
 
 
 @mcp.tool()
-async def what_if(node_id: str, action: str = "retract", project: str = "") -> str:
+async def what_if(node_id: str, action: str = "retract", domain: str = "") -> str:
     """Simulate retracting or asserting a belief without modifying the database.
 
     Shows the cascade: which beliefs would go OUT (retract) or come back IN (assert).
@@ -256,12 +256,12 @@ async def what_if(node_id: str, action: str = "retract", project: str = "") -> s
     Args:
         node_id: The belief ID to simulate
         action: "retract" or "assert"
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/beliefs/{node_id}/what-if",
+            f"{BASE_URL}/api/domains/{pid}/beliefs/{node_id}/what-if",
             params={"action": action},
             headers=_headers(),
             timeout=TIMEOUT,
@@ -271,17 +271,17 @@ async def what_if(node_id: str, action: str = "retract", project: str = "") -> s
 
 
 @mcp.tool()
-async def get_belief(node_id: str, project: str) -> str:
+async def get_belief(node_id: str, domain: str) -> str:
     """Get full details for a specific belief including justifications and dependents.
 
     Args:
         node_id: The belief ID
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/beliefs/{node_id}",
+            f"{BASE_URL}/api/domains/{pid}/beliefs/{node_id}",
             headers=_headers(),
             timeout=TIMEOUT,
         )
@@ -290,20 +290,20 @@ async def get_belief(node_id: str, project: str) -> str:
 
 
 @mcp.tool()
-async def list_beliefs(status: str = "", project: str = "") -> str:
+async def list_beliefs(status: str = "", domain: str = "") -> str:
     """List beliefs in the knowledge base.
 
     Args:
         status: Filter by truth value -- "IN", "OUT", or empty for all
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     params = {}
     if status:
         params["status"] = status
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/beliefs",
+            f"{BASE_URL}/api/domains/{pid}/beliefs",
             params=params,
             headers=_headers(),
             timeout=TIMEOUT,
@@ -316,11 +316,11 @@ async def list_beliefs(status: str = "", project: str = "") -> str:
 
 
 @mcp.tool()
-async def list_projects() -> str:
+async def list_domains() -> str:
     """List all available expert knowledge bases with belief, entry, and source counts."""
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects",
+            f"{BASE_URL}/api/domains",
             headers=_headers(),
             timeout=TIMEOUT,
         )
@@ -329,20 +329,20 @@ async def list_projects() -> str:
 
 
 @mcp.tool()
-async def list_topics(project: str) -> str:
-    """List the main topics covered by a project's knowledge base.
+async def list_topics(domain: str) -> str:
+    """List the main topics covered by a domain's knowledge base.
 
     Returns topic areas with belief counts, giving a quick overview
-    of what the project covers. Use this before searching to understand
+    of what the domain covers. Use this before searching to understand
     the knowledge base structure.
 
     Args:
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/topics",
+            f"{BASE_URL}/api/domains/{pid}/topics",
             headers=_headers(),
             timeout=TIMEOUT,
         )
@@ -350,13 +350,13 @@ async def list_topics(project: str) -> str:
         topics = resp.json()
         if not topics:
             gen = await client.post(
-                f"{BASE_URL}/api/projects/{pid}/topics/generate",
+                f"{BASE_URL}/api/domains/{pid}/topics/generate",
                 headers=_headers(),
                 timeout=TIMEOUT,
             )
             gen.raise_for_status()
             resp = await client.get(
-                f"{BASE_URL}/api/projects/{pid}/topics",
+                f"{BASE_URL}/api/domains/{pid}/topics",
                 headers=_headers(),
                 timeout=TIMEOUT,
             )
@@ -366,20 +366,20 @@ async def list_topics(project: str) -> str:
 
 
 @mcp.tool()
-async def list_entries(topic: str = "", project: str = "") -> str:
+async def list_entries(topic: str = "", domain: str = "") -> str:
     """List analysis entries (reports, findings, assessments).
 
     Args:
         topic: Filter by topic slug, or empty for all entries
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     params = {}
     if topic:
         params["topic"] = topic
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/entries",
+            f"{BASE_URL}/api/domains/{pid}/entries",
             params=params,
             headers=_headers(),
             timeout=TIMEOUT,
@@ -389,17 +389,17 @@ async def list_entries(topic: str = "", project: str = "") -> str:
 
 
 @mcp.tool()
-async def get_entry(entry_id: str, project: str) -> str:
+async def get_entry(entry_id: str, domain: str) -> str:
     """Read the full content of an analysis entry.
 
     Args:
         entry_id: The entry ID
-        project: Project name or UUID
+        domain: Domain name or UUID
     """
-    pid = await _resolve(project)
+    pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/projects/{pid}/entries/{entry_id}",
+            f"{BASE_URL}/api/domains/{pid}/entries/{entry_id}",
             headers=_headers(),
             timeout=TIMEOUT,
         )

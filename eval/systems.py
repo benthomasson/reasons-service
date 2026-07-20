@@ -98,14 +98,14 @@ class ClaudeCodeDriver:
 class ExpertServiceDriver:
     """Call expert-service chat API with SSE streaming."""
 
-    def __init__(self, base_url: str, project_id: str, model: str):
+    def __init__(self, base_url: str, domain_id: str, model: str):
         self.base_url = base_url.rstrip("/")
-        self.project_id = project_id
+        self.domain_id = domain_id
         self.model = model
 
     async def ask(self, question: str) -> DriverResponse:
         prompt = f"{question}\n\nEnd your response with:\nANSWER: <letter>"
-        url = f"{self.base_url}/api/projects/{self.project_id}/chat"
+        url = f"{self.base_url}/api/domains/{self.domain_id}/chat"
         payload = {
             "message": prompt,
             "model": self.model,

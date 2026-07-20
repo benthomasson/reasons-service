@@ -17,7 +17,7 @@
 
 ```
 reasons_service/
-  api/           # FastAPI routers (projects, data, ask)
+  api/           # FastAPI routers (domains, data, ask)
   core/          # Pipeline logic (fetch, summarize, extract)
   db/            # SQLAlchemy models, schema.sql, connection
   llm/           # LLM provider factory (Vertex AI)
@@ -25,7 +25,7 @@ reasons_service/
   embeddings.py  # fastembed + pgvector embedding generation
 scripts/
   import_expert.py      # Import from file-based expert repos
-  build_embeddings.py   # Build vector embeddings per project
+  build_embeddings.py   # Build vector embeddings per domain
 ```
 
 ## Common Commands
@@ -43,10 +43,10 @@ uv run python scripts/import_expert.py ~/git/aap-expert \
 
 # Build embeddings (note port 5433 for local access to Docker postgres)
 DATABASE_URL_SYNC="postgresql+psycopg://expert:expert_dev@localhost:5433/reasons_service" \
-  uv run python scripts/build_embeddings.py --project-id <uuid>
+  uv run python scripts/build_embeddings.py --domain-id <uuid>
 
 # Test API
-curl -s http://localhost:8000/api/projects | python3 -m json.tool
+curl -s http://localhost:8000/api/domains | python3 -m json.tool
 
 ```
 

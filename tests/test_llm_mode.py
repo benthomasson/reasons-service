@@ -70,58 +70,58 @@ class TestRoutePresence:
     # -- LLM-only routes present in LLM mode --
 
     def test_pipeline_route_in_llm_mode(self, llm_routes):
-        assert "/api/projects/{project_id}/ingest" in llm_routes
+        assert "/api/domains/{domain_id}/ingest" in llm_routes
 
     def test_propose_route_in_llm_mode(self, llm_routes):
-        assert "/api/projects/{project_id}/beliefs/propose" in llm_routes
+        assert "/api/domains/{domain_id}/beliefs/propose" in llm_routes
 
     def test_ingest_page_in_llm_mode(self, llm_routes):
-        assert "/projects/{project_id}/ingest" in llm_routes
+        assert "/domains/{domain_id}/ingest" in llm_routes
 
     # -- LLM-only routes absent in no-LLM mode --
 
     def test_pipeline_route_absent_no_llm(self, no_llm_routes):
-        assert "/api/projects/{project_id}/ingest" not in no_llm_routes
+        assert "/api/domains/{domain_id}/ingest" not in no_llm_routes
 
     def test_propose_route_absent_no_llm(self, no_llm_routes):
-        assert "/api/projects/{project_id}/beliefs/propose" not in no_llm_routes
+        assert "/api/domains/{domain_id}/beliefs/propose" not in no_llm_routes
 
     def test_ingest_page_absent_no_llm(self, no_llm_routes):
-        assert "/projects/{project_id}/ingest" not in no_llm_routes
+        assert "/domains/{domain_id}/ingest" not in no_llm_routes
 
     # -- Data routes present in BOTH modes --
 
     @pytest.mark.parametrize("route", [
-        "/api/projects",
-        "/api/projects/{project_id}",
-        "/api/projects/{project_id}/ask",
-        "/api/projects/{project_id}/search",
-        "/api/projects/{project_id}/beliefs",
-        "/api/projects/{project_id}/beliefs/{node_id}",
-        "/api/projects/{project_id}/beliefs/{node_id}/explain",
-        "/api/projects/{project_id}/beliefs/{node_id}/what-if",
-        "/api/projects/{project_id}/entries",
-        "/api/projects/{project_id}/entries/{entry_id}",
-        "/api/projects/{project_id}/sources",
-        "/api/projects/import-reasons",
+        "/api/domains",
+        "/api/domains/{domain_id}",
+        "/api/domains/{domain_id}/ask",
+        "/api/domains/{domain_id}/search",
+        "/api/domains/{domain_id}/beliefs",
+        "/api/domains/{domain_id}/beliefs/{node_id}",
+        "/api/domains/{domain_id}/beliefs/{node_id}/explain",
+        "/api/domains/{domain_id}/beliefs/{node_id}/what-if",
+        "/api/domains/{domain_id}/entries",
+        "/api/domains/{domain_id}/entries/{entry_id}",
+        "/api/domains/{domain_id}/sources",
+        "/api/domains/import-reasons",
         "/health",
     ])
     def test_data_route_in_llm_mode(self, llm_routes, route):
         assert route in llm_routes
 
     @pytest.mark.parametrize("route", [
-        "/api/projects",
-        "/api/projects/{project_id}",
-        "/api/projects/{project_id}/ask",
-        "/api/projects/{project_id}/search",
-        "/api/projects/{project_id}/beliefs",
-        "/api/projects/{project_id}/beliefs/{node_id}",
-        "/api/projects/{project_id}/beliefs/{node_id}/explain",
-        "/api/projects/{project_id}/beliefs/{node_id}/what-if",
-        "/api/projects/{project_id}/entries",
-        "/api/projects/{project_id}/entries/{entry_id}",
-        "/api/projects/{project_id}/sources",
-        "/api/projects/import-reasons",
+        "/api/domains",
+        "/api/domains/{domain_id}",
+        "/api/domains/{domain_id}/ask",
+        "/api/domains/{domain_id}/search",
+        "/api/domains/{domain_id}/beliefs",
+        "/api/domains/{domain_id}/beliefs/{node_id}",
+        "/api/domains/{domain_id}/beliefs/{node_id}/explain",
+        "/api/domains/{domain_id}/beliefs/{node_id}/what-if",
+        "/api/domains/{domain_id}/entries",
+        "/api/domains/{domain_id}/entries/{entry_id}",
+        "/api/domains/{domain_id}/sources",
+        "/api/domains/import-reasons",
         "/health",
     ])
     def test_data_route_in_no_llm_mode(self, no_llm_routes, route):

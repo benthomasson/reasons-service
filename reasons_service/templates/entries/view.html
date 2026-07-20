@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ entry.title or entry.topic }} — {{ project.name }}{% endblock %}
+{% block title %}{{ entry.title or entry.topic }} — {{ domain.name }}{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -18,14 +18,14 @@
 {% endblock %}
 
 {% block content %}
-<a href="/projects/{{ project.id }}" class="back-link">&larr; {{ project.name }}</a>
+<a href="/domains/{{ domain.id }}" class="back-link">&larr; {{ domain.name }}</a>
 
 <div class="entry-meta">
     {{ entry.topic }}
     {% if linked_sources %}
     &middot; Original source:
     {% for s in linked_sources %}
-    <a href="/projects/{{ project.id }}/sources/{{ s.slug }}/view">{{ s.slug }}</a>{% if not loop.last %}, {% endif %}
+    <a href="/domains/{{ domain.id }}/sources/{{ s.slug }}/view">{{ s.slug }}</a>{% if not loop.last %}, {% endif %}
     {% endfor %}
     {% endif %}
 </div>

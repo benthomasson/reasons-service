@@ -260,7 +260,7 @@ class TestRBAC:
         assert has_permission(Role.EDITOR, Action.CHAT) is True
         assert has_permission(Role.EDITOR, Action.EDIT_BELIEFS) is True
         assert has_permission(Role.EDITOR, Action.MANAGE_SOURCES) is True
-        assert has_permission(Role.EDITOR, Action.MANAGE_PROJECTS) is False
+        assert has_permission(Role.EDITOR, Action.MANAGE_DOMAINS) is False
         assert has_permission(Role.EDITOR, Action.ADMIN) is False
 
     def test_reader_permissions(self):
@@ -268,7 +268,7 @@ class TestRBAC:
         assert has_permission(Role.READER, Action.CHAT) is True
         assert has_permission(Role.READER, Action.EDIT_BELIEFS) is False
         assert has_permission(Role.READER, Action.MANAGE_SOURCES) is False
-        assert has_permission(Role.READER, Action.MANAGE_PROJECTS) is False
+        assert has_permission(Role.READER, Action.MANAGE_DOMAINS) is False
         assert has_permission(Role.READER, Action.ADMIN) is False
 
     def test_unknown_role_has_no_permissions(self):
@@ -341,7 +341,7 @@ class TestUserInfo:
         assert Role.READER == "reader"
 
 
-# --- Public project access ---
+# --- Public domain access ---
 
 
 class TestPublicProjectAccess:
@@ -365,8 +365,8 @@ class TestPublicProjectAccess:
         app.add_middleware(SessionMiddleware, secret_key="test-secret")
         app.dependency_overrides[get_session] = lambda: mock_session
 
-        @app.get("/api/projects/{project_id}/data")
-        async def project_data(project_id: str, user: UserInfo = Depends(verify_auth_or_public)):
+        @app.get("/api/domains/{domain_id}/data")
+        async def project_data(domain_id: str, user: UserInfo = Depends(verify_auth_or_public)):
             return {"identity": user.identity, "role": user.role}
 
         return app
@@ -377,7 +377,7 @@ class TestPublicProjectAccess:
         with patch("reasons_service.auth.settings") as mock_settings:
             mock_settings.api_key = ""
             mock_settings.google_client_id = "set"
-            resp = client.get("/api/projects/00000000-0000-0000-0000-000000000001/data")
+            resp = client.get("/api/domains/00000000-0000-0000-0000-000000000001/data")
         assert resp.status_code == 200
         body = resp.json()
         assert body["identity"] == "public"
@@ -389,7 +389,7 @@ class TestPublicProjectAccess:
         with patch("reasons_service.auth.settings") as mock_settings:
             mock_settings.api_key = ""
             mock_settings.google_client_id = "set"
-            resp = client.get("/api/projects/00000000-0000-0000-0000-000000000001/data")
+            resp = client.get("/api/domains/00000000-0000-0000-0000-000000000001/data")
         assert resp.status_code == 401
 
     def test_nonexistent_project_requires_auth(self):
@@ -398,7 +398,7 @@ class TestPublicProjectAccess:
         with patch("reasons_service.auth.settings") as mock_settings:
             mock_settings.api_key = ""
             mock_settings.google_client_id = "set"
-            resp = client.get("/api/projects/00000000-0000-0000-0000-000000000099/data")
+            resp = client.get("/api/domains/00000000-0000-0000-0000-000000000099/data")
         assert resp.status_code == 401
 
     def test_public_project_with_api_key_preserves_identity(self):
@@ -409,7 +409,7 @@ class TestPublicProjectAccess:
             mock_settings.api_key = "test-key"
             mock_settings.google_client_id = "set"
             resp = client.get(
-                "/api/projects/00000000-0000-0000-0000-000000000001/data",
+                "/api/domains/00000000-0000-0000-0000-000000000001/data",
                 headers={"Authorization": "Bearer test-key"},
             )
         assert resp.status_code == 200

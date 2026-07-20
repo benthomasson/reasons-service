@@ -1,4 +1,4 @@
-"""Build embeddings for a project's entries, claims, and sources."""
+"""Build embeddings for a domain's entries, claims, and sources."""
 
 import argparse
 import sys
@@ -8,18 +8,18 @@ from reasons_service.embeddings import build_embeddings
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build embeddings for a project")
-    parser.add_argument("--project-id", required=True, help="Project UUID")
+    parser = argparse.ArgumentParser(description="Build embeddings for a domain")
+    parser.add_argument("--domain-id", required=True, help="Domain UUID")
     args = parser.parse_args()
 
     try:
-        project_id = UUID(args.project_id)
+        domain_id = UUID(args.domain_id)
     except ValueError:
-        print(f"Invalid UUID: {args.project_id}", file=sys.stderr)
+        print(f"Invalid UUID: {args.domain_id}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Building embeddings for project {project_id}...")
-    counts = build_embeddings(project_id)
+    print(f"Building embeddings for domain {domain_id}...")
+    counts = build_embeddings(domain_id)
     print(
         f"Embedded {counts['entries']} entries, "
         f"{counts['sources']} sources, "

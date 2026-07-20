@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 
-from tests.conftest import VALID_PROJECT_ID
+from tests.conftest import VALID_DOMAIN_ID
 
 
 # --- Happy path ---
@@ -20,7 +20,7 @@ def test_ask_returns_beliefs(client, mock_search):
         "count": 2,
     }
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "What is EDA?"},
     )
     assert resp.status_code == 200
@@ -36,7 +36,7 @@ def test_ask_empty_results(client, mock_search):
     """Search returns zero results."""
     mock_search.return_value = {"results": [], "count": 0}
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "nonexistent topic"},
     )
     assert resp.status_code == 200
@@ -53,7 +53,7 @@ def test_ask_single_result(client, mock_search):
         "count": 1,
     }
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "one result"},
     )
     assert resp.status_code == 200
@@ -69,7 +69,7 @@ def test_ask_search_exception_returns_500(client, mock_search):
     """rms_api.search raising returns 500 with generic detail."""
     mock_search.side_effect = Exception("connection refused")
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "anything"},
     )
     assert resp.status_code == 500
@@ -80,7 +80,7 @@ def test_ask_search_runtime_error(client, mock_search):
     """RuntimeError from search layer is caught."""
     mock_search.side_effect = RuntimeError("broken query")
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "anything"},
     )
     assert resp.status_code == 500
@@ -91,7 +91,7 @@ def test_ask_search_connection_error(client, mock_search):
     """ConnectionError (DB unreachable) is caught."""
     mock_search.side_effect = ConnectionError("DB unreachable")
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "anything"},
     )
     assert resp.status_code == 500
@@ -102,7 +102,7 @@ def test_ask_search_key_error(client, mock_search):
     """KeyError from search internals is caught."""
     mock_search.side_effect = KeyError("missing_column")
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "anything"},
     )
     assert resp.status_code == 500
@@ -113,7 +113,7 @@ def test_ask_error_does_not_leak_details(client, mock_search):
     """Exception message is NOT exposed in the API response."""
     mock_search.side_effect = Exception("postgresql://user:pass@host/db")
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "anything"},
     )
     assert resp.status_code == 500
@@ -133,7 +133,7 @@ def test_ask_missing_truth_value_defaults_to_unknown(client, mock_search):
         "count": 1,
     }
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "test"},
     )
     assert resp.status_code == 200
@@ -147,7 +147,7 @@ def test_ask_missing_id_defaults_to_placeholder(client, mock_search):
         "count": 1,
     }
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "test"},
     )
     assert resp.status_code == 200
@@ -161,7 +161,7 @@ def test_ask_missing_text_defaults_to_empty(client, mock_search):
         "count": 1,
     }
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "test"},
     )
     assert resp.status_code == 200
@@ -175,7 +175,7 @@ def test_ask_completely_empty_result_dict(client, mock_search):
         "count": 1,
     }
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "test"},
     )
     assert resp.status_code == 200
@@ -193,7 +193,7 @@ def test_ask_mixed_complete_and_partial_results(client, mock_search):
         "count": 3,
     }
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": "test"},
     )
     assert resp.status_code == 200
@@ -209,16 +209,16 @@ def test_ask_mixed_complete_and_partial_results(client, mock_search):
 def test_ask_missing_question_field(client, mock_search):
     """POST without question field returns 422."""
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={},
     )
     assert resp.status_code == 422
 
 
-def test_ask_invalid_project_id(client, mock_search):
-    """Non-UUID project_id returns 422."""
+def test_ask_invalid_domain_id(client, mock_search):
+    """Non-UUID domain_id returns 422."""
     resp = client.post(
-        "/api/projects/not-a-uuid/ask",
+        "/api/domains/not-a-uuid/ask",
         json={"question": "test"},
     )
     assert resp.status_code == 422
@@ -228,7 +228,7 @@ def test_ask_empty_question(client, mock_search):
     """Empty string question is valid (no min-length constraint)."""
     mock_search.return_value = {"results": [], "count": 0}
     resp = client.post(
-        f"/api/projects/{VALID_PROJECT_ID}/ask",
+        f"/api/domains/{VALID_DOMAIN_ID}/ask",
         json={"question": ""},
     )
     assert resp.status_code == 200
@@ -238,13 +238,13 @@ def test_ask_empty_question(client, mock_search):
 
 
 def test_ask_logs_exception_on_search_failure(client, mock_search, caplog):
-    """Exception is logged server-side with project_id."""
+    """Exception is logged server-side with domain_id."""
     mock_search.side_effect = Exception("db timeout")
     with caplog.at_level("ERROR", logger="reasons_service.api.ask"):
         resp = client.post(
-            f"/api/projects/{VALID_PROJECT_ID}/ask",
+            f"/api/domains/{VALID_DOMAIN_ID}/ask",
             json={"question": "anything"},
         )
     assert resp.status_code == 500
-    assert "Search failed for project" in caplog.text
-    assert VALID_PROJECT_ID in caplog.text
+    assert "Search failed for domain" in caplog.text
+    assert VALID_DOMAIN_ID in caplog.text

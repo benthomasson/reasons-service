@@ -11,7 +11,7 @@ filenames by normalizing to kebab-case slugs.
 Usage:
     python scripts/backfill_source_urls.py [--dry-run]
     python scripts/backfill_source_urls.py --redhat-expert ~/git/redhat-expert
-    python scripts/backfill_source_urls.py --project-id f1ac8a54-2103-42ec-9ddc-d7cba332b9bd
+    python scripts/backfill_source_urls.py --domain-id f1ac8a54-2103-42ec-9ddc-d7cba332b9bd
 """
 
 import argparse
@@ -130,8 +130,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--redhat-expert", default=os.path.expanduser("~/git/redhat-expert"),
                         help="Path to redhat-expert repo")
-    parser.add_argument("--project-id", default="f1ac8a54-2103-42ec-9ddc-d7cba332b9bd",
-                        help="Project UUID in reasons_service DB")
+    parser.add_argument("--domain-id", default="f1ac8a54-2103-42ec-9ddc-d7cba332b9bd",
+                        help="Domain UUID in reasons_service DB")
     parser.add_argument("--conninfo", default="postgresql://ben@localhost:5432/reasons_service",
                         help="PostgreSQL connection string")
     parser.add_argument("--dry-run", action="store_true",
@@ -168,8 +168,8 @@ def main():
 
     # --- Pass 1: rms_nodes (beliefs) ---
     cur.execute(
-        "SELECT id, source FROM rms_nodes WHERE project_id = %s AND source LIKE %s AND (source_url = '' OR source_url IS NULL)",
-        (args.project_id, "entries/%"),
+        "SELECT id, source FROM rms_nodes WHERE domain_id = %s AND source LIKE %s AND (source_url = '' OR source_url IS NULL)",
+        (args.domain_id, "entries/%"),
     )
     rows = cur.fetchall()
     print(f"{len(rows)} beliefs without source_url")
@@ -188,8 +188,8 @@ def main():
                 print(f"  [dry-run] {node_id}: {url}")
             else:
                 cur.execute(
-                    "UPDATE rms_nodes SET source_url = %s WHERE id = %s AND project_id = %s",
-                    (url, node_id, args.project_id),
+                    "UPDATE rms_nodes SET source_url = %s WHERE id = %s AND domain_id = %s",
+                    (url, node_id, args.domain_id),
                 )
             updated += 1
 
@@ -200,8 +200,8 @@ def main():
 
     # --- Pass 2: sources table (FTS chunks) ---
     cur.execute(
-        "SELECT id, slug FROM sources WHERE project_id = %s AND (url = '' OR url IS NULL)",
-        (args.project_id,),
+        "SELECT id, slug FROM sources WHERE domain_id = %s AND (url = '' OR url IS NULL)",
+        (args.domain_id,),
     )
     source_rows = cur.fetchall()
     print(f"\n{len(source_rows)} sources without url")

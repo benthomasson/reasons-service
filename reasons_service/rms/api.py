@@ -1,7 +1,7 @@
-"""Project-scoped RMS API for reasons-service.
+"""Domain-scoped RMS API for reasons-service.
 
 PostgreSQL: delegates to reasons_lib.pg.PgApi for row-level operations.
-SQLite: delegates to reasons_lib.api functions with per-project db files.
+SQLite: delegates to reasons_lib.api functions with per-domain db files.
 """
 
 from pathlib import Path
@@ -24,17 +24,17 @@ def _conninfo() -> str:
     return url
 
 
-def _api(project_id: UUID):
-    """Create a PgApi instance for a project."""
+def _api(domain_id: UUID):
+    """Create a PgApi instance for a domain."""
     from reasons_lib.pg import PgApi
-    return PgApi(_conninfo(), project_id)
+    return PgApi(_conninfo(), domain_id)
 
 
 # --- SQLite helpers ---
 
-def _db_path(project_id: UUID) -> str:
-    """Per-project SQLite database path for reasons_lib.Storage."""
-    path = settings.data_dir / str(project_id)
+def _db_path(domain_id: UUID) -> str:
+    """Per-domain SQLite database path for reasons_lib.Storage."""
+    path = settings.data_dir / str(domain_id)
     path.mkdir(parents=True, exist_ok=True)
     return str(path / "reasons.db")
 
@@ -42,7 +42,7 @@ def _db_path(project_id: UUID) -> str:
 # --- Public API (dispatch based on backend) ---
 
 def add_node(
-    project_id: UUID,
+    domain_id: UUID,
     node_id: str,
     text: str,
     sl: str = "",
@@ -53,21 +53,21 @@ def add_node(
     example: str | None = None,
     access_tags: list[str] | None = None,
 ) -> dict:
-    """Add a node to the project's RMS network."""
+    """Add a node to the domain's RMS network."""
     if _is_sqlite():
         import reasons_lib.api as rlib
         return rlib.add_node(node_id, text, sl=sl, cp=cp, unless=unless,
                              label=label, source=source, example=example,
                              access_tags=access_tags,
-                             db_path=_db_path(project_id))
-    with _api(project_id) as api:
+                             db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.add_node(node_id, text, sl=sl, cp=cp, unless=unless,
                             label=label, source=source, example=example,
                             access_tags=access_tags)
 
 
 def update_node(
-    project_id: UUID,
+    domain_id: UUID,
     node_id: str,
     text: str | None = None,
     source: str | None = None,
@@ -76,7 +76,7 @@ def update_node(
     """Update mutable fields on an existing node."""
     if _is_sqlite():
         from reasons_lib.storage import Storage
-        db = _db_path(project_id)
+        db = _db_path(domain_id)
         store = Storage(db)
         net = store.load()
         if node_id not in net.nodes:
@@ -99,13 +99,13 @@ def update_node(
     from sqlalchemy import text as sa_text
     with get_sync_session() as session:
         row = session.execute(
-            sa_text("SELECT metadata FROM rms_nodes WHERE project_id = :pid AND id = :nid"),
-            {"pid": str(project_id), "nid": node_id},
+            sa_text("SELECT metadata FROM rms_nodes WHERE domain_id = :pid AND id = :nid"),
+            {"pid": str(domain_id), "nid": node_id},
         ).fetchone()
         if not row:
             raise KeyError(f"Node '{node_id}' not found")
         sets = []
-        params: dict = {"pid": str(project_id), "nid": node_id}
+        params: dict = {"pid": str(domain_id), "nid": node_id}
         if text is not None:
             sets.append("text = :text")
             params["text"] = text
@@ -119,69 +119,69 @@ def update_node(
             params["metadata"] = _json.dumps(meta)
         if sets:
             session.execute(
-                sa_text(f"UPDATE rms_nodes SET {', '.join(sets)} WHERE project_id = :pid AND id = :nid"),
+                sa_text(f"UPDATE rms_nodes SET {', '.join(sets)} WHERE domain_id = :pid AND id = :nid"),
                 params,
             )
             session.commit()
         return {"node_id": node_id, "updated": True}
 
 
-def retract_node(project_id: UUID, node_id: str) -> dict:
+def retract_node(domain_id: UUID, node_id: str) -> dict:
     """Retract a node and cascade."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.retract_node(node_id, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.retract_node(node_id, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.retract_node(node_id)
 
 
-def assert_node(project_id: UUID, node_id: str) -> dict:
+def assert_node(domain_id: UUID, node_id: str) -> dict:
     """Assert a node and cascade restoration."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.assert_node(node_id, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.assert_node(node_id, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.assert_node(node_id)
 
 
-def get_status(project_id: UUID, visible_to: list[str] | None = None) -> dict:
+def get_status(domain_id: UUID, visible_to: list[str] | None = None) -> dict:
     """Get all nodes with truth values."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.get_status(visible_to=visible_to, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.get_status(visible_to=visible_to, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.get_status(visible_to=visible_to)
 
 
-def show_node(project_id: UUID, node_id: str, visible_to: list[str] | None = None) -> dict:
+def show_node(domain_id: UUID, node_id: str, visible_to: list[str] | None = None) -> dict:
     """Get full details for a node. Raises PermissionError if filtered out."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.show_node(node_id, visible_to=visible_to, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.show_node(node_id, visible_to=visible_to, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.show_node(node_id, visible_to=visible_to)
 
 
-def explain_node(project_id: UUID, node_id: str, visible_to: list[str] | None = None) -> dict:
+def explain_node(domain_id: UUID, node_id: str, visible_to: list[str] | None = None) -> dict:
     """Explain why a node is IN or OUT. Raises PermissionError if filtered out."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.explain_node(node_id, visible_to=visible_to, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.explain_node(node_id, visible_to=visible_to, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.explain_node(node_id, visible_to=visible_to)
 
 
-def trace_assumptions(project_id: UUID, node_id: str, visible_to: list[str] | None = None) -> dict:
+def trace_assumptions(domain_id: UUID, node_id: str, visible_to: list[str] | None = None) -> dict:
     """Trace backward to find all premises a node rests on. Raises PermissionError if filtered out."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.trace_assumptions(node_id, visible_to=visible_to, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.trace_assumptions(node_id, visible_to=visible_to, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.trace_assumptions(node_id, visible_to=visible_to)
 
 
 def challenge(
-    project_id: UUID,
+    domain_id: UUID,
     target_id: str,
     reason: str,
     challenge_id: str | None = None,
@@ -190,13 +190,13 @@ def challenge(
     if _is_sqlite():
         import reasons_lib.api as rlib
         return rlib.challenge(target_id, reason, challenge_id=challenge_id,
-                              db_path=_db_path(project_id))
-    with _api(project_id) as api:
+                              db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.challenge(target_id, reason, challenge_id=challenge_id)
 
 
 def defend(
-    project_id: UUID,
+    domain_id: UUID,
     target_id: str,
     challenge_id: str,
     reason: str,
@@ -206,26 +206,26 @@ def defend(
     if _is_sqlite():
         import reasons_lib.api as rlib
         return rlib.defend(target_id, challenge_id, reason,
-                           defense_id=defense_id, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+                           defense_id=defense_id, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.defend(target_id, challenge_id, reason, defense_id=defense_id)
 
 
-def add_nogood(project_id: UUID, node_ids: list[str]) -> dict:
+def add_nogood(domain_id: UUID, node_ids: list[str]) -> dict:
     """Record a contradiction and use backtracking to resolve."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.add_nogood(node_ids, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.add_nogood(node_ids, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.add_nogood(node_ids)
 
 
-def export_markdown(project_id: UUID, status: str | None = None, visible_to: list[str] | None = None) -> str:
+def export_markdown(domain_id: UUID, status: str | None = None, visible_to: list[str] | None = None) -> str:
     """Export the belief network as markdown, optionally filtered by status."""
     if _is_sqlite() and status is None:
         import reasons_lib.api as rlib
-        return rlib.export_markdown(visible_to=visible_to, db_path=_db_path(project_id))
-    nodes_result = list_nodes(project_id, status=status, visible_to=visible_to)
+        return rlib.export_markdown(visible_to=visible_to, db_path=_db_path(domain_id))
+    nodes_result = list_nodes(domain_id, status=status, visible_to=visible_to)
     nodes = nodes_result.get("nodes", [])
     nodes.sort(key=lambda n: (n.get("truth_value") != "IN", n.get("id", "")))
     lines = [
@@ -245,12 +245,12 @@ def export_markdown(project_id: UUID, status: str | None = None, visible_to: lis
     return "\n".join(lines)
 
 
-def search(project_id: UUID, query: str, limit: int = 20, offset: int = 0, visible_to: list[str] | None = None) -> dict:
+def search(domain_id: UUID, query: str, limit: int = 20, offset: int = 0, visible_to: list[str] | None = None) -> dict:
     """Search nodes by text. Returns up to *limit* results starting at *offset*."""
     terms = [t.lower() for t in query.split() if len(t) > 1]
     if not terms:
         return {"results": [], "count": 0, "limit": limit, "offset": offset}
-    nodes_result = list_nodes(project_id, visible_to=visible_to)
+    nodes_result = list_nodes(domain_id, visible_to=visible_to)
     nodes = nodes_result.get("nodes", [])
     results = []
     for n in nodes:
@@ -267,7 +267,7 @@ def search(project_id: UUID, query: str, limit: int = 20, offset: int = 0, visib
 
 
 def list_nodes(
-    project_id: UUID,
+    domain_id: UUID,
     status: str | None = None,
     premises_only: bool = False,
     visible_to: list[str] | None = None,
@@ -277,50 +277,50 @@ def list_nodes(
         import reasons_lib.api as rlib
         return rlib.list_nodes(status=status, premises_only=premises_only,
                                visible_to=visible_to,
-                               db_path=_db_path(project_id))
-    with _api(project_id) as api:
+                               db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.list_nodes(status=status, premises_only=premises_only,
                               visible_to=visible_to)
 
 
-def compact(project_id: UUID, budget: int = 500, visible_to: list[str] | None = None) -> str:
+def compact(domain_id: UUID, budget: int = 500, visible_to: list[str] | None = None) -> str:
     """Generate a token-budgeted summary of the belief network."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.compact(budget=budget, visible_to=visible_to, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.compact(budget=budget, visible_to=visible_to, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.compact(budget=budget, visible_to=visible_to)
 
 
-def list_gated(project_id: UUID, visible_to: list[str] | None = None) -> dict:
+def list_gated(domain_id: UUID, visible_to: list[str] | None = None) -> dict:
     """Find OUT beliefs blocked by IN outlist nodes (active gates)."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.list_gated(visible_to=visible_to, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.list_gated(visible_to=visible_to, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.list_gated(visible_to=visible_to)
 
 
-def what_if_retract(project_id: UUID, node_id: str) -> dict:
+def what_if_retract(domain_id: UUID, node_id: str) -> dict:
     """Simulate retracting a node — shows cascade without modifying the database."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.what_if_retract(node_id, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.what_if_retract(node_id, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.what_if_retract(node_id)
 
 
-def what_if_assert(project_id: UUID, node_id: str) -> dict:
+def what_if_assert(domain_id: UUID, node_id: str) -> dict:
     """Simulate asserting a node — shows cascade without modifying the database."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.what_if_assert(node_id, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.what_if_assert(node_id, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.what_if_assert(node_id)
 
 
-def import_network(project_id: UUID, network) -> dict:
-    """Import a reasons_lib Network into a project.
+def import_network(domain_id: UUID, network) -> dict:
+    """Import a reasons_lib Network into a domain.
 
     SQLite: saves directly via reasons_lib.Storage.
     PostgreSQL: inserts nodes, justifications, and nogoods via PgApi.
@@ -332,12 +332,12 @@ def import_network(project_id: UUID, network) -> dict:
 
     if _is_sqlite():
         from reasons_lib.storage import Storage
-        db = _db_path(project_id)
+        db = _db_path(domain_id)
         store = Storage(db)
         store.save(network)
         store.close()
     else:
-        with _api(project_id) as api:
+        with _api(domain_id) as api:
             for node in network.nodes.values():
                 api.add_node(
                     node.id, node.text,
@@ -366,21 +366,21 @@ def import_network(project_id: UUID, network) -> dict:
 
 # --- Belief/nogood count helpers (avoids direct rms_nodes SQL) ---
 
-def trace_access_tags(project_id: UUID, node_id: str, visible_to: list[str] | None = None) -> dict:
+def trace_access_tags(domain_id: UUID, node_id: str, visible_to: list[str] | None = None) -> dict:
     """Trace access tags through the dependency chain for a node."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.trace_access_tags(node_id, visible_to=visible_to, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.trace_access_tags(node_id, visible_to=visible_to, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.trace_access_tags(node_id, visible_to=visible_to)
 
 
-def set_access_tags(project_id: UUID, node_id: str, tags: list[str]) -> dict:
+def set_access_tags(domain_id: UUID, node_id: str, tags: list[str]) -> dict:
     """Set access_tags on an existing node."""
     if _is_sqlite():
         import json as _json
         import sqlite3
-        db = _db_path(project_id)
+        db = _db_path(domain_id)
         conn = sqlite3.connect(db)
         try:
             row = conn.execute("SELECT metadata FROM nodes WHERE id = ?", (node_id,)).fetchone()
@@ -398,38 +398,38 @@ def set_access_tags(project_id: UUID, node_id: str, tags: list[str]) -> dict:
     import json as _json
     with get_sync_session() as session:
         row = session.execute(
-            text("SELECT metadata FROM rms_nodes WHERE project_id = :pid AND id = :nid"),
-            {"pid": str(project_id), "nid": node_id},
+            text("SELECT metadata FROM rms_nodes WHERE domain_id = :pid AND id = :nid"),
+            {"pid": str(domain_id), "nid": node_id},
         ).fetchone()
         if not row:
             raise KeyError(f"Node '{node_id}' not found")
         meta = _json.loads(row[0]) if row[0] else {}
         meta["access_tags"] = sorted(set(tags))
         session.execute(
-            text("UPDATE rms_nodes SET metadata = :meta WHERE project_id = :pid AND id = :nid"),
-            {"pid": str(project_id), "nid": node_id, "meta": _json.dumps(meta)},
+            text("UPDATE rms_nodes SET metadata = :meta WHERE domain_id = :pid AND id = :nid"),
+            {"pid": str(domain_id), "nid": node_id, "meta": _json.dumps(meta)},
         )
         session.commit()
     return {"node_id": node_id, "access_tags": meta["access_tags"]}
 
 
-def topics(project_id: UUID, limit: int = 50) -> dict:
+def topics(domain_id: UUID, limit: int = 50) -> dict:
     """Extract topics from belief node IDs by word frequency."""
     if _is_sqlite():
         import reasons_lib.api as rlib
-        return rlib.topics(limit=limit, db_path=_db_path(project_id))
-    with _api(project_id) as api:
+        return rlib.topics(limit=limit, db_path=_db_path(domain_id))
+    with _api(domain_id) as api:
         return api.topics(limit=limit)
 
 
-def count_beliefs(project_id: UUID, status: str | None = "IN", visible_to: list[str] | None = None) -> int:
+def count_beliefs(domain_id: UUID, status: str | None = "IN", visible_to: list[str] | None = None) -> int:
     """Count beliefs, optionally filtered by truth_value and access tags."""
     if visible_to is not None:
-        result = list_nodes(project_id, status=status, visible_to=visible_to)
+        result = list_nodes(domain_id, status=status, visible_to=visible_to)
         return result.get("count", len(result.get("nodes", [])))
     if _is_sqlite():
         import sqlite3
-        db = _db_path(project_id)
+        db = _db_path(domain_id)
         if not Path(db).exists():
             return 0
         conn = sqlite3.connect(db)
@@ -450,20 +450,20 @@ def count_beliefs(project_id: UUID, status: str | None = "IN", visible_to: list[
     with get_sync_session() as session:
         if status:
             return session.execute(
-                text("SELECT count(*) FROM rms_nodes WHERE project_id = :pid AND truth_value = :st"),
-                {"pid": str(project_id), "st": status},
+                text("SELECT count(*) FROM rms_nodes WHERE domain_id = :pid AND truth_value = :st"),
+                {"pid": str(domain_id), "st": status},
             ).scalar() or 0
         return session.execute(
-            text("SELECT count(*) FROM rms_nodes WHERE project_id = :pid"),
-            {"pid": str(project_id)},
+            text("SELECT count(*) FROM rms_nodes WHERE domain_id = :pid"),
+            {"pid": str(domain_id)},
         ).scalar() or 0
 
 
-def count_nogoods(project_id: UUID) -> int:
-    """Count nogood records for a project."""
+def count_nogoods(domain_id: UUID) -> int:
+    """Count nogood records for a domain."""
     if _is_sqlite():
         import sqlite3
-        db = _db_path(project_id)
+        db = _db_path(domain_id)
         if not Path(db).exists():
             return 0
         conn = sqlite3.connect(db)
@@ -478,17 +478,17 @@ def count_nogoods(project_id: UUID) -> int:
     from sqlalchemy import text
     with get_sync_session() as session:
         return session.execute(
-            text("SELECT count(*) FROM rms_nogoods WHERE project_id = :pid"),
-            {"pid": str(project_id)},
+            text("SELECT count(*) FROM rms_nogoods WHERE domain_id = :pid"),
+            {"pid": str(domain_id)},
         ).scalar() or 0
 
 
-def search_beliefs_fts(project_id: UUID, query: str, limit: int = 10, visible_to: list[str] | None = None) -> list[dict]:
+def search_beliefs_fts(domain_id: UUID, query: str, limit: int = 10, visible_to: list[str] | None = None) -> list[dict]:
     """Search IN beliefs by text. Returns list of dicts with id, text, truth_value, source, source_url."""
     if _is_sqlite():
         import json as _json
         import sqlite3
-        db = _db_path(project_id)
+        db = _db_path(domain_id)
         if not Path(db).exists():
             return []
         from reasons_service.db.search import _get_terms
@@ -543,7 +543,7 @@ def search_beliefs_fts(project_id: UUID, query: str, limit: int = 10, visible_to
     from reasons_service.db.search import fts_clause
     from sqlalchemy import text
     where, order, params = fts_clause("text", query)
-    params["pid"] = str(project_id)
+    params["pid"] = str(domain_id)
     params["lim"] = limit
     order_clause = f"ORDER BY {order}" if order else ""
     with get_sync_session() as session:
@@ -551,7 +551,7 @@ def search_beliefs_fts(project_id: UUID, query: str, limit: int = 10, visible_to
             text(
                 f"SELECT id, text, truth_value, source, source_url "
                 f"FROM rms_nodes "
-                f"WHERE project_id = :pid AND truth_value = 'IN' "
+                f"WHERE domain_id = :pid AND truth_value = 'IN' "
                 f"AND {where} "
                 f"{order_clause} "
                 f"LIMIT :lim"
@@ -582,7 +582,7 @@ _NEGATIVE_TERMS = [
 ]
 
 
-def list_negative_candidates(project_id: UUID, visible_to: list[str] | None = None) -> dict:
+def list_negative_candidates(domain_id: UUID, visible_to: list[str] | None = None) -> dict:
     """Find IN beliefs whose text matches negative-sentiment keywords.
 
     Returns candidates only — the chat agent classifies which are genuinely
@@ -590,7 +590,7 @@ def list_negative_candidates(project_id: UUID, visible_to: list[str] | None = No
     """
     if _is_sqlite():
         import reasons_lib.api as rlib
-        status = rlib.get_status(visible_to=visible_to, db_path=_db_path(project_id))
+        status = rlib.get_status(visible_to=visible_to, db_path=_db_path(domain_id))
         in_nodes = [n for n in status.get("nodes", []) if n.get("truth_value") == "IN"]
         total = len(in_nodes)
         candidates = []
@@ -612,13 +612,13 @@ def list_negative_candidates(project_id: UUID, visible_to: list[str] | None = No
         f"lower(text) LIKE :t{i}" for i in range(len(_NEGATIVE_TERMS))
     )
     params = {f"t{i}": f"%{term}%" for i, term in enumerate(_NEGATIVE_TERMS)}
-    params["pid"] = str(project_id)
+    params["pid"] = str(domain_id)
 
     with get_sync_session() as session:
         total = session.execute(
             text(
                 "SELECT count(*) FROM rms_nodes "
-                "WHERE project_id = :pid AND truth_value = 'IN'"
+                "WHERE domain_id = :pid AND truth_value = 'IN'"
             ),
             {"pid": params["pid"]},
         ).scalar()
@@ -626,7 +626,7 @@ def list_negative_candidates(project_id: UUID, visible_to: list[str] | None = No
         rows = session.execute(
             text(
                 f"SELECT id, text FROM rms_nodes "
-                f"WHERE project_id = :pid AND truth_value = 'IN' "
+                f"WHERE domain_id = :pid AND truth_value = 'IN' "
                 f"AND ({conditions}) "
                 f"ORDER BY id"
             ),

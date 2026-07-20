@@ -3,11 +3,11 @@
 
 A meta-expert has N cluster subdirectories, each with its own sources/, entries/,
 and beliefs.md. This script walks all clusters and imports everything into a
-single project, prefixing source slugs with the cluster name to avoid collisions.
+single domain, prefixing source slugs with the cluster name to avoid collisions.
 
 Usage:
     python scripts/import_meta_expert.py ~/git/redhat-expert --name redhat-expert --domain "Red Hat"
-    python scripts/import_meta_expert.py ~/git/redhat-expert --name redhat-expert --domain "Red Hat" --project-id UUID
+    python scripts/import_meta_expert.py ~/git/redhat-expert --name redhat-expert --domain "Red Hat" --domain-id UUID
 """
 
 import argparse
@@ -146,14 +146,14 @@ def find_entries(entries_dir: Path) -> list[dict]:
     return entries
 
 
-def import_batch(client, project_id, endpoint, key, items, batch_size=200, timeout=120):
+def import_batch(client, domain_id, endpoint, key, items, batch_size=200, timeout=120):
     """Import items in batches to avoid request size limits."""
     imported = 0
     skipped = 0
     for i in range(0, len(items), batch_size):
         batch = items[i:i + batch_size]
         resp = client.post(
-            f"/api/projects/{project_id}/{endpoint}",
+            f"/api/domains/{domain_id}/{endpoint}",
             json={key: batch},
             timeout=timeout,
         )
@@ -167,12 +167,12 @@ def import_batch(client, project_id, endpoint, key, items, batch_size=200, timeo
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Import meta-expert repo into reasons-service")
+    parser = argparse.ArgumentParser(description="Import meta-expert repo into a reasons-service domain")
     parser.add_argument("repo_path", type=Path, help="Path to meta-expert repo (e.g., ~/git/redhat-expert)")
-    parser.add_argument("--name", required=True, help="Project name")
-    parser.add_argument("--domain", required=True, help="Project domain")
+    parser.add_argument("--name", required=True, help="Domain name")
+    parser.add_argument("--domain", required=True, help="Domain subject area")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Service base URL")
-    parser.add_argument("--project-id", help="Use existing project ID instead of creating new")
+    parser.add_argument("--domain-id", help="Use existing domain ID instead of creating new")
     parser.add_argument("--clusters", nargs="*", help="Import only these clusters (default: all)")
     parser.add_argument("--chunk", action="store_true", help="Trigger chunk backfill after import")
     parser.add_argument("--api-key", help="API key (or set EXPERT_API_KEY)")
@@ -197,21 +197,21 @@ def main():
 
     client = httpx.Client(base_url=args.base_url, timeout=30, headers=headers)
 
-    # 1. Create or use existing project
-    if args.project_id:
-        project_id = args.project_id
-        resp = client.get(f"/api/projects/{project_id}")
+    # 1. Create or use existing domain
+    if args.domain_id:
+        domain_id = args.domain_id
+        resp = client.get(f"/api/domains/{domain_id}")
         if resp.status_code != 200:
-            print(f"Error: project {project_id} not found")
+            print(f"Error: domain {domain_id} not found")
             sys.exit(1)
-        print(f"Using existing project: {project_id}")
+        print(f"Using existing domain: {domain_id}")
     else:
-        resp = client.post("/api/projects", json={"name": args.name, "domain": args.domain})
+        resp = client.post("/api/domains", json={"name": args.name, "description": args.domain})
         if resp.status_code == 200:
-            project_id = resp.json()["id"]
-            print(f"Created project: {args.name} ({project_id})")
+            domain_id = resp.json()["id"]
+            print(f"Created domain: {args.name} ({domain_id})")
         else:
-            print(f"Error creating project: {resp.text}")
+            print(f"Error creating domain: {resp.text}")
             sys.exit(1)
 
     # 2. Discover clusters
@@ -237,7 +237,7 @@ def main():
             print(f"  Sources: {len(sources)} files")
             if sources:
                 imported, skipped = import_batch(
-                    client, project_id, "import/sources", "sources", sources,
+                    client, domain_id, "import/sources", "sources", sources,
                 )
                 print(f"    Imported: {imported}, Skipped: {skipped}")
                 total_sources += imported
@@ -251,7 +251,7 @@ def main():
             print(f"  Entries: {len(entries)} files")
             if entries:
                 imported, skipped = import_batch(
-                    client, project_id, "import/entries", "entries", entries,
+                    client, domain_id, "import/entries", "entries", entries,
                 )
                 print(f"    Imported: {imported}, Skipped: {skipped}")
                 total_entries += imported
@@ -265,7 +265,7 @@ def main():
             print(f"  Beliefs: {len(claims)} claims")
             if claims:
                 imported, skipped = import_batch(
-                    client, project_id, "import/beliefs", "claims", claims,
+                    client, domain_id, "import/beliefs", "claims", claims,
                     batch_size=500, timeout=300,
                 )
                 print(f"    Imported: {imported}, Skipped: {skipped}")
@@ -282,7 +282,7 @@ def main():
             print(f"Top-level entries: {len(entries)} files")
             print(f"{'='*60}")
             imported, skipped = import_batch(
-                client, project_id, "import/entries", "entries", entries,
+                client, domain_id, "import/entries", "entries", entries,
             )
             print(f"  Imported: {imported}, Skipped: {skipped}")
             total_entries += imported
@@ -294,7 +294,7 @@ def main():
         if claims:
             print(f"\nTop-level beliefs: {len(claims)} claims")
             imported, skipped = import_batch(
-                client, project_id, "import/beliefs", "claims", claims,
+                client, domain_id, "import/beliefs", "claims", claims,
                 batch_size=500, timeout=300,
             )
             print(f"  Imported: {imported}, Skipped: {skipped}")
@@ -304,7 +304,7 @@ def main():
     if args.chunk:
         print(f"\nChunking sources...")
         resp = client.post(
-            f"/api/projects/{project_id}/chunk-sources",
+            f"/api/domains/{domain_id}/chunk-sources",
             timeout=600,
         )
         if resp.status_code == 200:
@@ -320,10 +320,10 @@ def main():
     print(f"  New entries: {total_entries}")
     print(f"  New beliefs: {total_beliefs}")
 
-    resp = client.get(f"/api/projects/{project_id}")
+    resp = client.get(f"/api/domains/{domain_id}")
     if resp.status_code == 200:
         p = resp.json()
-        print(f"\nProject totals: {p['name']}")
+        print(f"\nDomain totals: {p['name']}")
         print(f"  Sources: {p['source_count']}")
         print(f"  Entries: {p['entry_count']}")
         print(f"  Beliefs: {p['belief_count']}")

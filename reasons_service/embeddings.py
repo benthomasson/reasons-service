@@ -27,8 +27,8 @@ def _get_model():
     return _model
 
 
-def build_embeddings(project_id: UUID) -> dict[str, int]:
-    """Build embeddings for all entries, beliefs, and sources in a project.
+def build_embeddings(domain_id: UUID) -> dict[str, int]:
+    """Build embeddings for all entries, beliefs, and sources in a domain.
 
     Requires pgvector — returns empty counts on SQLite.
     """
@@ -38,35 +38,30 @@ def build_embeddings(project_id: UUID) -> dict[str, int]:
     model = _get_model()
 
     with get_sync_session() as session:
-        # Clear existing embeddings for this project
         session.execute(
-            delete(Embedding).where(Embedding.project_id == project_id)
+            delete(Embedding).where(Embedding.domain_id == domain_id)
         )
 
-        # Gather texts to embed
-        items = []  # (source_table, source_id, label, text)
+        items = []
 
-        # Entries: title + content
         entries = session.execute(
             select(Entry.id, Entry.title, Entry.content)
-            .where(Entry.project_id == project_id)
+            .where(Entry.domain_id == domain_id)
         ).all()
         for e in entries:
             text = f"{e.title}. {e.content}" if e.title else e.content
             items.append(("entries", e.id, e.title or e.id, text))
 
-        # RMS beliefs
         beliefs = session.execute(
-            sa_text("SELECT id, text FROM rms_nodes WHERE project_id = :pid"),
-            {"pid": str(project_id)},
+            sa_text("SELECT id, text FROM rms_nodes WHERE domain_id = :pid"),
+            {"pid": str(domain_id)},
         ).all()
         for b in beliefs:
             items.append(("beliefs", b.id, b.text[:80], b.text))
 
-        # Sources: slug + truncated content
         sources = session.execute(
             select(Source.slug, Source.content)
-            .where(Source.project_id == project_id)
+            .where(Source.domain_id == domain_id)
         ).all()
         for s in sources:
             text = f"{s.slug}. {s.content[:2000]}"
@@ -75,14 +70,12 @@ def build_embeddings(project_id: UUID) -> dict[str, int]:
         if not items:
             return {"entries": 0, "beliefs": 0, "sources": 0}
 
-        # Batch embed all texts
         texts = [item[3] for item in items]
         vectors = list(model.embed(texts))
 
-        # Store embeddings
         for (source_table, source_id, label, _text), vector in zip(items, vectors):
             session.add(Embedding(
-                project_id=project_id,
+                domain_id=domain_id,
                 source_table=source_table,
                 source_id=source_id,
                 label=label,
