@@ -112,13 +112,7 @@ reasons-service/
 │   ├── api/                    # REST API routes
 │   │   ├── projects.py         #   Project CRUD + import
 │   │   ├── data.py             #   Sources, entries, beliefs, search
-│   │   ├── ask.py              #   FTS-only ask (no LLM)
-│   │   ├── chat.py             #   LLM chat with streaming
-│   │   └── meta_chat.py        #   Cross-project meta-expert
-│   ├── chat/                   # Chat system
-│   │   ├── agent.py            #   LangGraph ReAct agent
-│   │   ├── loop.py             #   SSE streaming loop
-│   │   └── tools.py            #   Search tools for chat agent
+│   │   └── ask.py              #   FTS-only ask (no LLM)
 │   ├── db/                     # PostgreSQL + pgvector
 │   │   ├── schema.sql          #   Tables + FTS indexes
 │   │   ├── models.py           #   SQLAlchemy models
@@ -154,13 +148,11 @@ Full-text search via PostgreSQL GIN indexes. Vector similarity via pgvector.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `DATABASE_URL` | `postgresql+asyncpg://...localhost.../reasons_service` | Async DB connection |
-| `DATABASE_URL_SYNC` | `postgresql+psycopg://...localhost.../reasons_service` | Sync DB (chat checkpointer) |
-| `GOOGLE_CLOUD_PROJECT` | — | GCP project for Vertex AI (chat only) |
-| `REASONS_LLM` | `true` | Set `false` for data-only mode (no chat) |
+| `DATABASE_URL_SYNC` | `postgresql+psycopg://...localhost.../reasons_service` | Sync DB |
+| `GOOGLE_CLOUD_PROJECT` | — | GCP project for Vertex AI |
+| `REASONS_LLM` | `true` | Set `false` for data-only mode |
 | `REASONS_SERVICE_API_KEY` | — | API key for authenticated access |
 | `MCP_ISSUER_URL` | `https://reasons.reasonsforge.com/mcp` | MCP OAuth issuer |
-
-LLM access via Vertex AI is only required for the chat feature. Search, MCP tools, and data access work without it.
 
 ## Related Projects
 

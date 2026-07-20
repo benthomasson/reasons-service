@@ -32,7 +32,6 @@
         <ul><li><a href="/" class="brand">Reasons Service</a></li></ul>
         <ul>
             {% if not hub_mode %}<li><a href="/projects">Projects</a></li>{% endif %}
-            {% if llm_enabled %}<li><a href="/meta/chat">Meta-Expert</a></li>{% endif %}
             {% if not hub_mode %}
             {% if not request.state.user %}
             <li><a href="/login">Login</a></li>

@@ -549,12 +549,12 @@ async def deep_search(
     q: str,
     session: AsyncSession = Depends(get_session),
 ):
-    from reasons_service.chat.loop import _quick_belief_search, _search_source_chunks
+    from reasons_service.db.search import quick_belief_search, search_source_chunks
 
     project = await _resolve_public_project(project_name, session)
     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(
-        asyncio.to_thread(_quick_belief_search, project.id, q, 20),
-        asyncio.to_thread(_search_source_chunks, project.id, q, 10),
+        asyncio.to_thread(quick_belief_search, project.id, q, 20),
+        asyncio.to_thread(search_source_chunks, project.id, q, 10),
     )
     return JSONResponse(
         {

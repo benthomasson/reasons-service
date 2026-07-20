@@ -18,11 +18,7 @@
 {% endblock %}
 
 {% block content %}
-{% if llm_enabled %}
-<a href="/projects/{{ project.id }}/chat" class="back-link">&larr; {{ project.name }} chat</a>
-{% else %}
 <a href="/projects/{{ project.id }}" class="back-link">&larr; {{ project.name }}</a>
-{% endif %}
 
 <div class="entry-meta">
     {{ entry.topic }}

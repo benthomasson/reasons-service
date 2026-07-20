@@ -69,46 +69,22 @@ class TestRoutePresence:
 
     # -- LLM-only routes present in LLM mode --
 
-    def test_chat_route_in_llm_mode(self, llm_routes):
-        assert "/api/projects/{project_id}/chat" in llm_routes
-
-    def test_meta_chat_route_in_llm_mode(self, llm_routes):
-        assert "/api/meta/chat" in llm_routes
-
     def test_pipeline_route_in_llm_mode(self, llm_routes):
         assert "/api/projects/{project_id}/ingest" in llm_routes
 
     def test_propose_route_in_llm_mode(self, llm_routes):
         assert "/api/projects/{project_id}/beliefs/propose" in llm_routes
 
-    def test_chat_page_in_llm_mode(self, llm_routes):
-        assert "/projects/{project_id}/chat" in llm_routes
-
-    def test_meta_chat_page_in_llm_mode(self, llm_routes):
-        assert "/meta/chat" in llm_routes
-
     def test_ingest_page_in_llm_mode(self, llm_routes):
         assert "/projects/{project_id}/ingest" in llm_routes
 
     # -- LLM-only routes absent in no-LLM mode --
-
-    def test_chat_route_absent_no_llm(self, no_llm_routes):
-        assert "/api/projects/{project_id}/chat" not in no_llm_routes
-
-    def test_meta_chat_route_absent_no_llm(self, no_llm_routes):
-        assert "/api/meta/chat" not in no_llm_routes
 
     def test_pipeline_route_absent_no_llm(self, no_llm_routes):
         assert "/api/projects/{project_id}/ingest" not in no_llm_routes
 
     def test_propose_route_absent_no_llm(self, no_llm_routes):
         assert "/api/projects/{project_id}/beliefs/propose" not in no_llm_routes
-
-    def test_chat_page_absent_no_llm(self, no_llm_routes):
-        assert "/projects/{project_id}/chat" not in no_llm_routes
-
-    def test_meta_chat_page_absent_no_llm(self, no_llm_routes):
-        assert "/meta/chat" not in no_llm_routes
 
     def test_ingest_page_absent_no_llm(self, no_llm_routes):
         assert "/projects/{project_id}/ingest" not in no_llm_routes

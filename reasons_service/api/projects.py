@@ -15,11 +15,6 @@ from reasons_service.db.connection import get_session
 from reasons_service.db.models import Entry, Project, Source
 from reasons_service.rms import api as rms_api
 
-if settings.llm_enabled:
-    from reasons_service.chat.meta_agent import invalidate_meta_cache
-else:
-    def invalidate_meta_cache(): pass
-
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
@@ -50,7 +45,6 @@ async def create_project(data: ProjectCreate, session: AsyncSession = Depends(ge
     session.add(project)
     await session.commit()
     await session.refresh(project)
-    invalidate_meta_cache()
     return ProjectResponse(
         id=project.id,
         name=project.name,
@@ -129,8 +123,7 @@ async def update_project(project_id: UUID, data: ProjectUpdate, session: AsyncSe
     await session.commit()
     await session.refresh(project)
     if "name" in update_fields or "domain" in update_fields:
-        invalidate_meta_cache()
-    sc, ec, cc = await _project_counts(session, project.id)
+        sc, ec, cc = await _project_counts(session, project.id)
     return ProjectResponse(
         id=project.id,
         name=project.name,
@@ -152,7 +145,6 @@ async def delete_project(project_id: UUID, session: AsyncSession = Depends(get_s
         raise HTTPException(status_code=404, detail="Project not found")
     await session.delete(project)
     await session.commit()
-    invalidate_meta_cache()
     return {"status": "deleted"}
 
 
@@ -237,8 +229,7 @@ async def upsert_reasons(
                     rms_api.assert_node(project_id, node.id)
 
         await asyncio.to_thread(_do_upsert)
-        invalidate_meta_cache()
-
+    
         return {
             "project_id": str(project_id),
             "added": added,
@@ -285,8 +276,7 @@ async def import_reasons(
         result = await asyncio.to_thread(
             rms_api.import_network, project.id, network
         )
-        invalidate_meta_cache()
-
+    
         return {
             "project_id": str(project.id),
             "name": project.name,

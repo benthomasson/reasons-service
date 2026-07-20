@@ -24,7 +24,6 @@
 
 <h3>Actions</h3>
 <div class="grid">
-    {% if llm_enabled %}<a href="/projects/{{ project.id }}/chat" role="button">Chat</a>{% endif %}
     {% if llm_enabled %}<a href="/projects/{{ project.id }}/ingest" role="button" class="outline">Add Sources</a>{% endif %}
     {% if llm_enabled %}<a href="/projects/{{ project.id }}/beliefs/propose" role="button" class="outline">Propose Beliefs</a>{% endif %}
     <a href="/projects/{{ project.id }}/beliefs/review" role="button" class="outline">Review Beliefs</a>
