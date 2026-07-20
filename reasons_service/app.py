@@ -213,21 +213,21 @@ templates.env.globals["hub_mode"] = settings.hub_mode
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, session: AsyncSession = Depends(get_session)):
-    """Public landing page — lists public experts, links to login."""
+    """Public landing page — lists public domains, links to login."""
     result = await session.execute(
         select(Domain).where(Domain.public == True).order_by(Domain.name)
     )
     domain_list = result.scalars().all()
-    experts = []
+    public_domains = []
     for d in domain_list:
         belief_count = await asyncio.to_thread(rms_api.count_beliefs, d.id, "IN")
-        experts.append({
+        public_domains.append({
             "name": d.name,
             "description": d.description,
             "belief_count": belief_count,
         })
     return templates.TemplateResponse(request, "home.html", {
-        "experts": experts,
+        "public_domains": public_domains,
     })
 
 

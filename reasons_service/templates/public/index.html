@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Public Experts — Reasons Service{% endblock %}
+{% block title %}Public Domains — Reasons Service{% endblock %}
 {% block description %}Browse public domain knowledge bases — beliefs, entries, and source documents{% endblock %}
 {% block content %}
 <hgroup>
-    <h1>Public Experts</h1>
+    <h1>Public Domains</h1>
     <p>Domain knowledge bases — open access</p>
 </hgroup>
 
-{% if experts %}
+{% if public_domains %}
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-    {% for e in experts %}
+    {% for e in public_domains %}
     <article>
         <header><h2 style="margin: 0; font-size: 1rem;">{{ e.name }}</h2></header>
         {% if e.description %}<p>{{ e.description }}</p>{% endif %}
@@ -32,6 +32,6 @@
     {% endfor %}
 </div>
 {% else %}
-<p>No public experts available yet.</p>
+<p>No public domains available yet.</p>
 {% endif %}
 {% endblock %}

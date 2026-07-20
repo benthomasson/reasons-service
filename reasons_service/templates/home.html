@@ -5,10 +5,10 @@
     <h1>Reasons Service</h1>
     <p>Domain knowledge bases powered by epistemic reasoning</p>
 </hgroup>
-<h2>Public Experts</h2>
-{% if experts %}
+<h2>Public Domains</h2>
+{% if public_domains %}
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-    {% for e in experts %}
+    {% for e in public_domains %}
     <article>
         <header><strong>{{ e.name }}</strong></header>
         {% if e.description %}<p>{{ e.description }}</p>{% endif %}
@@ -31,7 +31,7 @@
     {% endfor %}
 </div>
 {% else %}
-<p>No public experts available yet.</p>
+<p>No public domains available yet.</p>
 {% endif %}
 
 {% endblock %}

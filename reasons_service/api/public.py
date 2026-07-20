@@ -586,16 +586,16 @@ async def public_landing(request: Request, session: AsyncSession = Depends(get_s
         select(Domain).where(Domain.public == True).order_by(Domain.name)
     )
     domain_list = result.scalars().all()
-    experts = []
+    public_domains = []
     for p in domain_list:
         belief_count = await asyncio.to_thread(rms_api.count_beliefs, p.id, "IN")
-        experts.append({
+        public_domains.append({
             "name": p.name,
             "description": p.description,
             "belief_count": belief_count,
         })
     return _templates.TemplateResponse(
         request, "public/index.html",
-        {"experts": experts},
+        {"public_domains": public_domains},
         headers={"Cache-Control": f"public, max-age={_CACHE_MAX_AGE}"},
     )
