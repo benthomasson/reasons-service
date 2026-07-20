@@ -56,10 +56,8 @@ class Project(Base):
 
     sources = relationship("Source", back_populates="project", cascade="all, delete-orphan")
     entries = relationship("Entry", back_populates="project", cascade="all, delete-orphan")
-    claims = relationship("Claim", back_populates="project", cascade="all, delete-orphan")
     nogoods = relationship("Nogood", back_populates="project", cascade="all, delete-orphan")
     assessments = relationship("Assessment", back_populates="project", cascade="all, delete-orphan")
-    pipeline_runs = relationship("PipelineRun", back_populates="project", cascade="all, delete-orphan")
     topics = relationship("Topic", back_populates="project", cascade="all, delete-orphan")
 
 
@@ -110,22 +108,6 @@ class Entry(Base):
     sources = relationship("Source", secondary=entry_sources, back_populates="entries")
 
 
-class Claim(Base):
-    __tablename__ = "claims"
-
-    id = Column(String, primary_key=True)
-    project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
-    text = Column(Text, nullable=False)
-    status = Column(String, default="IN")
-    source = Column(String)
-    source_hash = Column(String)
-    review_status = Column(String, default="pending")
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
-    project = relationship("Project", back_populates="claims")
-
-
 class Nogood(Base):
     __tablename__ = "nogoods"
 
@@ -152,22 +134,6 @@ class Assessment(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     project = relationship("Project", back_populates="assessments")
-
-
-class PipelineRun(Base):
-    __tablename__ = "pipeline_runs"
-
-    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    project_id = Column(Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    graph_name = Column(String, nullable=False)
-    thread_id = Column(String, nullable=False)
-    status = Column(String, default="running")
-    progress = Column(JSON, default=dict)
-    started_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    completed_at = Column(DateTime(timezone=True))
-    error = Column(Text)
-
-    project = relationship("Project", back_populates="pipeline_runs")
 
 
 class SourceChunk(Base):
