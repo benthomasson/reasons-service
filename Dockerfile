@@ -9,6 +9,9 @@ COPY reasons_service/ reasons_service/
 
 RUN pip install --no-cache-dir .
 
+RUN useradd --create-home --shell /bin/bash appuser
+USER appuser
+
 EXPOSE 8000
 
 CMD ["uvicorn", "reasons_service.app:app", "--host", "0.0.0.0", "--port", "8000"]
