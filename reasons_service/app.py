@@ -27,7 +27,7 @@ from reasons_service.rms import api as rms_api
 # LLM-dependent modules — only imported when LLM mode is enabled.
 # In no-LLM mode, clients bring their own LLM and use the data endpoints directly.
 if settings.llm_enabled:
-    from reasons_service.api import pipeline, chat, meta_chat
+    from reasons_service.api import chat, meta_chat
     from reasons_service.chat.meta_agent import invalidate_meta_cache
 else:
     def invalidate_meta_cache(): pass
@@ -158,7 +158,6 @@ if settings.llm_enabled:
     # LLM mode: chat.router provides /chat (streaming) and /ask (LLM-synthesized)
     app.include_router(chat.router, dependencies=[Depends(verify_auth_or_public)])
     app.include_router(meta_chat.router, dependencies=[Depends(verify_auth)])
-    app.include_router(pipeline.router, dependencies=[Depends(verify_auth)])
 
 # Always register: FTS-only /ask (shadowed by chat.router's /ask in LLM mode)
 app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public)])
@@ -488,75 +487,6 @@ async def entry_report(
         "entry": {"id": entry.id, "title": entry.title, "topic": entry.topic},
         "content_json": json.dumps(entry.content),
     })
-
-
-if settings.llm_enabled:
-    @app.get("/projects/{project_id}/ingest", response_class=HTMLResponse)
-    async def ingest_form(request: Request, project_id: UUID, _user: UserInfo = Depends(verify_auth_web), session: AsyncSession = Depends(get_session)):
-        result = await session.execute(select(Project).where(Project.id == project_id))
-        project = result.scalar_one_or_none()
-        if not project:
-            return HTMLResponse("Project not found", status_code=404)
-        return templates.TemplateResponse(request, "ingest/form.html", {
-            "project": {"id": project_id, "name": project.name},
-        })
-
-
-@app.get("/projects/{project_id}/beliefs/review", response_class=HTMLResponse)
-async def beliefs_review_page(
-    request: Request,
-    project_id: UUID,
-    _user: UserInfo = Depends(verify_auth_web),
-    session: AsyncSession = Depends(get_session),
-):
-    result = await session.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        return HTMLResponse("Project not found", status_code=404)
-
-    # Get OUT nodes (proposed but not yet accepted)
-    out_result = await asyncio.to_thread(rms_api.list_nodes, project_id, status="OUT")
-    beliefs = out_result["nodes"]
-
-    return templates.TemplateResponse(request, "beliefs/review.html", {
-        "project": {"id": project_id, "name": project.name},
-        "beliefs": [{"id": b["id"], "text": b["text"], "source": ""} for b in beliefs],
-    })
-
-
-@app.post("/projects/{project_id}/beliefs/review")
-async def beliefs_review_submit(
-    request: Request,
-    project_id: UUID,
-    _user: UserInfo = Depends(verify_auth_web),
-):
-    """Handle form submission of belief review decisions."""
-    form_data = await request.form()
-
-    # Extract decisions from form fields (decision_belief-id = accept|reject|pending)
-    decisions = {}
-    for key, value in form_data.items():
-        if key.startswith("decision_") and value in ("accept", "reject"):
-            belief_id = key[len("decision_"):]
-            decisions[belief_id] = value
-
-    if not decisions:
-        return RedirectResponse(
-            f"/projects/{project_id}/beliefs/review", status_code=303
-        )
-
-    # Update RMS nodes via assert/retract
-    def _apply_decisions():
-        for belief_id, decision in decisions.items():
-            try:
-                if decision == "accept":
-                    rms_api.assert_node(project_id, belief_id)
-                # "reject" leaves node as OUT (already retracted during proposal)
-            except KeyError:
-                pass
-
-    await asyncio.to_thread(_apply_decisions)
-    return RedirectResponse(f"/projects/{project_id}", status_code=303)
 
 
 def main():
