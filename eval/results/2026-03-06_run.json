@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "started_at": "2026-03-06T15:07:12.484811+00:00",
+    "completed_at": "2026-03-06T15:07:17.075229+00:00",
+    "question_count": 1,
+    "systems": [
+      "expert-service-gemini"
+    ]
+  },
+  "systems": {
+    "expert-service-gemini": {
+      "config": {
+        "type": "expert-service-gemini",
+        "model": "gemini-2.5-pro"
+      },
+      "summary": {
+        "mc_correct": 1,
+        "mc_total": 1,
+        "mc_accuracy": 1.0,
+        "oe_avg_normalized": 0.0,
+        "oe_total": 0,
+        "avg_latency": 4.59,
+        "avg_tool_calls": 0.0
+      },
+      "results": [
+        {
+          "question_id": "Q1",
+          "question_type": "mc",
+          "raw_response": "The three main installation methods for Ansible Automation Platform 2.6 are RPM-based, containerized (using Podman on RHEL), and operator-based (on OpenShift) [entry:aap-2-install].\n\nANSWER: a",
+          "tool_calls": [],
+          "latency_seconds": 4.59,
+          "mc_score": {
+            "question_id": "Q1",
+            "expected": "a",
+            "extracted": "a",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          }
+        }
+      ]
+    }
+  }
+}

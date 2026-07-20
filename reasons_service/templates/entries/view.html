@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ entry.title or entry.topic }} — {{ project.name }}{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+    .entry-content { max-width: 80ch; margin: 0 auto; line-height: 1.7; }
+    .entry-content h1 { margin-top: 0; }
+    .entry-content h2 { margin-top: 2rem; }
+    .entry-content h3 { margin-top: 1.5rem; }
+    .entry-content blockquote { border-left: 3px solid var(--pico-primary); padding-left: 1rem; }
+    .entry-content table { font-size: 0.9rem; }
+    .entry-content pre { overflow-x: auto; }
+    .back-link { margin-bottom: 1rem; display: inline-block; }
+    .entry-meta { font-size: 0.85rem; color: var(--pico-muted-color); margin-bottom: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if llm_enabled %}
+<a href="/projects/{{ project.id }}/chat" class="back-link">&larr; {{ project.name }} chat</a>
+{% else %}
+<a href="/projects/{{ project.id }}" class="back-link">&larr; {{ project.name }}</a>
+{% endif %}
+
+<div class="entry-meta">
+    {{ entry.topic }}
+    {% if linked_sources %}
+    &middot; Original source:
+    {% for s in linked_sources %}
+    <a href="/projects/{{ project.id }}/sources/{{ s.slug }}/view">{{ s.slug }}</a>{% if not loop.last %}, {% endif %}
+    {% endfor %}
+    {% endif %}
+</div>
+
+<div class="entry-content" id="entry"></div>
+
+<script>
+function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+}
+const renderer = new marked.Renderer();
+renderer.link = function({ href, title, text }) {
+    if (href && !/^https?:\/\//i.test(href) && !href.startsWith('/')) {
+        return escapeHtml(text);
+    }
+    const safeHref = escapeHtml(href || '');
+    const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+    return `<a href="${safeHref}"${titleAttr} target="_blank" rel="noopener">${escapeHtml(text)}</a>`;
+};
+marked.setOptions({ renderer });
+
+const rawMarkdown = {{ content_json | safe }};
+document.getElementById('entry').innerHTML = marked.parse(rawMarkdown);
+</script>
+{% endblock %}

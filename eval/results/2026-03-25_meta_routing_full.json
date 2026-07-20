@@ -1,0 +1,2657 @@
+{
+  "metadata": {
+    "completed_at": "2026-03-25T16:49:00.741676+00:00",
+    "question_count": 45,
+    "model": "gemini-2.5-pro",
+    "base_url": "http://localhost:8000"
+  },
+  "summary": {
+    "cross": {
+      "count": 10,
+      "avg_precision": 1.0,
+      "avg_recall": 0.8833,
+      "avg_f1": 0.9167,
+      "perfect": 8
+    },
+    "out-of-scope": {
+      "count": 5,
+      "avg_precision": 1.0,
+      "avg_recall": 1.0,
+      "avg_f1": 1.0,
+      "perfect": 5
+    },
+    "single": {
+      "count": 30,
+      "avg_precision": 0.9667,
+      "avg_recall": 0.9667,
+      "avg_f1": 0.9667,
+      "perfect": 29
+    },
+    "overall": {
+      "count": 45,
+      "avg_precision": 0.9778,
+      "avg_recall": 0.9519,
+      "avg_f1": 0.9593,
+      "perfect": 42
+    }
+  },
+  "results": [
+    {
+      "question_id": "R01",
+      "question": "How do I configure firewalld zones on RHEL 9?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R01",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 36.2,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I configure firewalld zones on RHEL 9?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-firewalld"
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 626
+    },
+    {
+      "question_id": "R02",
+      "question": "What is the default firewall backend in RHEL 9?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R02",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 25.59,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "What is the default firewall backend in RHEL 9?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "firewalld"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-firewalld-backend",
+            "source": "entry:da884514013e",
+            "text": "The rhel-expert knows that firewalld is the default high-level firewall management tool in RHEL 9 and that it uses the nftables framework as its backend."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 196
+    },
+    {
+      "question_id": "R03",
+      "question": "How do I register a RHEL system with subscription-manager?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R03",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 22.94,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I register a RHEL system with subscription-manager?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert knows about subscription-manager"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-subscription-manager-registration",
+            "source": "subscription-manager-register-activationkey-org",
+            "text": "rhel-expert knows about using subscription-manager to register RHEL systems"
+          }
+        }
+      ],
+      "citations": [
+        "subscription-manager-register-activationkey-org"
+      ],
+      "answer_length": 280
+    },
+    {
+      "question_id": "R04",
+      "question": "How do I set up a RHEL system as a DNS server?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R04",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 28.15,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I set up a RHEL system as a DNS server?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-dns-setup"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-dns-setup",
+            "source": "expert response, entry:306a853e715d",
+            "text": "The rhel-expert knows how to set up a RHEL system as a DNS server using BIND, including installation, service enablement, and firewall configuration."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 273
+    },
+    {
+      "question_id": "R05",
+      "question": "What are the default SELinux contexts for web content on RHEL?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R05",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 26.89,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "What are the default SELinux contexts for web content on RHEL?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-selinux-web-contexts"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-selinux-web-contexts",
+            "text": "The rhel-expert knows the default SELinux contexts for web content."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 300
+    },
+    {
+      "question_id": "R06",
+      "question": "How do I configure LVM on RHEL?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R06",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 44.15,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I configure LVM on RHEL?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-lvm"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-lvm",
+            "label": "rhel-expert-capability",
+            "text": "The rhel-expert knows how to configure LVM, including the core commands (pvcreate, vgcreate, lvcreate), the three-layer hierarchy (PV, VG, LV), and the benefits like online volume extension."
+          }
+        }
+      ],
+      "citations": [
+        "lvm-core-commands",
+        "lvm-lv-is-virtual-block-device",
+        "lvm-online-extend-nondisruptive"
+      ],
+      "answer_length": 1500
+    },
+    {
+      "question_id": "R07",
+      "question": "How do I manage systemd services on RHEL?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [],
+      "routing": {
+        "question_id": "R07",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "category": "single"
+      },
+      "latency_seconds": 17.85,
+      "tool_calls": [],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-systemd"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-systemd",
+            "source": "belief: RHEL-9-33864",
+            "text": "The rhel-expert knows how to manage systemd services using the systemctl utility."
+          }
+        }
+      ],
+      "citations": [
+        "rhel-9-33864"
+      ],
+      "answer_length": 661
+    },
+    {
+      "question_id": "R08",
+      "question": "How do I configure time synchronization with chrony on RHEL?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R08",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 25.33,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I configure time synchronization with chrony on RHEL?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-chrony-config"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-chrony-config",
+            "source": "ask_expert response, citing beliefs chrony-ntp-time-sync, rhel9-chrony-default-ntp",
+            "text": "The rhel-expert knows how to configure time synchronization with chrony on RHEL."
+          }
+        }
+      ],
+      "citations": [
+        "rhel9-chrony-default-ntp"
+      ],
+      "answer_length": 629
+    },
+    {
+      "question_id": "R09",
+      "question": "What is the difference between dnf and yum on RHEL 9?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R09",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 22.19,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "What is the difference between dnf and yum on RHEL 9?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-yum-is-alias-for-dnf"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-yum-is-alias-for-dnf",
+            "source": "belief: B012, entry: E005",
+            "text": "The rhel-expert knows that yum is an alias for dnf in RHEL 9."
+          }
+        }
+      ],
+      "citations": [
+        "b012"
+      ],
+      "answer_length": 266
+    },
+    {
+      "question_id": "R10",
+      "question": "How do I configure network bonding on RHEL?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R10",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 43.29,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I configure network bonding on RHEL?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-network-bonding"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-network-bonding",
+            "label": "expert-knowledge",
+            "source": "beliefs: rhel9-network-teaming-deprecated, nic-teaming-deprecated-rhel9; entries: aed59a3c4e07, 102b354a79af",
+            "text": "The rhel-expert knows that network bonding (`nmcli connection add type bond`) is the modern replacement for network teaming (`teamd`), which is now deprecated."
+          }
+        }
+      ],
+      "citations": [
+        "rhel9-network-teaming-deprecated",
+        "nic-teaming-deprecated-rhel9"
+      ],
+      "answer_length": 600
+    },
+    {
+      "question_id": "R11",
+      "question": "How do I install Ansible Automation Platform?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R11",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 52.41,
+      "tool_calls": [
+        {
+          "name": "list_experts",
+          "args": {}
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I install Ansible Automation Platform?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-installation"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-installation-methods",
+            "source": "user query: How do I install Ansible Automation Platform?",
+            "text": "aap-expert knows about the different installation methods for Ansible Automation Platform, including OpenShift, RPM-based, and containerized installations."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 775
+    },
+    {
+      "question_id": "R12",
+      "question": "What are execution environments in AAP 2.6?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R12",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 30.03,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "What are execution environments in AAP 2.6?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-execution-environments"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-execution-environments",
+            "source": "Entry ID: c9d246c50c63",
+            "text": "The aap-expert knows about the definition and characteristics of execution environments in Ansible Automation Platform 2.6."
+          }
+        }
+      ],
+      "citations": [
+        "c9d246c50c63"
+      ],
+      "answer_length": 744
+    },
+    {
+      "question_id": "R13",
+      "question": "How do I configure automation mesh in AAP?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R13",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 45.58,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I configure automation mesh in AAP?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-automation-mesh-configuration"
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "operator-based"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-automation-mesh-operator-configuration",
+            "label": "expert-capability",
+            "source": "belief:automation-mesh-operator-uses-custom-resources",
+            "text": "The aap-expert knows that for operator-based deployments, automation mesh is configured using Kubernetes Custom Resources."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 317
+    },
+    {
+      "question_id": "R14",
+      "question": "What is the automation controller in Ansible Automation Platform?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R14",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 27.44,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "What is the automation controller in Ansible Automation Platform?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-automation-controller"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-automation-controller",
+            "label": "expert-capability",
+            "source": "belief:automation-controller-formerly-ansible-tower, belief:aap-26-core-components, belief:ansible-navigator-runs-in-execution-environments, belief:aap26-three-apis, belief:aap26-configuration-as-code-for-controller, belief:automation-mesh-node-types",
+            "text": "The aap-expert knows about the definition and key features of the Ansible Automation Platform automation controller."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 853
+    },
+    {
+      "question_id": "R15",
+      "question": "How do I create a job template in AAP?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R15",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 75.46,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I create a job template in AAP?"
+          }
+        },
+        {
+          "name": "search_knowledge",
+          "args": {
+            "query": "job template"
+          }
+        },
+        {
+          "name": "search_knowledge",
+          "args": {
+            "query": "job templates"
+          }
+        },
+        {
+          "name": "semantic_search",
+          "args": {
+            "query": "create job template in AAP"
+          }
+        },
+        {
+          "name": "search_knowledge",
+          "args": {
+            "query": "template"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-job-template-creation"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-lacks-job-template-creation",
+            "label": "expert-knowledge",
+            "text": "The aap-expert does not have information on how to create a job template."
+          }
+        },
+        {
+          "name": "rms_retract",
+          "args": {
+            "node_id": "aap-expert-lacks-job-template-creation"
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 170
+    },
+    {
+      "question_id": "R16",
+      "question": "What credentials does AAP support for connecting to managed hosts?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R16",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 122.86,
+      "tool_calls": [
+        {
+          "name": "list_experts",
+          "args": {}
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "What credentials does AAP support for connecting to managed hosts?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "What are the different types of credentials that can be configured in Ansible Automation Platform?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "What machine credentials does AAP support?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-source-control-credentials"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-source-control-credentials",
+            "source": "belief: controller-projects-from-git",
+            "text": "aap-expert knows that AAP uses source control credentials to sync project content from Git."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-hashicorp-vault-integration"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-hashicorp-vault-integration",
+            "source": "belief: aap26-hashicorp-terraform-vault-integration, belief: vault-external-credential-store",
+            "text": "aap-expert knows that AAP supports HashiCorp Vault as an external credential store."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 832
+    },
+    {
+      "question_id": "R17",
+      "question": "How do I set up automation hub in AAP?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R17",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 49.0,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I set up automation hub in AAP?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert knows how to set up Automation Hub in AAP"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-setup-automation-hub-in-aap",
+            "label": "meta",
+            "source": "belief:aap26-hub-storage-requires-rwm, belief:aap-hub-requires-rwx-storage, belief:aap26-hstore-extension-required-hub-external-db, source:en-documentation-red_hat_ansible_automation_platform-26-html-single-installing_o",
+            "text": "aap-expert knows how to set up Automation Hub in AAP, including storage and database prerequisites."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 687
+    },
+    {
+      "question_id": "R18",
+      "question": "What is Event-Driven Ansible and how does it work in AAP 2.6?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R18",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 35.07,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "What is Event-Driven Ansible and how does it work in AAP 2.6?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-event-driven-ansible"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-event-driven-ansible",
+            "source": "belief:eda-rulebook-activations-enable-event-responses, belief:aap-26-automation-decisions-is-eda",
+            "text": "The aap-expert knows what Event-Driven Ansible (EDA) is and how it works using rulebook activations in AAP 2.6."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-eda-is-automation-decisions"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-eda-is-automation-decisions",
+            "source": "belief:aap-26-automation-decisions-is-eda",
+            "text": "The aap-expert knows that Event-Driven Ansible (EDA) is called 'Automation Decisions' in AAP 2.6."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 691
+    },
+    {
+      "question_id": "R19",
+      "question": "How do I configure RBAC in Ansible Automation Platform?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R19",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 33.11,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I configure RBAC in Ansible Automation Platform?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-rbac-configuration"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-rbac-configuration",
+            "source": "entry:rbac-aap, B:RBAC:CustomRoles, entry:aap-teams",
+            "text": "The aap-expert knows how to configure Role-Based Access Control (RBAC) in Ansible Automation Platform, including the use of users, teams, roles, and custom roles."
+          }
+        }
+      ],
+      "citations": [
+        "rbac"
+      ],
+      "answer_length": 638
+    },
+    {
+      "question_id": "R20",
+      "question": "What are the supported deployment topologies for AAP 2.6?",
+      "category": "single",
+      "expected_experts": [
+        "aap-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R20",
+        "expected_experts": [
+          "aap-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 37.35,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "What are the supported deployment topologies for AAP 2.6?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-supported-deployment-topologies"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-supported-deployment-topologies",
+            "text": "aap-expert knows about the supported deployment topologies for AAP 2.6."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 559
+    },
+    {
+      "question_id": "R21",
+      "question": "How do I deploy an application on OpenShift?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R21",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 37.08,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I deploy an application on OpenShift?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-deployment-types"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-deployment-types",
+            "label": "expert-capability",
+            "source": "ocp-deployment-and-deploymentconfig-types",
+            "text": "openshift-expert knows that applications can be deployed using Deployment or DeploymentConfig objects."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-kubernetes-foundation"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-kubernetes-foundation",
+            "label": "expert-capability",
+            "source": "ocp-4x-kubernetes-based",
+            "text": "openshift-expert knows that OpenShift Container Platform is built on Kubernetes."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-serverless-deployments"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-serverless-deployments",
+            "source": "op-serverless-operator-changes-default-resource",
+            "label": "expert-capability",
+            "text": "openshift-expert knows that the OpenShift Serverless Operator changes the default deployment resource to a Serverless Deployment."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-gitops-cd"
+          }
+        }
+      ],
+      "citations": [
+        "ocp-deployment-and-deploymentconfig-types",
+        "ocp-4x-kubernetes-based",
+        "op-serverless-operator-changes-default-resource",
+        "gitops-multicluster-declarative-cd"
+      ],
+      "answer_length": 642
+    },
+    {
+      "question_id": "R22",
+      "question": "What is the difference between a Deployment and a DeploymentConfig in OpenShift?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R22",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 44.62,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "What is the difference between a Deployment and a DeploymentConfig in OpenShift?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-deployments-vs-deploymentconfigs"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-deployments-vs-deploymentconfigs",
+            "source": "ask_expert, entry:0ef7a78af067",
+            "text": "openshift-expert knows the difference between Deployments and DeploymentConfigs, including triggers, rollout strategies, and controllers."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 1004
+    },
+    {
+      "question_id": "R23",
+      "question": "How do I configure routes in OpenShift?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R23",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 26.77,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I configure routes in OpenShift?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-route-configuration"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-route-configuration",
+            "source": "beliefs: ocp-route-tls-termination-types, route-host-immutable-after-creation, component-route-certs-openshift-config, route-http2-requires-custom-cert",
+            "label": "expert-capability",
+            "text": "The openshift-expert knows how to configure routes in OpenShift, including TLS termination, host immutability, and certificate requirements."
+          }
+        }
+      ],
+      "citations": [
+        "ocp-route-tls-termination-types",
+        "route-host-immutable-after-creation",
+        "route-http2-requires-custom-cert",
+        "component-route-certs-openshift-config",
+        "registry-not-exposed-by-default"
+      ],
+      "answer_length": 1293
+    },
+    {
+      "question_id": "R24",
+      "question": "What are operators in OpenShift and how do I install one?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R24",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 37.8,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "What are operators in OpenShift and how do I install one?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-installing-operators"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-installing-operators",
+            "source": "entry:00e110a3efca",
+            "text": "The openshift-expert knows how to install OpenShift Operators."
+          }
+        }
+      ],
+      "citations": [
+        "00e110a3efca"
+      ],
+      "answer_length": 984
+    },
+    {
+      "question_id": "R25",
+      "question": "How do I configure persistent storage in OpenShift?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R25",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 27.23,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I configure persistent storage in OpenShift?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-persistent-storage"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-persistent-storage",
+            "label": "expert-capability",
+            "text": "The openshift-expert knows about configuring persistent storage in OpenShift using Persistent Volumes (PVs), Persistent Volume Claims (PVCs), and StorageClasses."
+          }
+        }
+      ],
+      "citations": [
+        "ocp-storage-model-pv-pvc-storageclass",
+        "odf-provides-file-block-object-storage",
+        "nutanix-csi-storage-integration"
+      ],
+      "answer_length": 1045
+    },
+    {
+      "question_id": "R26",
+      "question": "What is the OpenShift image registry and how do I configure it?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R26",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 46.58,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "What is the OpenShift image registry and how do I configure it?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-image-registry-configuration"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-image-registry-configuration",
+            "source": "user:What is the OpenShift image registry and how do I configure it?",
+            "text": "The openshift-expert knows about the configuration of the OpenShift image registry, including the role of the Image Registry Operator, the configs.imageregistry.operator.openshift.io CR, management states, storage configuration, and default exposure."
+          }
+        }
+      ],
+      "citations": [
+        "ocp-integrated-registry-managed-by-operator",
+        "image-registry-cluster-operator",
+        "integrated-registry-namespace",
+        "registry-not-exposed-by-default",
+        "bare-metal-vsphere-registry-starts-removed",
+        "registry-storage-credentials-secret",
+        "registry-credential-secret-name",
+        "registry-logs-command"
+      ],
+      "answer_length": 1793
+    },
+    {
+      "question_id": "R27",
+      "question": "How do I scale applications in OpenShift?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R27",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 42.73,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I scale applications in OpenShift?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-application-scaling"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-application-scaling",
+            "source": "ask_expert(expert_name='openshift-expert', question='How do I scale applications in OpenShift?')",
+            "text": "The openshift-expert knows how to scale applications manually and automatically using HPA."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-cluster-scaling"
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 977
+    },
+    {
+      "question_id": "R28",
+      "question": "What are security context constraints (SCCs) in OpenShift?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R28",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 37.93,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "What are security context constraints (SCCs) in OpenShift?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-sccs"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-sccs",
+            "source": "belief: ocp-scc-distinct-from-rbac, entry: 4517b92e7264",
+            "text": "openshift-expert knows what Security Context Constraints (SCCs) are and how they relate to RBAC."
+          }
+        }
+      ],
+      "citations": [
+        "ocp-scc-distinct-from-rbac"
+      ],
+      "answer_length": 415
+    },
+    {
+      "question_id": "R29",
+      "question": "How do I configure network policies in OpenShift?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R29",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 28.37,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I configure network policies in OpenShift?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-network-policies"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-network-policies",
+            "label": "expert-knowledge",
+            "source": "Belief IDs: ocp-network-policies-namespace-scoped, ovn-kubernetes-enforces-network-policy, network-security-two-mechanisms, netpol-default-policies-via-project-template",
+            "text": "The openshift-expert knows how to configure network policies in OpenShift, including their namespace-scoped nature, enforcement by OVN-Kubernetes, and the configuration of default policies for new projects."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 1254
+    },
+    {
+      "question_id": "R30",
+      "question": "What is RHCOS and why does OpenShift use it?",
+      "category": "single",
+      "expected_experts": [
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R30",
+        "expected_experts": [
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 28.14,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "What is RHCOS and why does OpenShift use it?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-rhcos"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-rhcos-role",
+            "label": "expert-capability",
+            "source": "belief: ocp-nodes-run-rhcos, entry: b8f02fccfe03",
+            "text": "The openshift-expert knows that Red Hat Enterprise Linux CoreOS (RHCOS) is the exclusive operating system for OpenShift control plane machines and the default for worker machines."
+          }
+        }
+      ],
+      "citations": [
+        "ocp-nodes-run-rhcos"
+      ],
+      "answer_length": 580
+    },
+    {
+      "question_id": "R31",
+      "question": "How do I use Ansible to automate RHEL system configuration?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert",
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R31",
+        "expected_experts": [
+          "aap-expert",
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert",
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 72.66,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I use Ansible to automate RHEL system configuration?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I use Ansible to automate RHEL system configuration?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-project-management-from-git"
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-ansible-navigator"
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-ansible-lightspeed"
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-rhel-system-roles"
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-system-roles-for-initial-settings"
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-system-roles-for-idm"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-project-management-from-git",
+            "source": "belief:controller-projects-from-git",
+            "text": "The aap-expert knows that in AAP, projects are synced from Git repositories."
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-ansible-navigator",
+            "source": "belief:ansible-navigator-tui-replaces-legacy-cli",
+            "text": "The aap-expert knows that ansible-navigator is the modern TUI for running Ansible automation."
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-ansible-lightspeed",
+            "source": "belief:ansible-lightspeed-consumed-via-vscode-extension",
+            "text": "The aap-expert knows that Ansible Lightspeed is consumed via a VS Code extension to assist with playbook authoring."
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-rhel-system-roles",
+            "source": "belief:rhel-system-roles-ansible",
+            "text": "The rhel-expert knows that RHEL System Roles are Ansible roles for managing RHEL systems."
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-system-roles-for-initial-settings",
+            "source": "entry:a42bb366948b",
+            "text": "The rhel-expert knows about using RHEL System Roles for configuring basic system settings after installation."
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-system-roles-for-idm",
+            "source": "entry:0f5d2438b552",
+            "text": "The rhel-expert knows about using RHEL System Roles for installing and configuring Red Hat Identity Management (IdM)."
+          }
+        }
+      ],
+      "citations": [
+        "id"
+      ],
+      "answer_length": 3658
+    },
+    {
+      "question_id": "R32",
+      "question": "How do I deploy AAP on OpenShift using the operator?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert",
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R32",
+        "expected_experts": [
+          "aap-expert",
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert",
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 38.5,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I deploy AAP on OpenShift using the operator?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I deploy AAP on OpenShift using the operator?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-deploy-aap-on-openshift-operator"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-deploy-aap-on-openshift-operator",
+            "source": "entry:c64a0f684a43",
+            "text": "The aap-expert knows how to deploy Ansible Automation Platform on OpenShift using the operator."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 4126
+    },
+    {
+      "question_id": "R33",
+      "question": "How do I manage RHEL firewall rules using Ansible playbooks?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert",
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R33",
+        "expected_experts": [
+          "aap-expert",
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert",
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 73.99,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I manage RHEL firewall rules using Ansible playbooks?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "What is the default firewall management tool in RHEL?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I manage RHEL firewalld rules using Ansible playbooks?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "firewalld"
+          }
+        },
+        {
+          "name": "rms_assert",
+          "args": {
+            "node_id": "aap-expert-knows-ansible-firewalld-module"
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 1132
+    },
+    {
+      "question_id": "R34",
+      "question": "How do I use Ansible to deploy applications to OpenShift?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert",
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R34",
+        "expected_experts": [
+          "aap-expert",
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert",
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 65.98,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I use Ansible to deploy applications to OpenShift?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I use Ansible to deploy applications to OpenShift?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-installing-aap-on-openshift"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-installing-aap-on-openshift",
+            "text": "The aap-expert knows that deploying Ansible Automation Platform on OpenShift is done using the Ansible Automation Platform Operator (belief: aap-ocp-operator-install, entry: e1e150e56b8c)."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 513
+    },
+    {
+      "question_id": "R35",
+      "question": "How do I configure RHEL worker nodes in an OpenShift cluster?",
+      "category": "cross",
+      "expected_experts": [
+        "rhel-expert",
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert",
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R35",
+        "expected_experts": [
+          "rhel-expert",
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert",
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 50.27,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I configure RHEL worker nodes in an OpenShift cluster?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I configure RHEL worker nodes in an OpenShift cluster?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-rhel-worker-config"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-rhel-worker-config",
+            "source": "entry:0e8db2bdf0f6",
+            "text": "The openshift-expert knows the procedure for adding RHEL worker nodes to an OpenShift cluster, including host preparation, Ansible playbook execution, and CSR approval."
+          }
+        }
+      ],
+      "citations": [
+        "0e8db2bdf0f6"
+      ],
+      "answer_length": 3545
+    },
+    {
+      "question_id": "R36",
+      "question": "How do I set up SELinux policies on RHEL for OpenShift containers?",
+      "category": "cross",
+      "expected_experts": [
+        "rhel-expert",
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert",
+        "openshift-expert"
+      ],
+      "routing": {
+        "question_id": "R36",
+        "expected_experts": [
+          "rhel-expert",
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert",
+          "openshift-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 92.78,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I manage SELinux policies for containers on RHEL?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How does OpenShift manage SELinux for containers?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-selinux-for-containers"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-selinux-for-containers",
+            "source": "belief: containers-use-mcs-for-isolation, source: en-documentation-red_hat_enterprise_linux-9-html-94_release_notes-known-issues, source: en-documentation-red_hat_enterprise_linux-9-html-93_release_notes-new-features",
+            "text": "The rhel-expert knows how RHEL manages SELinux for containers, including the use of Multi-Category Security (MCS) and applying policies with --security-opt."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-selinux-config-file"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-selinux-config-file",
+            "source": "belief: selinux-config-file-location",
+            "text": "The rhel-expert knows the location of the system-wide SELinux configuration file."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-scc-manages-selinux"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-scc-manages-selinux",
+            "source": "entry: 35a1a1490ac2",
+            "text": "The openshift-expert knows that OpenShift uses SecurityContextConstraints (SCCs) and the seLinuxContext field to manage SELinux for containers."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 1145
+    },
+    {
+      "question_id": "R37",
+      "question": "How do I use AAP to manage both RHEL servers and OpenShift clusters?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "rhel-expert",
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R37",
+        "expected_experts": [
+          "aap-expert",
+          "rhel-expert",
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 0.3333333333333333,
+        "f1": 0.5,
+        "category": "cross"
+      },
+      "latency_seconds": 53.45,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How can I use Ansible Automation Platform to manage RHEL servers?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How can I use Ansible Automation Platform to manage OpenShift clusters?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-rhel-system-roles"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-rhel-system-roles",
+            "source": "ask_expert response citing B015, B016, and rhel-system-roles-overview",
+            "text": "The aap-expert knows that RHEL System Roles are used to manage RHEL servers."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-openshift-integration-with-k8s-module"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-openshift-integration-with-k8s-module",
+            "source": "ask_expert response citing B11, B12, B13 and ansible-aap-openshift-integration",
+            "text": "The aap-expert knows that the kubernetes.core collection and the k8s module are used to manage OpenShift clusters."
+          }
+        }
+      ],
+      "citations": [
+        "b016",
+        "b015",
+        "b11",
+        "b12",
+        "b13"
+      ],
+      "answer_length": 1027
+    },
+    {
+      "question_id": "R38",
+      "question": "How do I configure automation mesh hop nodes on RHEL for AAP?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R38",
+        "expected_experts": [
+          "aap-expert",
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6666666666666666,
+        "category": "cross"
+      },
+      "latency_seconds": 33.78,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I configure automation mesh hop nodes on RHEL for AAP?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-hop-node-config"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-hop-node-config",
+            "source": "entry:c2f8dbcd27e6",
+            "label": "expert-capability",
+            "text": "aap-expert knows how to configure automation mesh hop nodes"
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 361
+    },
+    {
+      "question_id": "R39",
+      "question": "How do I migrate from OpenShift 3 to OpenShift 4 and update my Ansible automation?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert",
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R39",
+        "expected_experts": [
+          "aap-expert",
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert",
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 53.02,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "How do I migrate from OpenShift 3 to OpenShift 4?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I update my Ansible automation for an OpenShift 3 to 4 migration?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-ocp3-to-ocp4-migration"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-ocp3-to-ocp4-migration",
+            "source": "entry:32fd191194c2",
+            "text": "The openshift-expert knows about the migration process from OpenShift 3 to 4, including the use of the Migration Toolkit for Containers."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-ansible-inventory-map-for-ocp-migration"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-ansible-inventory-map-for-ocp-migration",
+            "source": "entry:ans-inv-map",
+            "text": "The aap-expert knows about using ansible-inventory-map for migrating Ansible inventories during an OCP 3 to 4 migration."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 867
+    },
+    {
+      "question_id": "R40",
+      "question": "How do I configure RHEL networking for OpenShift node requirements?",
+      "category": "cross",
+      "expected_experts": [
+        "rhel-expert",
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "openshift-expert",
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R40",
+        "expected_experts": [
+          "rhel-expert",
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "openshift-expert",
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 77.97,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "openshift-expert",
+            "question": "What are the RHEL networking requirements for an OpenShift node?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I configure a RHEL system to have a resolvable hostname, allow access to OpenShift API service endpoints, and ensure NetworkManager version 1.0 or later is installed?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I configure a RHEL system to have a resolvable hostname?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "openshift-expert-knows-rhel-networking-requirements-for-nodes"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "openshift-expert-knows-rhel-networking-requirements-for-nodes",
+            "source": "en-documentation-openshift_container_platform-417-html-machine_management-adding, en-documentation-openshift_container_platform-417-html-machine_management-more-r",
+            "text": "The openshift-expert knows the RHEL networking requirements for an OpenShift node, including hostname resolution, network access to the API, and NetworkManager version."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 766
+    },
+    {
+      "question_id": "R41",
+      "question": "What is the capital of France?",
+      "category": "out-of-scope",
+      "expected_experts": [],
+      "consulted_experts": [],
+      "routing": {
+        "question_id": "R41",
+        "expected_experts": [],
+        "consulted_experts": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "out-of-scope"
+      },
+      "latency_seconds": 13.82,
+      "tool_calls": [
+        {
+          "name": "list_experts",
+          "args": {}
+        }
+      ],
+      "reflection_calls": [],
+      "citations": [],
+      "answer_length": 271
+    },
+    {
+      "question_id": "R42",
+      "question": "How do I make a chocolate cake?",
+      "category": "out-of-scope",
+      "expected_experts": [],
+      "consulted_experts": [],
+      "routing": {
+        "question_id": "R42",
+        "expected_experts": [],
+        "consulted_experts": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "out-of-scope"
+      },
+      "latency_seconds": 10.42,
+      "tool_calls": [
+        {
+          "name": "list_experts",
+          "args": {}
+        }
+      ],
+      "reflection_calls": [],
+      "citations": [],
+      "answer_length": 363
+    },
+    {
+      "question_id": "R43",
+      "question": "What programming language is Python?",
+      "category": "out-of-scope",
+      "expected_experts": [],
+      "consulted_experts": [],
+      "routing": {
+        "question_id": "R43",
+        "expected_experts": [],
+        "consulted_experts": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "out-of-scope"
+      },
+      "latency_seconds": 15.05,
+      "tool_calls": [
+        {
+          "name": "list_experts",
+          "args": {}
+        }
+      ],
+      "reflection_calls": [],
+      "citations": [],
+      "answer_length": 167
+    },
+    {
+      "question_id": "R44",
+      "question": "How do I set up a WordPress blog?",
+      "category": "out-of-scope",
+      "expected_experts": [],
+      "consulted_experts": [],
+      "routing": {
+        "question_id": "R44",
+        "expected_experts": [],
+        "consulted_experts": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "out-of-scope"
+      },
+      "latency_seconds": 9.69,
+      "tool_calls": [
+        {
+          "name": "list_experts",
+          "args": {}
+        }
+      ],
+      "reflection_calls": [],
+      "citations": [],
+      "answer_length": 189
+    },
+    {
+      "question_id": "R45",
+      "question": "What is the weather forecast for tomorrow?",
+      "category": "out-of-scope",
+      "expected_experts": [],
+      "consulted_experts": [],
+      "routing": {
+        "question_id": "R45",
+        "expected_experts": [],
+        "consulted_experts": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "out-of-scope"
+      },
+      "latency_seconds": 8.61,
+      "tool_calls": [],
+      "reflection_calls": [],
+      "citations": [],
+      "answer_length": 159
+    }
+  ]
+}

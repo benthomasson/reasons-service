@@ -1,0 +1,151 @@
+{
+  "description": "Meta-expert synthesis quality evaluation. Tests whether the meta-expert correctly integrates answers from multiple domain experts. Uses the cross-domain questions from meta_questions.json with added ground truth and required facts.",
+  "scoring_dimensions": {
+    "correctness": "Are the facts from each domain accurate? (0.0-1.0)",
+    "integration": "Are domain perspectives properly combined, not just concatenated? (0.0-1.0)",
+    "attribution": "Is it clear which expert or domain contributed which information? (0.0-1.0)",
+    "completeness": "Are the required facts present? (count found / total)"
+  },
+  "questions": [
+    {
+      "id": "S01",
+      "routing_id": "R31",
+      "question": "How do I use Ansible to automate RHEL system configuration?",
+      "expected_experts": ["aap-expert", "rhel-expert"],
+      "ground_truth": "Use Ansible system roles (RHEL system roles collection) to manage RHEL configuration declaratively. Install AAP or ansible-core, create an inventory of RHEL hosts, and write playbooks using roles like rhel-system-roles.network, rhel-system-roles.timesync, rhel-system-roles.selinux. On the RHEL side, ensure SSH access is configured, Python is available, and the managed host is registered with subscription-manager. AAP provides execution environments, RBAC, and scheduling for running these playbooks at scale.",
+      "required_facts": [
+        "RHEL system roles or ansible system roles",
+        "inventory or inventories",
+        "SSH or ssh or remote access",
+        "execution environments or ansible-core",
+        "playbook or playbooks"
+      ]
+    },
+    {
+      "id": "S02",
+      "routing_id": "R32",
+      "question": "How do I deploy AAP on OpenShift using the operator?",
+      "expected_experts": ["aap-expert", "openshift-expert"],
+      "ground_truth": "Install the AAP Operator from OperatorHub in the OpenShift web console or via CLI. Create an AutomationController custom resource to deploy the controller, and optionally AutomationHub and EDA Controller CRs. The operator manages the lifecycle including upgrades. On the OpenShift side, ensure sufficient cluster resources (CPU, memory), configure persistent storage for the database, and set up routes for external access. The operator deploys PostgreSQL, Redis, and the application pods.",
+      "required_facts": [
+        "AAP Operator from OperatorHub",
+        "AutomationController custom resource or CR",
+        "persistent storage or persistent volume",
+        "route or routes or ingress",
+        "operator manages lifecycle or upgrades"
+      ]
+    },
+    {
+      "id": "S03",
+      "routing_id": "R33",
+      "question": "How do I manage RHEL firewall rules using Ansible playbooks?",
+      "expected_experts": ["aap-expert", "rhel-expert"],
+      "ground_truth": "Use the ansible.posix.firewalld module to manage firewalld rules on RHEL. The module supports adding services, ports, and rich rules to zones with both permanent and immediate options. On the RHEL side, firewalld must be running and the target zone must exist. Use the rhel-system-roles.firewall role for a declarative approach. Ensure the ansible.posix collection is available in your execution environment.",
+      "required_facts": [
+        "ansible.posix.firewalld module or firewall module",
+        "permanent and immediate parameters or options",
+        "firewalld must be running or firewalld service",
+        "zones or firewall zones",
+        "ansible.posix collection or rhel-system-roles"
+      ]
+    },
+    {
+      "id": "S04",
+      "routing_id": "R34",
+      "question": "How do I use Ansible to deploy applications to OpenShift?",
+      "expected_experts": ["aap-expert", "openshift-expert"],
+      "ground_truth": "Use the kubernetes.core collection (specifically k8s module) or the redhat.openshift collection to manage OpenShift resources from Ansible. Create playbooks that apply Deployment, Service, and Route manifests. Authenticate using kubeconfig or service account tokens. For AAP integration, store the kubeconfig as a credential and use the OpenShift/Kubernetes credential type. Execution environments need the kubernetes Python library installed.",
+      "required_facts": [
+        "kubernetes.core collection or k8s module or redhat.openshift",
+        "Deployment or deployment manifests",
+        "kubeconfig or service account authentication",
+        "credential type or credential or kubeconfig",
+        "Route or Service resources"
+      ]
+    },
+    {
+      "id": "S05",
+      "routing_id": "R35",
+      "question": "How do I configure RHEL worker nodes in an OpenShift cluster?",
+      "expected_experts": ["rhel-expert", "openshift-expert"],
+      "ground_truth": "OpenShift 4 primarily uses RHCOS for worker nodes, but RHEL worker nodes are supported. Install the required packages on RHEL (openshift-clients, CRI-O or container runtime), configure networking (DNS, NTP, firewall ports), and run the openshift-install or manually join via the Machine API. RHEL workers require subscription-manager registration, proper SELinux configuration, and firewall rules allowing OpenShift API and SDN traffic.",
+      "required_facts": [
+        "RHCOS or rhcos or RHEL worker or RHEL compute",
+        "DNS or NTP or networking or firewall",
+        "subscription-manager or subscription or registered",
+        "SELinux",
+        "container runtime or CRI-O or container engine"
+      ]
+    },
+    {
+      "id": "S06",
+      "routing_id": "R36",
+      "question": "How do I set up SELinux policies on RHEL for OpenShift containers?",
+      "expected_experts": ["rhel-expert", "openshift-expert"],
+      "ground_truth": "OpenShift uses Security Context Constraints (SCCs) that map to SELinux contexts on the RHEL host. The default restricted SCC enforces SELinux labels. On the RHEL side, ensure SELinux is in enforcing mode, container-selinux package is installed, and custom policies are created with semodule if containers need non-standard access. Use audit2allow to generate policies from AVC denials. In OpenShift, assign appropriate SCCs to service accounts.",
+      "required_facts": [
+        "Security Context Constraints or SCCs",
+        "SELinux enforcing or enforcing mode or selinux mode",
+        "container-selinux package",
+        "audit2allow or semodule for custom policies",
+        "service account or SCC assignment or assign SCC"
+      ]
+    },
+    {
+      "id": "S07",
+      "routing_id": "R37",
+      "question": "How do I use AAP to manage both RHEL servers and OpenShift clusters?",
+      "expected_experts": ["aap-expert", "rhel-expert", "openshift-expert"],
+      "ground_truth": "Create separate inventories in AAP for RHEL hosts (using machine credentials with SSH) and OpenShift clusters (using OpenShift/Kubernetes credentials with kubeconfig). Use different execution environments — one with system role collections for RHEL, another with kubernetes.core for OpenShift. Organize with job templates per platform and workflow templates for cross-platform operations. RBAC can scope teams to specific inventories.",
+      "required_facts": [
+        "inventory or inventories",
+        "credential or credentials",
+        "execution environment or execution environments",
+        "job templates or workflow templates",
+        "RBAC or role-based access control"
+      ]
+    },
+    {
+      "id": "S08",
+      "routing_id": "R38",
+      "question": "How do I configure automation mesh hop nodes on RHEL for AAP?",
+      "expected_experts": ["aap-expert", "rhel-expert"],
+      "ground_truth": "Hop nodes are RHEL systems that relay automation traffic without executing jobs. Install the receptor package on the RHEL host, configure firewall rules to allow receptor traffic (default port 27199), and register the hop node in the AAP installer inventory under [automationhub] or [execution_nodes] with node_type=hop. On the RHEL side, ensure the system meets minimum requirements (RHEL 8/9, registered, network connectivity to control and execution nodes).",
+      "required_facts": [
+        "hop node or hop nodes",
+        "receptor",
+        "27199 or receptor port",
+        "node_type=hop or node_type or hop node",
+        "RHEL or system requirements or network connectivity"
+      ]
+    },
+    {
+      "id": "S09",
+      "routing_id": "R39",
+      "question": "How do I migrate from OpenShift 3 to OpenShift 4 and update my Ansible automation?",
+      "expected_experts": ["aap-expert", "openshift-expert"],
+      "ground_truth": "OpenShift 4 uses a fundamentally different architecture (operator-based, RHCOS nodes, no Ansible installer). Migration involves deploying a new OCP4 cluster, migrating applications using the Migration Toolkit for Containers (MTC), and updating Ansible automation: replace openshift_* modules with kubernetes.core.k8s, update from oc commands to declarative manifests, and switch from DeploymentConfig to Deployment resources.",
+      "required_facts": [
+        "operator or operator-based",
+        "Migration Toolkit or MTC or migrate application",
+        "kubernetes.core or k8s module",
+        "DeploymentConfig or Deployment",
+        "new cluster or fresh install or deploy new or deploying a new or migration involves"
+      ]
+    },
+    {
+      "id": "S10",
+      "routing_id": "R40",
+      "question": "How do I configure RHEL networking for OpenShift node requirements?",
+      "expected_experts": ["rhel-expert", "openshift-expert"],
+      "ground_truth": "OpenShift requires specific networking on RHEL nodes: DNS resolution for API and ingress endpoints, NTP synchronization, firewall rules allowing API server (6443), etcd (2379-2380), SDN/OVN (4789, 6081, 9000-9999), and kubelet (10250) traffic. Configure NetworkManager (not network-scripts) for interface management. Ensure MTU is consistent across the cluster. Use nmcli or NetworkManager configuration files.",
+      "required_facts": [
+        "DNS or dns resolution",
+        "NTP or ntp or time synchronization or chrony",
+        "firewall or port 6443 or etcd or SDN",
+        "NetworkManager or nmcli or network manager",
+        "MTU or mtu"
+      ]
+    }
+  ]
+}

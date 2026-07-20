@@ -1,0 +1,179 @@
+I'll review each significant change in this auth/RBAC diff.
+
+---
+
+### expert_service/auth.py
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING: 
+**Circular import**: `login()` and `auth_callback()` import `from expert_service.app import oauth` at call time. Works because it's deferred, but fragile — moving `oauth` to a separate module (e.g., `config.py` or a new `oauth.py`) would be cleaner.
+
+**Session fixation**: After successful OAuth callback (line ~60), session data is set without regenerating the session ID. An attacker who plants a session cookie before the victim logs in can hijack the post-login session. Should call `request.session.clear()` before setting new session data, or regenerate the session.
+
+**No session max_age**: `SessionMiddleware` is added without `max_age`, so session cookies have no expiry. Starlette defaults to browser-session cookies, but for an auth system this should be explicit.
+
+**Bearer token logic is sound**: The `settings.api_key and hmac.compare_digest(...)` guard correctly prevents matching against an empty api_key, and uses timing-safe comparison. Good.
+
+**OAuth session tests are misleading**: `test_valid_session_with_registered_user` and `test_session_with_unregistered_email_returns_403` cannot actually inject session data, so both just test the 401/no-session path. The test names promise coverage that doesn't exist.
+
+---
+
+### expert_service/rbac.py
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: COVERED
+INTEGRATION: PARTIAL
+REASONING:
+**`UserInfo.role` typed as `str` not `Role`**: The field accepts any string, which means an invalid role from the DB would silently pass through `has_permission` and get zero permissions (safe failure). But the type annotation is misleading — using `Role` would catch mismatches at the type-checking level.
+
+**`require_action` is defined but never used on any route**: The RBAC module defines fine-grained actions (READ, CHAT, EDIT_BELIEFS, MANAGE_SOURCES, MANAGE_PROJECTS, ADMIN) and a `require_action` dependency, but no route in `app.py` or any router uses it. All routes only use `verify_auth` / `verify_auth_web`, meaning every authenticated user (reader, editor, admin) has identical access to every endpoint. The permission matrix is dead code in production — the tests pass, but the feature isn't wired.
+
+---
+
+### expert_service/config.py
+VERDICT: CONCERN
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: PARTIAL
+INTEGRATION: PARTIAL
+REASONING:
+`allowed_emails` is defined (line ~30) but never referenced anywhere in the codebase — not in `auth.py`, not in `manage_users.py`, not in tests. This is either dead config or an incomplete feature. If it was intended for auto-provisioning users on first OAuth login, that logic is missing.
+
+---
+
+### expert_service/app.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING:
+Auth is correctly wired: API routes get `verify_auth` (returns 401), web routes get `verify_auth_web` (redirects to `/login`). The `_LoginRedirect` exception handler is registered. The `SessionMiddleware` is unconditionally added, which is fine — it's needed even in dev mode for the session dependency to not error.
+
+The dev-mode insecure-key warning (line ~36) uses `stacklevel=1`, which points the warning at the `warnings.warn` call itself rather than the caller — `stacklevel=2` would be more useful, but this is cosmetic.
+
+All 15 web endpoints are protected — I verified each `@app.get`/`@app.post` in the diff has a `_user: UserInfo = Depends(verify_auth_web)` parameter.
+
+---
+
+### expert_service/db/models.py (User model)
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING:
+Model mirrors the `schema.sql` definition. Minor note: the `default=lambda: datetime.now(timezone.utc)` on `created_at`/`updated_at` is a Python-side default — the DB also has `DEFAULT now()`, so these will only matter for ORM-created rows. No `onupdate` for `updated_at`, so updates via SQLAlchemy won't auto-bump the timestamp (only the `manage_users.py` script manually sets `updated_at = now()` in its upsert).
+
+---
+
+### expert_service/db/schema.sql
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING:
+`CHECK (role IN ('admin', 'editor', 'reader'))` matches the `Role` enum values. Table uses `CREATE TABLE IF NOT EXISTS` consistent with the existing schema-first pattern. No foreign keys to other tables, which is appropriate since `users` is independent.
+
+---
+
+### scripts/manage_users.py
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: PARTIAL
+REASONING:
+**Hardcoded connection string** (line ~17): `postgresql://ben@localhost:5432/expert_service` — hardcodes a specific user (`ben`) and port (`5432`). The CLAUDE.md notes Docker postgres is on port 5433. Should use `DATABASE_URL` env var or at minimum `os.getenv("DATABASE_URL", ...)`.
+
+**Unused imports**: `datetime` and `timezone` are imported (line ~12) but never used.
+
+**No role validation**: The `--role` argument isn't validated before the INSERT. The DB CHECK constraint will catch invalid values, but the error will be a raw psycopg SQL exception rather than a helpful message.
+
+---
+
+### tests/test_auth.py
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING:
+**Misleading test names in `TestOAuthSession`**: Both `test_valid_session_with_registered_user` and `test_session_with_unregistered_email_returns_403` cannot inject session data into the Starlette `SessionMiddleware`, so they both just test the unauthenticated (401) path. The elaborate mock setup in these tests has no effect.
+
+**`test_web_403_is_not_redirected` contradicts its docstring**: The docstring says "403 should NOT redirect to login" but the assertion is `assert resp.status_code == 307` (which IS a redirect). The test actually confirms 401→redirect behavior, not 403 passthrough.
+
+**Unresolved `Request` reference in `test_require_action_blocks_unpermitted`**: The route function `admin_route(request: Request)` references `Request` which is not imported at module level. This likely works because FastAPI detects the `request` parameter name rather than resolving the type annotation, but it's technically incorrect.
+
+**Missing coverage**: No test covers the actual OAuth session flow (authenticated session → protected endpoint → success). The dev-mode and bearer-token paths are well-tested.
+
+---
+
+### scripts/start.sh
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING:
+Clean template script. Uses `${VAR:-default}` pattern correctly. `scripts/start.local.sh` is gitignored for secret overrides. `exec` replaces the shell process, which is correct for signal handling.
+
+---
+
+### pyproject.toml / uv.lock
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING:
+`authlib>=1.3` and `itsdangerous>=2.1` are appropriate dependencies. `itsdangerous` is needed by Starlette's `SessionMiddleware` for cookie signing. Lock file is consistent.
+
+---
+
+## Summary
+
+The auth system works end-to-end for the dev-mode and bearer-token paths. The main concerns are:
+
+1. **Session fixation vulnerability** in the OAuth callback — session should be cleared/regenerated before storing authenticated identity
+2. **RBAC is defined but not enforced** — `require_action` exists but no route uses it, so all authenticated users have identical access
+3. **`allowed_emails` config is dead code** — defined but never referenced
+4. **Several test names are misleading** — they claim to test OAuth session paths but actually test the unauthenticated path
+5. **Hardcoded connection string** in `manage_users.py`
+
+---
+
+### SELF_REVIEW
+LIMITATIONS: Could not see the full `app.py` to verify no other unprotected routes exist beyond what the diff shows. Could not run the test suite to verify whether the `Request` reference in `test_require_action_blocks_unpermitted` actually fails. Did not have access to the existing router files (`projects.py`, `pipeline.py`, etc.) to check if any have their own route-level auth that might conflict with the router-level `dependencies=[Depends(verify_auth)]`.
+
+---
+
+### FEATURE_REQUESTS
+- Include the full source of new files, not just the diff — reviewing `auth.py` and `rbac.py` as additions means I see the whole file, but for modified files like `app.py` I can't see unmodified routes that might also need auth
+- Show which existing tests (if any) import from modified modules, to detect test breakage from signature changes
+- Flag unused imports/config automatically in the diff summary

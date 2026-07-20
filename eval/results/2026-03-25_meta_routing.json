@@ -1,0 +1,130 @@
+{
+  "metadata": {
+    "completed_at": "2026-03-25T16:14:05.182389+00:00",
+    "question_count": 2,
+    "model": "gemini-2.5-pro",
+    "base_url": "http://localhost:8000"
+  },
+  "summary": {
+    "single": {
+      "count": 2,
+      "avg_precision": 1.0,
+      "avg_recall": 1.0,
+      "avg_f1": 1.0,
+      "perfect": 2
+    },
+    "overall": {
+      "count": 2,
+      "avg_precision": 1.0,
+      "avg_recall": 1.0,
+      "avg_f1": 1.0,
+      "perfect": 2
+    }
+  },
+  "results": [
+    {
+      "question_id": "R01",
+      "question": "How do I configure firewalld zones on RHEL 9?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R01",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 59.67,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I configure firewalld zones on RHEL 9?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert-knows-firewalld-config"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-firewalld-config",
+            "source": "beliefs: rhel9-firewalld-active-by-default, rhel9-firewalld-nftables-backend, firewalld-controls-three-traffic-directions, cockpit-firewall-service-name",
+            "text": "rhel-expert knows about firewalld configuration on RHEL 9"
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 1219
+    },
+    {
+      "question_id": "R02",
+      "question": "What is the default firewall backend in RHEL 9?",
+      "category": "single",
+      "expected_experts": [
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R02",
+        "expected_experts": [
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "single"
+      },
+      "latency_seconds": 27.58,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "What is the default firewall backend in RHEL 9?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "rhel-expert knows firewalld"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "rhel-expert-knows-firewalld-nftables-default",
+            "source": "ask_expert('rhel-expert', 'What is the default firewall backend in RHEL 9?') -> Entry da884514013e",
+            "text": "The rhel-expert knows that in RHEL 9, firewalld is the default firewall management tool and uses nftables as its backend."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 167
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+### expert_service/config.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The `llm_enabled` property correctly implements the environment variable toggle. The parsing logic is robust, handling various truthy/falsy strings and providing a sensible default of `True`.
+---
+
+### expert_service/api/projects.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The conditional import of `invalidate_meta_cache` prevents loading heavy LLM dependencies when they are not needed. Providing a dummy `pass` implementation ensures that any existing calls to this function in the `projects` API remain functional without complex conditional logic at every call site.
+---
+
+### expert_service/app.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The route registration is correctly guarded by `llm_enabled`. The order of inclusion (LLM routers before `ask.router`) allows for an elegant fallback mechanism where the LLM-powered `/ask` endpoint shadows the FTS-only version when enabled. UI routes are also appropriately partitioned.
+---
+
+### expert_service/templates/
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The UI changes are comprehensive, updating navigation, buttons, and interactive elements across multiple templates. Setting `llm_enabled` in the Jinja2 global environment is an efficient way to make the state available to all templates without repeating context in every route handler.
+---
+
+### tests/test_llm_mode.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The testing strategy is excellent. Specifically, using subprocesses to verify route presence and dependency imports ensures that the test environment isn't contaminated by previous imports, providing high confidence that "no-LLM mode" actually achieves the goal of avoiding heavy dependency loading.
+---
+
+### SELF_REVIEW
+LIMITATIONS: I did not have visibility into `expert_service/api/ask.py` to verify it is truly free of LLM dependencies. However, the `test_no_llm_deps_in_no_llm_mode` test empirically confirms that importing the application with `EXPERT_LLM=false` does not load `langchain` or `langgraph`, which validates the architectural goal regardless of the internal implementation of individual modules.
+---
+
+### FEATURE_REQUESTS
+- Include a list of all endpoints (routes) in the observation context when reviewing changes to API routers to help verify shadowing/precedence behavior.
+---

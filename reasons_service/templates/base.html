@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{% block description %}Reasons Service — domain expert knowledge bases with belief tracking{% endblock %}">
+    <title>{% block title %}Reasons Service{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; }
+        .stat-card { text-align: center; padding: 1rem; background: var(--pico-card-background-color); border-radius: var(--pico-border-radius); }
+        .stat-card .value { font-size: 2rem; font-weight: bold; }
+        .stat-card .label { font-size: 0.85rem; color: var(--pico-muted-color); }
+        .pipeline-steps { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+        .pipeline-step { padding: 0.5rem 1rem; border-radius: var(--pico-border-radius); font-size: 0.85rem; }
+        .pipeline-step.done { background: #d4edda; color: #155724; }
+        .pipeline-step.active { background: #fff3cd; color: #856404; }
+        .pipeline-step.pending { background: #e2e3e5; color: #383d41; }
+        .belief-row { padding: 1rem; margin-bottom: 0.5rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); }
+        .belief-row .belief-id { font-family: monospace; font-weight: bold; }
+        .belief-row .belief-source { font-size: 0.8rem; color: var(--pico-muted-color); }
+        nav .brand { font-weight: bold; font-size: 1.2rem; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+        .sr-only:focus { position: static; width: auto; height: auto; padding: 0.5rem 1rem; margin: 0; overflow: visible; clip: auto; background: var(--pico-primary); color: #fff; z-index: 1000; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <a href="#main-content" class="sr-only">Skip to content</a>
+    <nav class="container" aria-label="Main">
+        <ul><li><a href="/" class="brand">Reasons Service</a></li></ul>
+        <ul>
+            {% if not hub_mode %}<li><a href="/projects">Projects</a></li>{% endif %}
+            {% if llm_enabled %}<li><a href="/meta/chat">Meta-Expert</a></li>{% endif %}
+            {% if not hub_mode %}
+            {% if not request.state.user %}
+            <li><a href="/login">Login</a></li>
+            {% endif %}
+            {% if request.state.user %}
+            <li><small>{{ request.state.user.display_name or request.state.user.identity }}</small></li>
+            <li><a href="/logout">Logout</a></li>
+            {% endif %}
+            {% endif %}
+        </ul>
+    </nav>
+    <main class="container" id="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="container">
+        <small>Reasons Service v0.1.0{% if not llm_enabled %} (data-only mode){% endif %}</small>
+    </footer>
+</body>
+</html>

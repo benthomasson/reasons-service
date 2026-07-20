@@ -1,0 +1,530 @@
+[
+  {
+    "title": "Entry point: FastAPI factory, route registration, startup hooks",
+    "kind": "file",
+    "target": "expert_service/app.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "All configuration and environment variable handling",
+    "kind": "file",
+    "target": "expert_service/config.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "The 7-table PostgreSQL schema that defines the domain model",
+    "kind": "file",
+    "target": "expert_service/db/schema.sql",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "SQLAlchemy models and shared data types",
+    "kind": "file",
+    "target": "expert_service/db/models.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "LangGraph state types shared across all three graphs",
+    "kind": "file",
+    "target": "expert_service/graphs/state.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "Ingest graph: fetch \u2192 summarize batch loop",
+    "kind": "file",
+    "target": "expert_service/graphs/ingest.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "Beliefs graph: propose \u2192 interrupt() \u2192 accept",
+    "kind": "file",
+    "target": "expert_service/graphs/beliefs.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "Assessment graph: coverage and exam routing",
+    "kind": "file",
+    "target": "expert_service/graphs/assessment.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "Belief extraction from entries via LLM",
+    "kind": "file",
+    "target": "expert_service/core/propose.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "URL crawling, HTML to markdown conversion",
+    "kind": "file",
+    "target": "expert_service/core/fetch.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "ChatModel factory for Vertex AI (Gemini + Claude)",
+    "kind": "file",
+    "target": "expert_service/llm/provider.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "Pipeline trigger and status tracking API",
+    "kind": "file",
+    "target": "expert_service/api/pipeline.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "One-shot question/SQL endpoint (key for expert-snowflake use case)",
+    "kind": "file",
+    "target": "expert_service/api/ask.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "Tool-using chat agent implementation",
+    "kind": "file",
+    "target": "expert_service/chat/agent.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "How the three graphs with different lifecycles compose into one service",
+    "kind": "general",
+    "target": "langgraph-lifecycle",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:25"
+  },
+  {
+    "title": "Agent tools: SQL execution, belief search, and other capabilities",
+    "kind": "file",
+    "target": "expert_service/chat/tools.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:45"
+  },
+  {
+    "title": "Meta-agent: cross-project or higher-order query agent",
+    "kind": "file",
+    "target": "expert_service/chat/meta_agent.py",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:45"
+  },
+  {
+    "title": "The end-to-end flow from user question to SQL generation and execution",
+    "kind": "general",
+    "target": "one-shot-sql-path",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T03:35:45"
+  },
+  {
+    "title": "How interrupt() enables human-in-the-loop belief review across sessions",
+    "kind": "general",
+    "target": "langgraph-interrupt-pattern",
+    "source": "scan:expert-service",
+    "status": "done",
+    "added": "2026-05-05T09:23:08"
+  },
+  {
+    "title": "How `database_url` is used to create the async SQLAlchemy engine and session factory",
+    "kind": "file",
+    "target": "expert_service/db/connection.py",
+    "source": "file:expert_service/config.py",
+    "status": "pending",
+    "added": "2026-05-05T09:24:16"
+  },
+  {
+    "title": "Why LangGraph needs a synchronous connection (`database_url_sync`) and how the checkpointer is wired up",
+    "kind": "file",
+    "target": "expert_service/graphs/checkpointer.py",
+    "source": "file:expert_service/config.py",
+    "status": "pending",
+    "added": "2026-05-05T09:24:16"
+  },
+  {
+    "title": "How downstream code conditionally enables LangFuse tracing based on the empty-key convention",
+    "kind": "general",
+    "target": "langfuse-tracing-activation",
+    "source": "file:expert_service/config.py",
+    "status": "pending",
+    "added": "2026-05-05T09:24:16"
+  },
+  {
+    "title": "Where the production/dev environment variables are actually set",
+    "kind": "file",
+    "target": "docker-compose.yml",
+    "source": "file:expert_service/config.py",
+    "status": "pending",
+    "added": "2026-05-05T09:24:16"
+  },
+  {
+    "title": "How the application layer reads this schema, builds queries, and manages connections",
+    "kind": "file",
+    "target": "expert_service/db/",
+    "source": "file:expert_service/db/schema.sql",
+    "status": "pending",
+    "added": "2026-05-05T09:25:29"
+  },
+  {
+    "title": "The RMS propagation engine that reads/writes `rms_nodes`, `rms_justifications`, and `rms_propagation_log`",
+    "kind": "function",
+    "target": "expert_service/rms/",
+    "source": "file:expert_service/db/schema.sql",
+    "status": "pending",
+    "added": "2026-05-05T09:25:29"
+  },
+  {
+    "title": "How source documents are split into `source_chunks` rows",
+    "kind": "file",
+    "target": "expert_service/chunking.py",
+    "source": "file:expert_service/db/schema.sql",
+    "status": "pending",
+    "added": "2026-05-05T09:25:29"
+  },
+  {
+    "title": "How the 384-dim vectors in the `embeddings` table are computed and queried",
+    "kind": "file",
+    "target": "expert_service/embeddings.py",
+    "source": "file:expert_service/db/schema.sql",
+    "status": "pending",
+    "added": "2026-05-05T09:25:29"
+  },
+  {
+    "title": "How claims transition through `PROPOSED \u2192 IN/OUT/STALE` and `pending \u2192 accepted/rejected`, and how the two status axes interact",
+    "kind": "general",
+    "target": "claim-lifecycle",
+    "source": "file:expert_service/db/schema.sql",
+    "status": "pending",
+    "added": "2026-05-05T09:25:29"
+  },
+  {
+    "title": "The composite PK on Entry/Claim/Nogood ripples into every join and FK \u2014 worth tracing where this creates complexity",
+    "kind": "general",
+    "target": "entry-composite-pk-implications",
+    "source": "file:expert_service/db/models.py",
+    "status": "pending",
+    "added": "2026-05-05T09:26:36"
+  },
+  {
+    "title": "How LangGraph merges partial node returns into the state dict, including reducer semantics for list fields like `errors`",
+    "kind": "general",
+    "target": "langgraph-state-merging",
+    "source": "file:expert_service/graphs/state.py",
+    "status": "pending",
+    "added": "2026-05-05T09:27:47"
+  },
+  {
+    "title": "The LangGraph deployment config at the repo root; defines which graphs are registered and how they're exposed",
+    "kind": "file",
+    "target": "langgraph.json",
+    "source": "file:expert_service/graphs/state.py",
+    "status": "pending",
+    "added": "2026-05-05T09:27:47"
+  },
+  {
+    "title": "The LLM summarization logic; defines what an \"entry\" looks like and how source content gets distilled",
+    "kind": "file",
+    "target": "expert_service/core/summarize.py",
+    "source": "file:expert_service/graphs/ingest.py",
+    "status": "pending",
+    "added": "2026-05-05T09:28:44"
+  },
+  {
+    "title": "How the API layer invokes this graph and what parameters it passes",
+    "kind": "function",
+    "target": "expert_service/api/pipeline.py:ingest_graph",
+    "source": "file:expert_service/graphs/ingest.py",
+    "status": "pending",
+    "added": "2026-05-05T09:28:44"
+  },
+  {
+    "title": "The LLM extraction logic that turns entry text into structured belief candidates; the shape of its output dictates everything downstream",
+    "kind": "function",
+    "target": "expert_service/core/propose.py:propose_from_entries",
+    "source": "file:expert_service/graphs/beliefs.py",
+    "status": "pending",
+    "added": "2026-05-05T09:29:34"
+  },
+  {
+    "title": "The RMS API surface (`add_node`, `assert_node`, `retract_node`); understanding IN/OUT semantics is essential for reasoning about belief lifecycle",
+    "kind": "file",
+    "target": "expert_service/rms/api.py",
+    "source": "file:expert_service/graphs/beliefs.py",
+    "status": "pending",
+    "added": "2026-05-05T09:29:34"
+  },
+  {
+    "title": "How LangGraph's `interrupt()` + checkpointer mechanism works for human-in-the-loop patterns; this is the core async boundary",
+    "kind": "general",
+    "target": "langgraph-interrupt-checkpointer",
+    "source": "file:expert_service/graphs/beliefs.py",
+    "status": "pending",
+    "added": "2026-05-05T09:29:34"
+  },
+  {
+    "title": "The LLM-backed matching logic that determines which objectives are covered by beliefs",
+    "kind": "function",
+    "target": "expert_service/core/coverage.py:match_objectives",
+    "source": "file:expert_service/graphs/assessment.py",
+    "status": "pending",
+    "added": "2026-05-05T09:30:25"
+  },
+  {
+    "title": "How exam questions are answered against beliefs and how nogoods are detected",
+    "kind": "function",
+    "target": "expert_service/core/exam.py:run_exam_questions",
+    "source": "file:expert_service/graphs/assessment.py",
+    "status": "pending",
+    "added": "2026-05-05T09:30:25"
+  },
+  {
+    "title": "Contains the `PROPOSE_BELIEFS` template that dictates the LLM output format; any change there requires matching changes to `parse_proposals`'s regex",
+    "kind": "file",
+    "target": "expert_service/llm/prompts.py",
+    "source": "file:expert_service/core/propose.py",
+    "status": "pending",
+    "added": "2026-05-05T09:31:57"
+  },
+  {
+    "title": "Test edge cases: what happens with multi-line claims, sources with URLs, or unexpected LLM formatting?",
+    "kind": "function",
+    "target": "expert_service/core/propose.py:parse_proposals",
+    "source": "file:expert_service/core/propose.py",
+    "status": "pending",
+    "added": "2026-05-05T09:31:57"
+  },
+  {
+    "title": "How proposed beliefs flow from OUT (retracted) to IN (accepted) state in the Reason Maintenance System, and how that affects downstream queries",
+    "kind": "general",
+    "target": "rms-belief-lifecycle",
+    "source": "file:expert_service/core/propose.py",
+    "status": "pending",
+    "added": "2026-05-05T09:31:57"
+  },
+  {
+    "title": "The markdown conversion has known gaps (nested lists, colspan tables); worth auditing against real documentation sites",
+    "kind": "function",
+    "target": "expert_service/core/fetch.py:html_to_markdown",
+    "source": "file:expert_service/core/fetch.py",
+    "status": "pending",
+    "added": "2026-05-05T09:32:58"
+  },
+  {
+    "title": "`fetch_sitemap` doesn't handle sitemap index files (`<sitemapindex>` with nested `<sitemap>` entries), which large documentation sites commonly use",
+    "kind": "general",
+    "target": "sitemap-index-support",
+    "source": "file:expert_service/core/fetch.py",
+    "status": "pending",
+    "added": "2026-05-05T09:32:58"
+  },
+  {
+    "title": "Check how summarization uses the factory and whether it passes `cached_content` for Gemini context caching",
+    "kind": "function",
+    "target": "expert_service/core/summarize.py:get_chat_model",
+    "source": "file:expert_service/llm/provider.py",
+    "status": "pending",
+    "added": "2026-05-05T09:34:08"
+  },
+  {
+    "title": "Understand Gemini's server-side context caching (`create_context_cache`) to know when and why `cached_content` is passed to the factory",
+    "kind": "general",
+    "target": "vertex-ai-context-caching",
+    "source": "file:expert_service/llm/provider.py",
+    "status": "pending",
+    "added": "2026-05-05T09:34:08"
+  },
+  {
+    "title": "Check if there are sibling modules (e.g., embeddings, streaming wrappers) that complement this provider factory",
+    "kind": "file",
+    "target": "expert_service/llm/",
+    "source": "file:expert_service/llm/provider.py",
+    "status": "pending",
+    "added": "2026-05-05T09:34:08"
+  },
+  {
+    "title": "Called by `get_proposed_beliefs` to fetch OUT-status nodes; this is the bridge between the beliefs graph's output and what the review UI sees",
+    "kind": "function",
+    "target": "expert_service/rms/api.py:list_nodes",
+    "source": "file:expert_service/api/pipeline.py",
+    "status": "pending",
+    "added": "2026-05-05T09:35:12"
+  },
+  {
+    "title": "How LangGraph's `interrupt()` and `Command(resume=...)` mechanism works with thread-based checkpointing",
+    "kind": "general",
+    "target": "langgraph-interrupt-resume",
+    "source": "file:expert_service/api/pipeline.py",
+    "status": "pending",
+    "added": "2026-05-05T09:35:12"
+  },
+  {
+    "title": "The LLM-powered counterpart to this endpoint; comparing the two reveals the design boundary between fast FTS lookup and expensive generative answers",
+    "kind": "file",
+    "target": "expert_service/api/chat.py",
+    "source": "file:expert_service/api/ask.py",
+    "status": "pending",
+    "added": "2026-05-05T09:36:48"
+  },
+  {
+    "title": "Where this router gets mounted; shows the full route hierarchy and any middleware that wraps these endpoints",
+    "kind": "function",
+    "target": "expert_service/app.py:create_app",
+    "source": "file:expert_service/api/ask.py",
+    "status": "pending",
+    "added": "2026-05-05T09:36:48"
+  },
+  {
+    "title": "What fields a belief/node has (id, text, truth_value, and likely more) and what `truth_value` values are valid (IN, OUT, etc.) \u2014 this determines what the compact format actually displays",
+    "kind": "general",
+    "target": "rms-belief-schema",
+    "source": "file:expert_service/api/ask.py",
+    "status": "pending",
+    "added": "2026-05-05T09:36:48"
+  },
+  {
+    "title": "The chat execution loop that invokes the agent with user messages and manages thread IDs for checkpoint continuity",
+    "kind": "function",
+    "target": "expert_service/chat/loop.py:*",
+    "source": "file:expert_service/chat/agent.py",
+    "status": "pending",
+    "added": "2026-05-05T09:37:45"
+  },
+  {
+    "title": "How model name strings resolve to actual LLM clients (Anthropic, Vertex, etc.)",
+    "kind": "function",
+    "target": "expert_service/llm/provider.py:get_chat_model",
+    "source": "file:expert_service/chat/agent.py",
+    "status": "pending",
+    "added": "2026-05-05T09:37:45"
+  },
+  {
+    "title": "How LangGraph's checkpoint system provides conversation persistence, thread isolation, and state replay",
+    "kind": "general",
+    "target": "langgraph-checkpointing",
+    "source": "file:expert_service/chat/agent.py",
+    "status": "pending",
+    "added": "2026-05-05T09:37:45"
+  },
+  {
+    "title": "Why beliefs uses a factory function while the other graphs are pre-compiled \u2014 likely tied to checkpointer lifecycle",
+    "kind": "function",
+    "target": "expert_service/graphs/beliefs.py:get_beliefs_graph",
+    "source": "general:langgraph-lifecycle",
+    "status": "pending",
+    "added": "2026-05-05T09:38:44"
+  },
+  {
+    "title": "How the shared PostgreSQL schema (entries, rms_nodes, assessments) acts as the contract between independently-executing graphs",
+    "kind": "general",
+    "target": "database-as-integration-layer",
+    "source": "general:langgraph-lifecycle",
+    "status": "pending",
+    "added": "2026-05-05T09:38:44"
+  },
+  {
+    "title": "The embedding pipeline that `semantic_search` depends on; determines vector quality and dimensionality",
+    "kind": "function",
+    "target": "expert_service/embeddings.py:embed_query",
+    "source": "file:expert_service/chat/tools.py",
+    "status": "pending",
+    "added": "2026-05-05T09:39:43"
+  },
+  {
+    "title": "How the three search tiers (FTS, ILIKE, vector) complement each other and when each fails",
+    "kind": "general",
+    "target": "search-strategy-tradeoffs",
+    "source": "file:expert_service/chat/tools.py",
+    "status": "pending",
+    "added": "2026-05-05T09:39:43"
+  },
+  {
+    "title": "Defines `list_experts` and `ask_expert`, the tools that give the meta-agent its cross-domain routing capability",
+    "kind": "file",
+    "target": "expert_service/chat/meta_tools.py",
+    "source": "file:expert_service/chat/meta_agent.py",
+    "status": "pending",
+    "added": "2026-05-05T09:40:41"
+  },
+  {
+    "title": "The conversation loop that actually invokes the meta-agent with user messages and handles streaming/checkpointing",
+    "kind": "file",
+    "target": "expert_service/chat/meta_loop.py",
+    "source": "file:expert_service/chat/meta_agent.py",
+    "status": "pending",
+    "added": "2026-05-05T09:40:41"
+  },
+  {
+    "title": "The standard tool set every expert gets (search, RMS, entries); understanding this clarifies what the meta-expert can do beyond routing",
+    "kind": "function",
+    "target": "expert_service/chat/tools.py:make_tools",
+    "source": "file:expert_service/chat/meta_agent.py",
+    "status": "pending",
+    "added": "2026-05-05T09:40:41"
+  },
+  {
+    "title": "Where `invalidate_meta_cache()` is called; shows the lifecycle trigger for cache busting",
+    "kind": "file",
+    "target": "expert_service/api/projects.py",
+    "source": "file:expert_service/chat/meta_agent.py",
+    "status": "pending",
+    "added": "2026-05-05T09:40:41"
+  },
+  {
+    "title": "How the meta-expert's own RMS beliefs evolve over time as it learns which expert knows what; this is the mechanism for improving routing accuracy without code changes",
+    "kind": "general",
+    "target": "rms-cross-expert-learning",
+    "source": "file:expert_service/chat/meta_agent.py",
+    "status": "pending",
+    "added": "2026-05-05T09:40:41"
+  },
+  {
+    "title": "How review decisions translate into reason DB updates (OUT\u2192IN for accepted, removal for rejected)",
+    "kind": "function",
+    "target": "expert_service/graphs/beliefs.py:accept_beliefs",
+    "source": "general:langgraph-interrupt-pattern",
+    "status": "pending",
+    "added": "2026-05-05T09:44:30"
+  },
+  {
+    "title": "The background thread lifecycle and error handling when the graph hits interrupt vs fails",
+    "kind": "function",
+    "target": "expert_service/api/pipeline.py:_run_propose",
+    "source": "general:langgraph-interrupt-pattern",
+    "status": "pending",
+    "added": "2026-05-05T09:44:30"
+  },
+  {
+    "title": "LangGraph's `Command(resume=...)` semantics \u2014 what happens if you resume with unexpected data, or resume twice",
+    "kind": "general",
+    "target": "langgraph-command-resume",
+    "source": "general:langgraph-interrupt-pattern",
+    "status": "pending",
+    "added": "2026-05-05T09:44:30"
+  }
+]

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}{{ entry.title or "Report" }} — Reasons Service{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+    .report-content { max-width: 80ch; margin: 0 auto; line-height: 1.7; }
+    .report-content h1 { margin-top: 0; }
+    .report-content h2 { margin-top: 2rem; }
+    .report-content h3 { margin-top: 1.5rem; }
+    .report-content blockquote { border-left: 3px solid var(--pico-primary); padding-left: 1rem; }
+    .report-content table { font-size: 0.9rem; }
+
+    .belief-ref {
+        font-family: monospace; font-size: 0.85em;
+        background: var(--pico-muted-border-color); padding: 0.1rem 0.4rem;
+        border-radius: 3px; cursor: default;
+    }
+    .belief-actions {
+        display: inline-flex; gap: 0.25rem; margin-left: 0.25rem; vertical-align: middle;
+    }
+    .belief-actions button {
+        font-size: 0.7rem; padding: 0.1rem 0.5rem; margin: 0;
+        border-radius: 3px; cursor: pointer;
+    }
+    .belief-panel {
+        margin: 0.75rem 0 1rem 0; padding: 0.75rem 1rem;
+        border: 1px solid var(--pico-muted-border-color);
+        border-radius: var(--pico-border-radius);
+        background: var(--pico-card-background-color);
+        font-size: 0.85rem; line-height: 1.6;
+    }
+    .belief-panel .panel-content h1, .belief-panel .panel-content h2,
+    .belief-panel .panel-content h3 { margin: 0.75rem 0 0.25rem; font-size: 1rem; }
+    .belief-panel .panel-content p { margin: 0.25rem 0; }
+    .belief-panel .panel-content ul, .belief-panel .panel-content ol { margin: 0.25rem 0; padding-left: 1.5rem; }
+    .belief-panel .panel-content code { font-size: 0.85em; padding: 0.1rem 0.3rem; background: var(--pico-muted-border-color); border-radius: 3px; }
+
+    .back-link { margin-bottom: 1rem; display: inline-block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="/projects/{{ project.id }}" class="back-link">&larr; {{ project.name }}</a>
+
+<div class="report-content" id="report"></div>
+
+<script>
+const projectId = "{{ project.id }}";
+const rawMarkdown = {{ content_json | safe }};
+
+// Render markdown
+document.getElementById('report').innerHTML = marked.parse(rawMarkdown);
+
+// Post-process: find belief IDs in footnotes and make them interactive
+enhanceBeliefRefs();
+
+function enhanceBeliefRefs() {
+    const report = document.getElementById('report');
+    // Find all footnote paragraphs and inline code elements containing belief IDs
+    const beliefPattern = /^[a-z][a-z0-9]*(?::[a-z][a-z0-9-]*(?:-[a-z0-9]+)*|(?:-[a-z0-9]+)+)$/;
+
+    // Enhance inline code elements that look like belief IDs
+    report.querySelectorAll('code').forEach(code => {
+        const text = code.textContent.trim();
+        if (beliefPattern.test(text)) {
+            code.classList.add('belief-ref');
+            code.setAttribute('data-belief', text);
+            {% if llm_enabled %}
+            const actions = document.createElement('span');
+            actions.className = 'belief-actions';
+            actions.innerHTML =
+                `<button class="outline secondary" onclick="explainBelief(this, '${text}')">Explain</button>` +
+                `<button class="outline secondary" onclick="whatIfBelief(this, '${text}')">What if?</button>`;
+            code.parentNode.insertBefore(actions, code.nextSibling);
+            {% endif %}
+        }
+    });
+}
+
+async function streamChatToPanel(button, prompt, panelClass) {
+    button.setAttribute('aria-busy', 'true');
+
+    // Toggle: remove existing panel if re-clicking
+    const para = button.closest('p') || button.closest('li') || button.closest('div');
+    if (para) {
+        const existing = para.nextElementSibling;
+        if (existing && existing.classList.contains(panelClass)) {
+            existing.remove();
+            button.removeAttribute('aria-busy');
+            return;
+        }
+    }
+
+    const panel = document.createElement('div');
+    panel.className = `belief-panel ${panelClass}`;
+    panel.innerHTML = '<div class="panel-status" style="font-size:0.8rem; color:var(--pico-muted-color); font-style:italic;">Thinking...</div><div class="panel-content"></div>';
+
+    if (para) {
+        para.parentNode.insertBefore(panel, para.nextSibling);
+    }
+
+    const statusEl = panel.querySelector('.panel-status');
+    const contentEl = panel.querySelector('.panel-content');
+    let rawMarkdown = '';
+
+    try {
+        const response = await fetch(`/api/projects/${projectId}/chat`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: prompt,
+                model: 'gemini-2.5-pro',
+                thread_id: crypto.randomUUID(),
+            }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, {stream: true});
+
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            let eventType = null;
+            for (const line of lines) {
+                if (line.startsWith('event: ')) {
+                    eventType = line.slice(7).trim();
+                } else if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        if (eventType === 'tool_call') {
+                            statusEl.textContent = `Using tool: ${data.name}...`;
+                        } else if (eventType === 'done') {
+                            statusEl.remove();
+                            if (rawMarkdown) {
+                                contentEl.innerHTML = marked.parse(rawMarkdown);
+                            }
+                        } else if (data.type === 'token') {
+                            statusEl.style.display = 'none';
+                            rawMarkdown += data.content;
+                            contentEl.textContent = rawMarkdown;
+                        }
+                    } catch (e) {}
+                    eventType = null;
+                }
+            }
+        }
+        // Fallback render
+        if (rawMarkdown) {
+            statusEl.remove();
+            contentEl.innerHTML = marked.parse(rawMarkdown);
+        } else if (!rawMarkdown && statusEl.parentNode) {
+            statusEl.textContent = 'No response received.';
+        }
+    } catch (e) {
+        console.error('Chat stream failed:', e);
+        statusEl.textContent = `Error: ${e.message}`;
+    }
+
+    button.removeAttribute('aria-busy');
+}
+
+async function explainBelief(button, nodeId) {
+    const prompt = `Explain the belief "${nodeId}" — why does the network hold this? Trace its justification chain and explain in plain language what evidence supports it.`;
+    await streamChatToPanel(button, prompt, 'explain-panel');
+}
+
+async function whatIfBelief(button, nodeId) {
+    const prompt = `What would happen if we retracted the belief "${nodeId}"? Use the what-if tool to simulate the cascade and explain the impact in plain language — which conclusions would be lost, which might be restored, and what that means.`;
+    await streamChatToPanel(button, prompt, 'what-if-panel');
+}
+</script>
+{% endblock %}

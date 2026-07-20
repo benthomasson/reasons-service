@@ -1,0 +1,246 @@
+{
+  "components": [
+    {
+      "name": "Storage",
+      "type": "group",
+      "position": [
+        633,
+        323
+      ],
+      "size": [
+        836,
+        862
+      ]
+    },
+    {
+      "name": "LLMs",
+      "type": "group",
+      "position": [
+        634,
+        -407
+      ],
+      "size": [
+        838,
+        557
+      ]
+    },
+    {
+      "name": "Observability",
+      "type": "group",
+      "position": [
+        -252,
+        677
+      ],
+      "size": [
+        892,
+        442
+      ]
+    },
+    {
+      "name": "Services",
+      "type": "group",
+      "position": [
+        -249,
+        13
+      ],
+      "size": [
+        887,
+        855
+      ]
+    },
+    {
+      "name": "Clients",
+      "type": "group",
+      "position": [
+        -973,
+        15
+      ],
+      "size": [
+        515,
+        851
+      ]
+    },
+    {
+      "name": "browser",
+      "type": "client",
+      "position": [
+        -983,
+        34
+      ],
+      "technology": "Firefox"
+    },
+    {
+      "name": "expert_cli",
+      "type": "client",
+      "position": [
+        -969,
+        -246
+      ],
+      "technology": "Terminal"
+    },
+    {
+      "name": "mcp_server",
+      "type": "client",
+      "position": [
+        -988,
+        283
+      ],
+      "technology": "MCP"
+    },
+    {
+      "name": "reasons_service",
+      "type": "service",
+      "position": [
+        -479,
+        1
+      ],
+      "technology": "FastAPI"
+    },
+    {
+      "name": "chat_loop",
+      "type": "service",
+      "position": [
+        -26,
+        -234
+      ],
+      "technology": "LangChain"
+    },
+    {
+      "name": "search_api",
+      "type": "service",
+      "position": [
+        -33,
+        156
+      ],
+      "technology": "FTS + IDF"
+    },
+    {
+      "name": "postgresql",
+      "type": "database",
+      "position": [
+        489,
+        61
+      ],
+      "technology": "PostgreSQL"
+    },
+    {
+      "name": "sqlite_kb",
+      "type": "database",
+      "position": [
+        868,
+        61
+      ],
+      "technology": "SQLite"
+    },
+    {
+      "name": "vertex_ai",
+      "type": "external",
+      "position": [
+        531,
+        -520
+      ],
+      "technology": "Vertex AI"
+    },
+    {
+      "name": "ollama",
+      "type": "external",
+      "position": [
+        532,
+        -288
+      ],
+      "technology": "Ollama"
+    },
+    {
+      "name": "snowflake",
+      "type": "external",
+      "position": [
+        503,
+        598
+      ],
+      "technology": "Snowflake"
+    },
+    {
+      "name": "langfuse",
+      "type": "external",
+      "position": [
+        -260,
+        604
+      ],
+      "technology": "Langfuse"
+    },
+    {
+      "name": "reasons_db",
+      "type": "database",
+      "position": [
+        490,
+        345
+      ],
+      "technology": "ftl-reasons"
+    },
+    {
+      "name": "reasons_db sqlite",
+      "type": "database",
+      "position": [
+        862,
+        352
+      ],
+      "technology": "SQLite"
+    }
+  ],
+  "connections": [
+    {
+      "from": "browser_request",
+      "to": "reasons_service_in"
+    },
+    {
+      "from": "expert_cli_request",
+      "to": "reasons_service_in"
+    },
+    {
+      "from": "mcp_server_request",
+      "to": "reasons_service_in"
+    },
+    {
+      "from": "reasons_service_out",
+      "to": "chat_loop_in"
+    },
+    {
+      "from": "reasons_service_out",
+      "to": "search_api_in"
+    },
+    {
+      "from": "chat_loop_out",
+      "to": "postgresql_query"
+    },
+    {
+      "from": "chat_loop_out",
+      "to": "vertex_ai_ext_in"
+    },
+    {
+      "from": "chat_loop_out",
+      "to": "ollama_ext_in"
+    },
+    {
+      "from": "search_api_out",
+      "to": "postgresql_query"
+    },
+    {
+      "from": "reasons_service_event",
+      "to": "langfuse_ext_in"
+    },
+    {
+      "from": "search_api_out",
+      "to": "snowflake_ext_in"
+    },
+    {
+      "from": "search_api_out",
+      "to": "reasons_db_query"
+    }
+  ],
+  "view": {
+    "translate_x": 886.4362370000001,
+    "translate_y": 451.91090800000006,
+    "scale": 0.5314410000000002,
+    "theme": "light"
+  }
+}

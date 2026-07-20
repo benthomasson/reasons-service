@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Review Beliefs — {{ project.name }}{% endblock %}
+{% block content %}
+<p><a href="/projects/{{ project.id }}">&larr; Back to {{ project.name }}</a></p>
+
+<hgroup>
+    <h1>Review Proposed Beliefs</h1>
+    <p>{{ beliefs | length }} beliefs awaiting review</p>
+</hgroup>
+
+{% if beliefs %}
+<form method="post" action="/projects/{{ project.id }}/beliefs/review">
+    <div style="margin-bottom: 1rem;">
+        <button type="button" onclick="setAll('accept')">Accept All</button>
+        <button type="button" class="secondary" onclick="setAll('reject')">Reject All</button>
+    </div>
+
+    {% for b in beliefs %}
+    <div class="belief-row">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <div class="belief-id">{{ b.id }}</div>
+                <p>{{ b.text }}</p>
+                <div class="belief-source">Source: {{ b.source or 'unknown' }}</div>
+            </div>
+            <select name="decision_{{ b.id }}" style="width: auto;">
+                <option value="pending">Pending</option>
+                <option value="accept">Accept</option>
+                <option value="reject">Reject</option>
+            </select>
+        </div>
+    </div>
+    {% endfor %}
+
+    <button type="submit">Submit Review</button>
+</form>
+
+<script>
+function setAll(value) {
+    document.querySelectorAll('select[name^="decision_"]').forEach(s => s.value = value);
+}
+</script>
+{% else %}
+<p>No beliefs awaiting review.{% if llm_enabled %} <a href="/projects/{{ project.id }}/beliefs/propose">Propose beliefs</a> first.{% endif %}</p>
+{% endif %}
+{% endblock %}

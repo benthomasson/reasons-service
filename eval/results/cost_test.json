@@ -1,0 +1,61 @@
+{
+  "metadata": {
+    "started_at": "2026-03-06T15:09:28.273704+00:00",
+    "completed_at": "2026-03-06T15:09:40.275329+00:00",
+    "question_count": 2,
+    "systems": [
+      "claude-code"
+    ]
+  },
+  "systems": {
+    "claude-code": {
+      "config": {
+        "type": "claude-code",
+        "cwd": "/Users/ben/git/aap-expert"
+      },
+      "summary": {
+        "mc_correct": 2,
+        "mc_total": 2,
+        "mc_accuracy": 1.0,
+        "oe_avg_normalized": 0.0,
+        "oe_total": 0,
+        "avg_latency": 6.0,
+        "avg_tool_calls": 0.0
+      },
+      "results": [
+        {
+          "question_id": "Q1",
+          "question_type": "mc",
+          "raw_response": "\n\nANSWER: a",
+          "tool_calls": [],
+          "latency_seconds": 3.41,
+          "mc_score": {
+            "question_id": "Q1",
+            "expected": "a",
+            "extracted": "a",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          },
+          "cost_usd": 0.003511,
+          "num_turns": 1
+        },
+        {
+          "question_id": "Q2",
+          "question_type": "mc",
+          "raw_response": "Based on the repository's knowledge, automation mesh uses **Receptor** as its underlying overlay network protocol, with TLS-encrypted communication.\n\nANSWER: b",
+          "tool_calls": [],
+          "latency_seconds": 8.59,
+          "mc_score": {
+            "question_id": "Q2",
+            "expected": "b",
+            "extracted": "b",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          },
+          "cost_usd": 0.02208,
+          "num_turns": 3
+        }
+      ]
+    }
+  }
+}

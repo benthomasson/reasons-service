@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Projects — Reasons Service{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>Projects</h1>
+    <p>Domain expert knowledge bases</p>
+</hgroup>
+
+<div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+    {% if llm_enabled %}<a href="/meta/chat" role="button" class="outline">Meta-Expert &rarr;</a>{% endif %}
+    <a href="/projects/new" role="button">+ New Project</a>
+</div>
+
+{% if projects %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+    {% for p in projects %}
+    <article>
+        <header><strong>{{ p.name }}</strong></header>
+        <p>{{ p.domain }}</p>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value">{{ p.source_count }}</div>
+                <div class="label">Sources</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ p.entry_count }}</div>
+                <div class="label">Entries</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ p.belief_count }}</div>
+                <div class="label">Beliefs</div>
+            </div>
+        </div>
+        <footer>
+            <a href="/projects/{{ p.id }}" role="button" class="outline">Open</a>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<p>No projects yet. <a href="/projects/new">Create one</a> to get started.</p>
+{% endif %}
+{% endblock %}

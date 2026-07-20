@@ -1,0 +1,151 @@
+{
+  "metadata": {
+    "started_at": "2026-03-06T15:07:23.081373+00:00",
+    "completed_at": "2026-03-06T15:07:57.345008+00:00",
+    "question_count": 3,
+    "systems": [
+      "claude-code",
+      "expert-service-gemini"
+    ]
+  },
+  "systems": {
+    "claude-code": {
+      "config": {
+        "type": "claude-code",
+        "cwd": "/Users/ben/git/aap-expert"
+      },
+      "summary": {
+        "mc_correct": 3,
+        "mc_total": 3,
+        "mc_accuracy": 1.0,
+        "oe_avg_normalized": 0.0,
+        "oe_total": 0,
+        "avg_latency": 4.04,
+        "avg_tool_calls": 0.0
+      },
+      "results": [
+        {
+          "question_id": "Q1",
+          "question_type": "mc",
+          "raw_response": "\n\nANSWER: a",
+          "tool_calls": [],
+          "latency_seconds": 2.14,
+          "mc_score": {
+            "question_id": "Q1",
+            "expected": "a",
+            "extracted": "a",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          }
+        },
+        {
+          "question_id": "Q2",
+          "question_type": "mc",
+          "raw_response": "Automation mesh uses **Receptor** as its underlying overlay network protocol, with TLS-encrypted communication.\n\nANSWER: b",
+          "tool_calls": [],
+          "latency_seconds": 8.15,
+          "mc_score": {
+            "question_id": "Q2",
+            "expected": "b",
+            "extracted": "b",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          }
+        },
+        {
+          "question_id": "Q3",
+          "question_type": "mc",
+          "raw_response": "\n\nANSWER: b",
+          "tool_calls": [],
+          "latency_seconds": 1.83,
+          "mc_score": {
+            "question_id": "Q3",
+            "expected": "b",
+            "extracted": "b",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          }
+        }
+      ]
+    },
+    "expert-service-gemini": {
+      "config": {
+        "type": "expert-service-gemini",
+        "model": "gemini-2.5-pro"
+      },
+      "summary": {
+        "mc_correct": 3,
+        "mc_total": 3,
+        "mc_accuracy": 1.0,
+        "oe_avg_normalized": 0.0,
+        "oe_total": 0,
+        "avg_latency": 7.38,
+        "avg_tool_calls": 1.0
+      },
+      "results": [
+        {
+          "question_id": "Q1",
+          "question_type": "mc",
+          "raw_response": "According to the Containerized Installation Guide for Ansible Automation Platform 2.6, the three main installation methods are RPM-based, containerized (on RHEL with Podman), and operator-based (on OpenShift) (e1e150e56b8c).\n\nANSWER: a",
+          "tool_calls": [
+            {
+              "name": "search_knowledge",
+              "args": {
+                "query": "Ansible Automation Platform 2.6 installation methods"
+              }
+            },
+            {
+              "name": "read_entry",
+              "args": {
+                "entry_id": "e1e150e56b8c"
+              }
+            }
+          ],
+          "latency_seconds": 9.4,
+          "mc_score": {
+            "question_id": "Q1",
+            "expected": "a",
+            "extracted": "a",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          }
+        },
+        {
+          "question_id": "Q2",
+          "question_type": "mc",
+          "raw_response": "Automation mesh uses the Receptor protocol for its underlying overlay network (Belief ID: 11623). Receptor is a flexible and scalable overlay network designed for message-based communication across various transports.\n\nANSWER: b",
+          "tool_calls": [],
+          "latency_seconds": 3.77,
+          "mc_score": {
+            "question_id": "Q2",
+            "expected": "b",
+            "extracted": "b",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          }
+        },
+        {
+          "question_id": "Q3",
+          "question_type": "mc",
+          "raw_response": "The four node types in automation mesh are control, hybrid, execution, and hop (belief/automation-mesh-node-types).\n\nANSWER: b",
+          "tool_calls": [
+            {
+              "name": "search_knowledge",
+              "args": {
+                "query": "node types in automation mesh"
+              }
+            }
+          ],
+          "latency_seconds": 8.99,
+          "mc_score": {
+            "question_id": "Q3",
+            "expected": "b",
+            "extracted": "b",
+            "correct": true,
+            "objective": "Understand the architecture of Ansible Automation Platform"
+          }
+        }
+      ]
+    }
+  }
+}

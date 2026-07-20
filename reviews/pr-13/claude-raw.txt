@@ -1,0 +1,109 @@
+Let me proceed with the review using what I've gathered. Both callers of `_build_sources_section` already unpack the tuple, so the return type change is wired correctly.
+
+---
+
+## Code Review
+
+### expert_service/api/ask.py
+**VERDICT:** PASS
+**CORRECTNESS:** VALID
+**SPEC_COMPLIANCE:** N/A
+**ISSUE_COMPLIANCE:** ADDRESSES
+**BELIEF_COMPLIANCE:** CONSISTENT
+**TEST_COVERAGE:** COVERED
+**INTEGRATION:** WIRED
+
+**REASONING:** The change directly resolves both problems stated in the issue:
+
+1. **try/except added** — `rms_api.search()` and initial result parsing are wrapped. On failure, the exception is logged with `logger.exception()` (preserving the traceback server-side) and a generic `HTTPException(500, "Search failed")` is raised, preventing internal details from leaking to clients.
+
+2. **Defensive key access** — All three dict accesses (`truth_value`, `id`, `text`) now use `.get()` with sensible defaults (`"UNKNOWN"`, `"?"`, `""`). The top-level `result` dict also uses `.get("results", [])` and `.get("count", len(results))`.
+
+Resolves beliefs `ask-no-error-handling` and `ask-result-keys-required`. Consistent with `ask-endpoint-no-llm` (no LLM added), `ask-scoped-to-project` (still scoped), and `ask-compact-format` (format preserved with graceful degradation).
+
+Minor note: the compact string builder sits outside the try/except. If a result item were not a dict (e.g., `None`), `r.get()` would raise `AttributeError` and fall through to FastAPI's default 500. This is acceptable — the `rms_api.search` contract guarantees dicts, and wrapping every line in try/except would be over-defensive.
+
+---
+
+### expert_service/chat/loop.py:_build_sources_section
+**VERDICT:** CONCERN
+**CORRECTNESS:** VALID
+**SPEC_COMPLIANCE:** N/A
+**ISSUE_COMPLIANCE:** UNRELATED
+**BELIEF_COMPLIANCE:** N/A
+**TEST_COVERAGE:** UNTESTED
+**INTEGRATION:** WIRED
+
+**REASONING:** This change modifies the return type from `str` to `tuple[str, dict[str, int]]`. Both callers (`dual_ask` at line ~705 and `dual_chat_stream` at line ~783) already destructure the tuple correctly (`sources_section, cite_map = ...` and `sources_section, _cite_map = ...`), so the integration is wired.
+
+However, this is **unrelated to the issue** (ask endpoint error handling) and is **untested** — there are no tests for `_build_sources_section` or its callers. The change appears to be from a prior commit on this branch (`a20f224 Filter citations to LLM-referenced sources`), bundled into this PR. The return type change itself is clean, but without tests for the citation mapping logic, regressions would be silent.
+
+---
+
+### tests/__init__.py
+**VERDICT:** PASS
+**CORRECTNESS:** VALID
+**SPEC_COMPLIANCE:** N/A
+**ISSUE_COMPLIANCE:** ADDRESSES
+**BELIEF_COMPLIANCE:** N/A
+**TEST_COVERAGE:** N/A
+**INTEGRATION:** WIRED
+
+**REASONING:** Standard empty `__init__.py` to make `tests` a proper Python package, required for the `from tests.conftest import VALID_PROJECT_ID` import in `test_ask.py`.
+
+---
+
+### tests/conftest.py
+**VERDICT:** PASS
+**CORRECTNESS:** VALID
+**SPEC_COMPLIANCE:** N/A
+**ISSUE_COMPLIANCE:** ADDRESSES
+**BELIEF_COMPLIANCE:** N/A
+**TEST_COVERAGE:** N/A
+**INTEGRATION:** WIRED
+
+**REASONING:** Clean fixture design. The mock patches at the correct import path (`expert_service.api.ask.rms_api.search`). The `ask_app` fixture creates a minimal FastAPI app with only the ask router, avoiding heavy dependencies. `VALID_PROJECT_ID` is a module-level constant rather than a fixture, which is fine for a simple string.
+
+One minor style point: `VALID_PROJECT_ID` could be a fixture for consistency, but as a constant it's simpler and works well with f-strings in test URLs.
+
+---
+
+### tests/test_ask.py
+**VERDICT:** PASS
+**CORRECTNESS:** VALID
+**SPEC_COMPLIANCE:** N/A
+**ISSUE_COMPLIANCE:** ADDRESSES
+**BELIEF_COMPLIANCE:** CONSISTENT
+**TEST_COVERAGE:** COVERED
+**INTEGRATION:** WIRED
+
+**REASONING:** Thorough test suite with 17 tests across 5 categories:
+
+- **Happy path** (3 tests): Normal results, empty results, single result — validates the response shape and compact format.
+- **Error handling** (5 tests): Covers `Exception`, `RuntimeError`, `ConnectionError`, `KeyError`, and verifies no credential/connection string leakage. Tests that the generic "Search failed" message is returned.
+- **Defensive key access** (5 tests): Covers each missing key individually, completely empty dict, and mixed complete/partial results. Verifies defaults (`UNKNOWN`, `?`, empty string).
+- **Input validation** (3 tests): Missing question (422), invalid UUID (422), empty string question (200). Consistent with belief `ask-scoped-to-project` (UUID validation).
+- **Logging** (1 test): Verifies `logger.exception` fires with project_id using `caplog`.
+
+`test_ask_error_does_not_leak_details` is a valuable security test — confirms internal exception messages don't reach the client.
+
+The tests in `test_ask_missing_question_field` and `test_ask_invalid_project_id` accept `mock_search` but don't use it. This is harmless (validation rejects before search runs) and avoids issues if FastAPI routing changes in the future.
+
+---
+
+## Summary
+
+The core change cleanly addresses both problems in the issue. The `/ask` endpoint now has proper error handling with logging and defensive key access. Test coverage is comprehensive.
+
+The only concern is the `_build_sources_section` return type change in `loop.py` — it's unrelated to the issue, untested, and bundled into this PR. Its integration is correct (callers already updated), but it would benefit from its own tests.
+
+---
+
+### SELF_REVIEW
+**LIMITATIONS:** Could not run the test suite to verify all 17 tests pass (permission issue). Relied on subagent confirmation that `_build_sources_section` callers are already updated to the tuple return type. Did not see the full diff of `loop.py` (only the signature and empty-return changes were in the diff), so there may be other changes in that function not reviewed here.
+
+---
+
+### FEATURE_REQUESTS
+- Include the full function body for any function whose signature changed, not just the diff hunks — the compact format builder in `ask.py` is small enough to see, but `_build_sources_section` in `loop.py` is 70+ lines and only 4 lines of diff were shown
+- Flag unrelated changes automatically (changes in the diff that don't map to the issue description) so reviewers can assess scope creep

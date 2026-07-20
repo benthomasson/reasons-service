@@ -1,0 +1,885 @@
+{
+  "verify_auth_body": {
+    "function": "verify_auth",
+    "file": "expert_service/auth.py",
+    "start_line": 144,
+    "end_line": 196,
+    "source": "async def verify_auth(\n    request: Request,\n    credentials: HTTPAuthorizationCredentials | None = Depends(security),\n    session: AsyncSession = Depends(get_session),\n) -> UserInfo:\n    \"\"\"Authenticate via bearer token, Google ID token, OAuth session, or dev-mode bypass.\"\"\"\n\n    # 1. Static API key (programmatic access)\n    if credentials and settings.api_key and hmac.compare_digest(credentials.credentials, settings.api_key):\n        user = UserInfo(identity=\"api\", role=Role.ADMIN)\n        request.state.user = user\n        return user\n\n    # 2. Google ID token (CLI/programmatic access with per-user identity)\n    if credentials and settings.google_client_id:\n        email = await _verify_google_id_token(credentials.credentials)\n        if email:\n            email = email.strip().lower()\n            result = await session.execute(select(User).where(User.email == email))\n            db_user = result.scalar_one_or_none()\n            if db_user:\n                user = UserInfo(\n                    identity=email,\n                    role=db_user.role,\n                    display_name=db_user.display_name,\n                )\n                request.state.user = user\n                return user\n            else:\n                raise HTTPException(status_code=403, detail=\"User not registered\")\n\n    # 3. OAuth session (browser access)\n    email = request.session.get(\"user_email\")\n    if email:\n        result = await session.execute(select(User).where(User.email == email))\n        db_user = result.scalar_one_or_none()\n        if not db_user:\n            raise HTTPException(status_code=403, detail=\"User not registered\")\n        user = UserInfo(\n            identity=email,\n            role=db_user.role,\n            display_name=db_user.display_name,\n        )\n        request.state.user = user\n        return user\n\n    # 3. Dev mode \u2014 no OAuth configured, allow anonymous access\n    if not settings.google_client_id:\n        user = UserInfo(identity=\"dev\", role=Role.ADMIN, display_name=\"Developer\")\n        request.state.user = user\n        return user\n\n    raise HTTPException(status_code=401, detail=\"Not authenticated\")"
+  },
+  "userinfo_and_role": {
+    "error": "Class 'UserInfo' not found in expert_service/auth.py",
+    "file": "expert_service/auth.py"
+  },
+  "role_enum": {
+    "error": "No function found at 'Role'",
+    "file": "expert_service/auth.py"
+  },
+  "data_router_all_endpoints": {
+    "symbol": "router.post",
+    "usages": [
+      {
+        "file": "expert_service/api/ask.py",
+        "line": 20,
+        "text": "@router.post(\"/ask\")"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 48,
+        "text": "@router.post(\"/chat\")"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 76,
+        "text": "@router.post(\"/ask\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 110,
+        "text": "@router.post(\"/ingest\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 207,
+        "text": "@router.post(\"/beliefs/propose\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 260,
+        "text": "@router.post(\"/beliefs/review\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 356,
+        "text": "@router.post(\"/assess/coverage\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 393,
+        "text": "@router.post(\"/assess/exam\")"
+      },
+      {
+        "file": "expert_service/api/meta_chat.py",
+        "line": 20,
+        "text": "@router.post(\"/chat\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 47,
+        "text": "@router.post(\"\", response_model=ProjectResponse)"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 125,
+        "text": "@router.post(\"/import-reasons\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 306,
+        "text": "@router.post(\"/import/sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 355,
+        "text": "@router.post(\"/import/entries\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 407,
+        "text": "@router.post(\"/import/beliefs\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 445,
+        "text": "@router.post(\"/link-entries-sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 518,
+        "text": "@router.post(\"/chunk-sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 2667,
+        "text": "return self.router.post("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1117,
+        "text": "like `router.get()`, `router.post()`, etc."
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 2934,
+        "text": "@router.post(\"/items/\")"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/api/ask.py",
+        "line": 20,
+        "text": "@router.post(\"/ask\")"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 48,
+        "text": "@router.post(\"/chat\")"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 76,
+        "text": "@router.post(\"/ask\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 110,
+        "text": "@router.post(\"/ingest\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 207,
+        "text": "@router.post(\"/beliefs/propose\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 260,
+        "text": "@router.post(\"/beliefs/review\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 356,
+        "text": "@router.post(\"/assess/coverage\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 393,
+        "text": "@router.post(\"/assess/exam\")"
+      },
+      {
+        "file": "expert_service/api/meta_chat.py",
+        "line": 20,
+        "text": "@router.post(\"/chat\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 47,
+        "text": "@router.post(\"\", response_model=ProjectResponse)"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 125,
+        "text": "@router.post(\"/import-reasons\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 306,
+        "text": "@router.post(\"/import/sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 355,
+        "text": "@router.post(\"/import/entries\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 407,
+        "text": "@router.post(\"/import/beliefs\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 445,
+        "text": "@router.post(\"/link-entries-sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 518,
+        "text": "@router.post(\"/chunk-sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 2667,
+        "text": "return self.router.post("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1117,
+        "text": "like `router.get()`, `router.post()`, etc."
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 2934,
+        "text": "@router.post(\"/items/\")"
+      }
+    ],
+    "test_usages": [],
+    "production_count": 19,
+    "test_count": 0,
+    "total_count": 19
+  },
+  "data_router_get_endpoints": {
+    "symbol": "router.get",
+    "usages": [
+      {
+        "file": "expert_service/auth.py",
+        "line": 31,
+        "text": "@router.get(\"/login\")"
+      },
+      {
+        "file": "expert_service/auth.py",
+        "line": 41,
+        "text": "@router.get(\"/auth/callback\")"
+      },
+      {
+        "file": "expert_service/auth.py",
+        "line": 81,
+        "text": "@router.get(\"/logout\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 147,
+        "text": "@router.get(\"/pipeline/{run_id}\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 242,
+        "text": "@router.get(\"/beliefs/proposed\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 72,
+        "text": "@router.get(\"\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 93,
+        "text": "@router.get(\"/{project_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 23,
+        "text": "@router.get(\"/sources\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 33,
+        "text": "@router.get(\"/sources/{slug}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 56,
+        "text": "@router.get(\"/sources/{slug}/entries\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 76,
+        "text": "@router.get(\"/entries\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 101,
+        "text": "@router.get(\"/entries/{entry_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 124,
+        "text": "@router.get(\"/beliefs\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 135,
+        "text": "@router.get(\"/beliefs/status\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 141,
+        "text": "@router.get(\"/issues\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 149,
+        "text": "@router.get(\"/beliefs/{node_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 158,
+        "text": "@router.get(\"/beliefs/{node_id}/explain\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 167,
+        "text": "@router.get(\"/beliefs/{node_id}/what-if\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 176,
+        "text": "@router.get(\"/search\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 229,
+        "text": "@router.get(\"/deep-search\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 1911,
+        "text": "return self.router.get("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1019,
+        "text": "@router.get(\"/users/\", tags=[\"users\"])"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1117,
+        "text": "like `router.get()`, `router.post()`, etc."
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1701,
+        "text": "@users_router.get(\"/users/\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 2170,
+        "text": "@router.get(\"/items/\")"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/auth.py",
+        "line": 31,
+        "text": "@router.get(\"/login\")"
+      },
+      {
+        "file": "expert_service/auth.py",
+        "line": 41,
+        "text": "@router.get(\"/auth/callback\")"
+      },
+      {
+        "file": "expert_service/auth.py",
+        "line": 81,
+        "text": "@router.get(\"/logout\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 147,
+        "text": "@router.get(\"/pipeline/{run_id}\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 242,
+        "text": "@router.get(\"/beliefs/proposed\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 72,
+        "text": "@router.get(\"\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 93,
+        "text": "@router.get(\"/{project_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 23,
+        "text": "@router.get(\"/sources\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 33,
+        "text": "@router.get(\"/sources/{slug}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 56,
+        "text": "@router.get(\"/sources/{slug}/entries\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 76,
+        "text": "@router.get(\"/entries\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 101,
+        "text": "@router.get(\"/entries/{entry_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 124,
+        "text": "@router.get(\"/beliefs\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 135,
+        "text": "@router.get(\"/beliefs/status\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 141,
+        "text": "@router.get(\"/issues\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 149,
+        "text": "@router.get(\"/beliefs/{node_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 158,
+        "text": "@router.get(\"/beliefs/{node_id}/explain\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 167,
+        "text": "@router.get(\"/beliefs/{node_id}/what-if\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 176,
+        "text": "@router.get(\"/search\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 229,
+        "text": "@router.get(\"/deep-search\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 1911,
+        "text": "return self.router.get("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1019,
+        "text": "@router.get(\"/users/\", tags=[\"users\"])"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1117,
+        "text": "like `router.get()`, `router.post()`, etc."
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1701,
+        "text": "@users_router.get(\"/users/\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 2170,
+        "text": "@router.get(\"/items/\")"
+      }
+    ],
+    "test_usages": [],
+    "production_count": 25,
+    "test_count": 0,
+    "total_count": 25
+  },
+  "data_router_delete_endpoints": {
+    "symbol": "router.delete",
+    "usages": [
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 113,
+        "text": "@router.delete(\"/{project_id}\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 3040,
+        "text": "return self.router.delete("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 3311,
+        "text": "@router.delete(\"/items/{item_id}\")"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 113,
+        "text": "@router.delete(\"/{project_id}\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 3040,
+        "text": "return self.router.delete("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 3311,
+        "text": "@router.delete(\"/items/{item_id}\")"
+      }
+    ],
+    "test_usages": [],
+    "production_count": 3,
+    "test_count": 0,
+    "total_count": 3
+  },
+  "quick_belief_search_callers": {
+    "symbol": "_quick_belief_search",
+    "production_callers": [
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 266,
+        "text": "def _quick_belief_search(project_id: UUID, question: str, limit: int = 10) -> tuple[str, list[Source",
+        "context_function": "_replace",
+        "context_snippet": "   263: \n   264: \n   265: \n>> 266: def _quick_belief_search(project_id: UUID, question: str, limit: int = 10) -> tuple[str, list[SourceRef]]:\n   267:     \"\"\"Fast belief pre-check with IDF re-ranking.\n   268: \n   269:     PostgreSQL: tsvector FTS with ts_rank_cd baseline, IDF re-ranking."
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 371,
+        "text": "belief_context, _sources = _quick_belief_search(project_id, message)",
+        "context_function": "chat_stream",
+        "context_snippet": "   368: \n   369:     # Belief-first pre-check: inject matching beliefs so the LLM can\n   370:     # answer directly without a tool call when beliefs are sufficient.\n>> 371:     belief_context, _sources = _quick_belief_search(project_id, message)\n   372:     if belief_context:\n   373:         augmented = f\"{message}\\n\\n[Belief matches:\\n{belief_context}\\n]\"\n   374:         logger.info(\"Belief pre-check: %d matches for %r\","
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 695,
+        "text": "_quick_belief_search, project_id, query, 20,",
+        "context_function": "_tms_answer_iterative",
+        "context_snippet": "   692:             query = tool_call.get(\"query\", \"\")\n   693:             logger.info(\"TMS iterative search round %d: %r\", iteration + 1, query)\n   694:             extra_ctx, iter_sources = await asyncio.to_thread(\n>> 695:                 _quick_belief_search, project_id, query, 20,\n   696:             )\n   697:             tool_history.append({\"tool\": \"search_beliefs\", \"query\": query,\n   698:                                  \"result\": extra_ctx or \"No results found.\"})"
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 739,
+        "text": "asyncio.to_thread(_quick_belief_search, project_id, message, 20),",
+        "context_function": "dual_ask",
+        "context_snippet": "   736: \n   737:     # Phase 1: parallel retrieval\n   738:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n>> 739:         asyncio.to_thread(_quick_belief_search, project_id, message, 20),\n   740:         asyncio.to_thread(_search_source_chunks, project_id, message, 10),\n   741:     )\n   742: "
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 840,
+        "text": "asyncio.to_thread(_quick_belief_search, project_id, message, 20),",
+        "context_function": "single_ask",
+        "context_snippet": "   837: \n   838:     # Retrieval: same as deep-search\n   839:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n>> 840:         asyncio.to_thread(_quick_belief_search, project_id, message, 20),\n   841:         asyncio.to_thread(_search_source_chunks, project_id, message, 10),\n   842:     )\n   843: "
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 898,
+        "text": "asyncio.to_thread(_quick_belief_search, project_id, message, 20),",
+        "context_function": "dual_chat_stream",
+        "context_snippet": "   895: \n   896:     # Phase 1: parallel retrieval (sync \u2192 run in threads)\n   897:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n>> 898:         asyncio.to_thread(_quick_belief_search, project_id, message, 20),\n   899:         asyncio.to_thread(_search_source_chunks, project_id, message, 10),\n   900:     )\n   901: "
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 242,
+        "text": "from expert_service.chat.loop import _quick_belief_search, _search_source_chunks",
+        "context_function": "deep_search",
+        "context_snippet": "   239: \n   240:     Returns pre-ranked, pre-formatted results ready for client-side synthesis.\n   241:     \"\"\"\n>> 242:     from expert_service.chat.loop import _quick_belief_search, _search_source_chunks\n   243: \n   244:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n   245:         asyncio.to_thread(_quick_belief_search, project_id, q, 20),"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 245,
+        "text": "asyncio.to_thread(_quick_belief_search, project_id, q, 20),",
+        "context_function": "deep_search",
+        "context_snippet": "   242:     from expert_service.chat.loop import _quick_belief_search, _search_source_chunks\n   243: \n   244:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n>> 245:         asyncio.to_thread(_quick_belief_search, project_id, q, 20),\n   246:         asyncio.to_thread(_search_source_chunks, project_id, q, 10),\n   247:     )\n   248: "
+      }
+    ],
+    "test_callers": [],
+    "production_count": 8,
+    "test_count": 0,
+    "total_count": 8
+  },
+  "single_ask_callers": {
+    "symbol": "single_ask",
+    "production_callers": [
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 824,
+        "text": "async def single_ask(",
+        "context_function": "_rag_answer",
+        "context_snippet": "   821: Answer the question using the context above. Cite sources inline.\"\"\"\n   822: \n   823: \n>> 824: async def single_ask(\n   825:     project_id: UUID,\n   826:     model: str,\n   827:     message: str,"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 15,
+        "text": "from expert_service.chat.loop import chat_stream, dual_ask, dual_chat_stream, single_ask",
+        "context_function": null,
+        "context_snippet": "   12: \n   13: logger = logging.getLogger(__name__)\n   14: \n>> 15: from expert_service.chat.loop import chat_stream, dual_ask, dual_chat_stream, single_ask\n   16: from expert_service.db.connection import get_sync_session\n   17: \n   18: router = APIRouter(prefix=\"/api/projects/{project_id}\", tags=[\"chat\"])"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 81,
+        "text": "return await single_ask(project_id, data.model, data.question)",
+        "context_function": "ask",
+        "context_snippet": "   78:     \"\"\"Non-streaming answer. Mode: 'dual' (3-call merge) or 'single' (1-call synthesis).\"\"\"\n   79:     try:\n   80:         if data.mode == \"single\":\n>> 81:             return await single_ask(project_id, data.model, data.question)\n   82:         allowed = _get_project_connectors(project_id)\n   83:         return await dual_ask(project_id, data.model, data.question,\n   84:                               allowed_connectors=allowed)"
+      }
+    ],
+    "test_callers": [],
+    "production_count": 3,
+    "test_count": 0,
+    "total_count": 3
+  },
+  "check_llm_ready_body": {
+    "function": "_check_llm_ready",
+    "file": "expert_service/chat/loop.py",
+    "start_line": 40,
+    "end_line": 47,
+    "source": "def _check_llm_ready(model: str | None = None) -> str | None:\n    \"\"\"Check if the LLM is configured and return an error message if not.\"\"\"\n    model = model or settings.default_model\n    if model.startswith(\"ollama:\"):\n        return None  # Ollama doesn't need cloud credentials\n    if not settings.google_cloud_project:\n        return \"LLM mode is enabled but no LLM is configured.\"\n    return None"
+  },
+  "dual_ask_raises": {
+    "function": "dual_ask",
+    "file": "expert_service/chat/loop.py",
+    "explicit_raises": [],
+    "calls": [
+      "format",
+      "gather",
+      "_tms_answer_iterative",
+      "_extract_text",
+      "_rag_answer",
+      "_strip_hallucinated_refs",
+      "list_connectors",
+      "_build_sources_section",
+      "get",
+      "bool",
+      "to_thread",
+      "get_chat_model",
+      "ainvoke",
+      "_check_llm_ready",
+      "len",
+      "_langfuse_config"
+    ]
+  },
+  "settings_config": {
+    "error": "No function found at 'Settings'",
+    "file": "expert_service/config.py"
+  },
+  "auth_tests": {
+    "source_file": "expert_service/auth.py",
+    "test_files": [
+      {
+        "path": "tests/test_auth.py",
+        "exists": true,
+        "line_count": 341
+      },
+      {
+        "path": "tests/test_authpy",
+        "exists": false
+      }
+    ],
+    "test_count": 2
+  },
+  "data_api_tests": {
+    "source_file": "expert_service/api/data.py",
+    "test_files": [
+      {
+        "path": "venv/lib/python314/site-packages/numpy/random/tests/test_smokepy",
+        "exists": false
+      },
+      {
+        "path": "venv/lib/python314/site-packages/pyarrow/tests/parquet/test_basicpy",
+        "exists": false
+      },
+      {
+        "path": "venv/lib/python314/site-packages/pyarrow/tests/test_cffipy",
+        "exists": false
+      },
+      {
+        "path": "venv/lib/python314/site-packages/pyarrow/tests/test_datasetpy",
+        "exists": false
+      },
+      {
+        "path": "venv/lib/python314/site-packages/pyarrow/tests/test_pandaspy",
+        "exists": false
+      }
+    ],
+    "test_count": 5
+  },
+  "verify_auth_or_public_usages": {
+    "symbol": "verify_auth_or_public",
+    "usages": [
+      {
+        "file": "expert_service/auth.py",
+        "line": 199,
+        "text": "async def verify_auth_or_public("
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 18,
+        "text": "from expert_service.auth import router as auth_router, verify_auth, verify_auth_or_public, verify_au"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 111,
+        "text": "app.include_router(data.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 115,
+        "text": "app.include_router(chat.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 120,
+        "text": "app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public)])"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/auth.py",
+        "line": 199,
+        "text": "async def verify_auth_or_public("
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 18,
+        "text": "from expert_service.auth import router as auth_router, verify_auth, verify_auth_or_public, verify_au"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 111,
+        "text": "app.include_router(data.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 115,
+        "text": "app.include_router(chat.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 120,
+        "text": "app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public)])"
+      }
+    ],
+    "test_usages": [],
+    "production_count": 5,
+    "test_count": 0,
+    "total_count": 5
+  },
+  "base_metadata_model": {
+    "class_name": "Project",
+    "file": "expert_service/db/models.py",
+    "bases": [
+      "Base"
+    ],
+    "own_init_signature": null,
+    "base_init_signatures": {
+      "Base": null
+    }
+  },
+  "app_file_imports": {
+    "file": "expert_service/app.py",
+    "imports": [
+      "asyncio",
+      "json",
+      "uvicorn"
+    ],
+    "from_imports": [
+      {
+        "module": "contextlib",
+        "names": [
+          "asynccontextmanager"
+        ]
+      },
+      {
+        "module": "pathlib",
+        "names": [
+          "Path"
+        ]
+      },
+      {
+        "module": "uuid",
+        "names": [
+          "UUID"
+        ]
+      },
+      {
+        "module": "fastapi",
+        "names": [
+          "FastAPI",
+          "Depends",
+          "Form",
+          "Request"
+        ]
+      },
+      {
+        "module": "fastapi.responses",
+        "names": [
+          "HTMLResponse",
+          "RedirectResponse"
+        ]
+      },
+      {
+        "module": "fastapi.templating",
+        "names": [
+          "Jinja2Templates"
+        ]
+      },
+      {
+        "module": "sqlalchemy",
+        "names": [
+          "func",
+          "select",
+          "text"
+        ]
+      },
+      {
+        "module": "sqlalchemy.ext.asyncio",
+        "names": [
+          "AsyncSession"
+        ]
+      },
+      {
+        "module": "starlette.middleware.sessions",
+        "names": [
+          "SessionMiddleware"
+        ]
+      },
+      {
+        "module": "expert_service.api",
+        "names": [
+          "projects",
+          "data",
+          "ask"
+        ]
+      },
+      {
+        "module": "expert_service.auth",
+        "names": [
+          "router",
+          "verify_auth",
+          "verify_auth_or_public",
+          "verify_auth_web",
+          "_LoginRedirect"
+        ]
+      },
+      {
+        "module": "expert_service.config",
+        "names": [
+          "settings"
+        ]
+      },
+      {
+        "module": "expert_service.db.connection",
+        "names": [
+          "get_session",
+          "init_db"
+        ]
+      },
+      {
+        "module": "expert_service.db.models",
+        "names": [
+          "Assessment",
+          "Entry",
+          "Project",
+          "Source"
+        ]
+      },
+      {
+        "module": "expert_service.rbac",
+        "names": [
+          "UserInfo"
+        ]
+      },
+      {
+        "module": "expert_service.rms",
+        "names": [
+          "api"
+        ]
+      }
+    ],
+    "import_section": "\"\"\"FastAPI application \u2014 API + web UI for expert-service.\"\"\"\n\nimport asyncio\nimport json\nfrom contextlib import asynccontextmanager\nfrom pathlib import Path\nfrom uuid import UUID\n\nimport uvicorn\nfrom fastapi import FastAPI, Depends, Form, Request\nfrom fastapi.responses import HTMLResponse, RedirectResponse\nfrom fastapi.templating import Jinja2Templates\nfrom sqlalchemy import func, select, text as sa_text\nfrom sqlalchemy.ext.asyncio import AsyncSession\nfrom starlette.middleware.sessions import SessionMiddleware\n\nfrom expert_service.api import projects, data, ask\nfrom expert_service.auth import router as auth_router, verify_auth, verify_auth_or_public, verify_auth_web, _LoginRedirect\nfrom expert_service.config import settings\nfrom expert_service.db.connection import get_session, init_db\nfrom expert_service.db.models import Assessment, Entry, Project, Source\nfrom expert_service.rbac import UserInfo\nfrom expert_service.rms import api as rms_api\n\n# LLM-dependent modules \u2014 only imported when LLM mode is enabled.\n# In no-LLM mode, clients bring their own LLM and use the data endpoints directly.\nif settings.llm_enabled:\n    from expert_service.api import pipeline, chat, meta_chat\n    from expert_service.chat.meta_agent import invalidate_meta_cache\nelse:\n    def invalidate_meta_cache(): pass\n\n\n@asynccontextmanager\nasync def lifespan(app):\n    \"\"\"Create SQLite tables on startup (no-op for PostgreSQL).\"\"\""
+  }
+}

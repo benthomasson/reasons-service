@@ -1,0 +1,106 @@
+I have completed the review of the authentication and RBAC implementation.
+
+While the authentication logic itself (Google OAuth, Bearer tokens, and dev-mode bypass) is soundly implemented and well-tested, the **Role-Based Access Control (RBAC) system is non-functional in practice**. The granular permissions defined in `rbac.py` are never applied to any routes, allowing any authenticated user—regardless of their assigned role—to perform any action, including deleting projects or managing beliefs.
+
+### .gitignore
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: Correctly ignores local environment scripts containing secrets.
+---
+
+### expert_service/app.py
+VERDICT: CONCERN
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: PARTIAL
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: PARTIAL
+INTEGRATION: PARTIAL
+REASONING: Authentication is correctly integrated into all routes. However, RBAC is not enforced; while `UserInfo` (containing the role) is injected into routes, no routes actually utilize the `require_action` dependency to restrict access based on those roles.
+---
+
+### expert_service/auth.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The authentication logic is robust. It uses `hmac.compare_digest` for security and provides a sensible dev-mode bypass. The use of `_LoginRedirect` for web-specific authentication handling is a clean pattern.
+---
+
+### expert_service/config.py
+VERDICT: CONCERN
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: PARTIAL
+REASONING: Includes `allowed_emails` in the configuration schema, but this field is never utilized in `auth.py` or elsewhere in the codebase.
+---
+
+### expert_service/db/models.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: The `User` model is correctly defined with appropriate fields for RBAC and auditing.
+---
+
+### expert_service/db/schema.sql
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: Database schema includes the `users` table with a `CHECK` constraint ensuring role validity.
+---
+
+### expert_service/rbac.py
+VERDICT: BLOCK
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: PARTIAL
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: PARTIAL
+INTEGRATION: MISSING
+REASONING: This file defines a comprehensive RBAC system that is entirely unused. The `require_action` dependency is never applied to any application routes, meaning roles like `READER` and `ADMIN` have identical permissions in the current implementation. This is a significant security omission if RBAC was a requirement.
+---
+
+### scripts/manage_users.py
+VERDICT: CONCERN
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Functional utility script, but contains a hardcoded PostgreSQL connection string (`postgresql://ben@localhost:5432/expert_service`) which limits portability and requires manual editing for different environments.
+---
+
+### tests/test_auth.py
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: While extensive, `TestOAuthSession` tests (e.g., `test_valid_session_with_registered_user`) do not actually establish a valid session; they only verify that a request *without* a session returns 401. Additionally, RBAC tests use a custom mock app rather than verifying that the actual service routes are properly protected.
+---
+
+### SELF_REVIEW
+LIMITATIONS: I was unable to execute the tests as the environment did not provide `run_shell_command`. My assessment is based on static analysis of the provided diffs and existing files. I focused on the integration of the new auth/RBAC components with the rest of the application.
+---

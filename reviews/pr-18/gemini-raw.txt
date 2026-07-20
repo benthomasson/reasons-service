@@ -1,0 +1,113 @@
+The code changes are high quality, focusing on robustness, security, and expanded data ingestion capabilities. The additions include comprehensive error handling for the `/ask` endpoint, filtering to ensure only active (`IN`) beliefs are searched, new UI components for viewing source documents, and a significantly improved data loading script.
+
+### expert_service/api/ask.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: Added robust error handling with proper logging and generic 500 responses to prevent leaking sensitive details. Implemented defensive dictionary access for search results, ensuring the endpoint remains stable even if result schemas vary slightly.
+
+---
+
+### expert_service/api/data.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Correctly added the `truth_value = 'IN'` filter to the SQL query. This aligns with the architectural requirement to only expose active beliefs in search results.
+
+---
+
+### expert_service/app.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Successfully added `source_view` and `entry_view` endpoints. The use of `Path(path).stem` correctly maps arbitrary source paths to entry topics as defined in the ingestion process. Proper 404 handling is included.
+
+---
+
+### expert_service/chat/loop.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING: Retrieval logic was updated to filter for `IN` beliefs consistently. The generation of internal URLs for sources provides a fallback when external links are missing, improving the user experience. The return type update for `_build_sources_section` is correctly integrated with its callers.
+
+---
+
+### expert_service/chat/tools.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Applied the `truth_value = 'IN'` filter to `search_knowledge` and `grep_content` tools, ensuring consistency across all search-based chat tools.
+
+---
+
+### expert_service/templates/chat/chat.html
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: Implemented a safe Markdown link renderer that blocks dangerous protocols like `javascript:` and `data:`. This is a significant security improvement for rendered chat content.
+
+---
+
+### expert_service/templates/entries/view.html
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: New template for viewing source entries is well-structured and also utilizes the safe Markdown renderer.
+
+---
+
+### scripts/load_reasons_db.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: The ingestion script was greatly enhanced to support multi-directory entry imports, source tracking, and markdown chunking for FTS. The use of PostgreSQL's `ON CONFLICT` and `RETURNING` clauses ensures efficient and idempotent data loading.
+
+---
+
+### tests/test_ask.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: This is a comprehensive test suite that covers not only the happy path but also detailed edge cases like partial result dictionaries and various error conditions (DB timeouts, connection errors).
+
+---
+
+### SELF_REVIEW
+LIMITATIONS: I verified the integration of `_build_sources_section` by reading the full context of `expert_service/chat/loop.py` since the provided diff hunk was partial. The `truth_value = 'IN'` filter consistency was verified across multiple files to ensure it met architectural intent.
+---

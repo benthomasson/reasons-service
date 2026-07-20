@@ -1,0 +1,119 @@
+The code changes represent a significant production hardening phase for the `expert-service`. The implementation addresses critical scalability issues (file descriptor exhaustion and context window overflows), introduces database migrations with Alembic, and adds support for public projects and single-pass LLM synthesis.
+
+### .claude/checkpoint.md
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: The checkpoint correctly reflects the shift from feature development to production hardening, accurately summarizing the completed and pending tasks.
+---
+
+### alembic.ini & alembic/
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Standard Alembic setup for SQLAlchemy. The `include_name` filter in `env.py` is a prudent addition to prevent migrations from interfering with legacy `rms_` tables during transition.
+---
+
+### expert_service/db/models.py:Project & schema.sql
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The `public` column is correctly added to both the SQLAlchemy model and the raw SQL schema. The migration `0001` provides the necessary upgrade path.
+---
+
+### expert_service/db/connection.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Capping `pool_size` and `max_overflow` to 5 is a direct and effective fix for the file descriptor exhaustion reported in the entries. It ensures database connections don't scale unbounded with concurrent requests.
+---
+
+### expert_service/auth.py:verify_auth_or_public
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The logic for bypassing authentication for public projects is sound. It uses a targeted SQL query to check the `public` flag, minimizing overhead. The fallback to `verify_auth` ensures private projects remain protected.
+---
+
+### expert_service/api/data.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: Hardening POST endpoints with an explicit `verify_auth` dependency is critical. While the router allows public GET access, this change correctly restricts write operations to authenticated users regardless of project visibility.
+---
+
+### expert_service/chat/loop.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING: 1. **Context Budgets**: The introduction of `MAX_BELIEF_CONTEXT_CHARS` and `MAX_TOOL_RESULT_CHARS` successfully mitigates the 211k token overflow issue. 2. **single_ask**: Implements a robust single-pass synthesis mode, useful for smaller or local models (like Gemma3) that struggle with iterative dual-path patterns. 3. **Truncation**: Iterative tool history is now safely truncated per result.
+---
+
+### expert_service/api/chat.py:ask
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: The addition of a 502 error handler for LLM-related exceptions (HTTP errors, timeouts, FD exhaustion) provides much better production resilience than allowing a 500 traceback.
+---
+
+### expert_service/app.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Integrating `verify_auth_or_public` at the router level and adding FD monitoring to the `/health` endpoint are excellent observability and security improvements.
+---
+
+### tests/test_auth.py:TestPublicProjectAccess
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: Comprehensive test cases for the new public access logic, covering anonymous access, private project rejection, and the priority of the public flag over API keys.
+---
+
+### SELF_REVIEW
+LIMITATIONS: Review was conducted primarily based on diffs and provided observation results. While full function bodies for some critical functions were available, some integration points in the RBAC system (`rbac.py`) were not fully visible.
+---
+
+### FEATURE_REQUESTS
+- Include the content of `scripts/` files when they are modified or referenced as "fixes" (e.g., the `ulimit` change in `start.local.sh`).
+- Show the `RBAC` role definitions when authentication/authorization logic is modified to verify permissions flow.

@@ -1,0 +1,273 @@
+Now I have the full picture. Here's my review:
+
+---
+
+## Code Review: SQLite Backend for expert-service
+
+### expert_service/config.py
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: The `_derive_sqlite_sync_url` model_validator calls `self.db_backend` which is a property depending on `self.database_url`. This works in `mode="after"` but is fragile — if `database_url_sync` is also set to a sqlite URL by the user, the `"psycopg" in self.database_url_sync` check prevents double-replacement, which is correct. However, `data_dir` for PostgreSQL returns `Path("data")` as a relative path — this could resolve differently depending on CWD. Missing blank line before line 49 (`# Vertex AI configuration`) makes it look like `data_dir`'s property body continues, which is just cosmetic. No unit tests for the config validator or properties.
+
+---
+
+### expert_service/db/connection.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING: WAL mode and foreign keys enabled via `event.listens_for` on both async and sync engines — correct pattern for SQLite. `check_same_thread=False` needed for async usage. `init_db()` correctly guards with `_is_sqlite` and creates the data directory. The `_is_sqlite` module-level variable is evaluated once at import time, which is consistent with how `settings` works but means the backend can't be switched at runtime (acceptable for this use case). The duplicate pragma listener pattern (one for async, one for sync) is a bit redundant but necessary since they're different engine instances. Test coverage in `test_sqlite.py::TestInitDb` is partial — tests the no-op PostgreSQL case and mocked SQLite case but doesn't test actual table creation.
+
+---
+
+### expert_service/db/models.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Clean migration from `UUID` (PostgreSQL dialect) to `Uuid` (SQLAlchemy generic), and `JSONB` to `JSON`. The `pgvector` import is wrapped in try/except so the module loads without the extension. `Embedding` class is conditionally defined — set to `None` when pgvector is unavailable. All callers check `Embedding is not None` or `_has_pgvector`. The `Uuid(as_uuid=True)` type works on both PostgreSQL and SQLite.
+
+---
+
+### expert_service/db/search.py (new file)
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The `_ALLOWED_TEXT_EXPRS` allowlist is a good security measure against SQL injection through `text_expr`. However, **the SQLite LIKE-based search has no ranking** — results come back in insertion order, which could surface irrelevant results before relevant ones. The `fts_clause` for SQLite uses `lower(text_expr) LIKE :q{i}` with `%term%` patterns — this is a full table scan per term, which will be slow on large datasets. The `_get_terms` function duplicates logic from `_get_query_terms` in `chat/loop.py` and `_STOP_WORDS` is duplicated between the two modules. More concerning: the LIKE parameters use `f"%{term}%"` — if a term contains `%` or `_` (SQL wildcards), they won't be escaped, potentially matching more than intended. This is low-risk since terms come from `re.findall(r'\w+', ...)` which strips special chars, but it's worth noting.
+
+---
+
+### expert_service/rms/api.py
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING: The dispatch pattern (`if _is_sqlite(): ... else: ...`) is consistent but very repetitive — every function duplicates the import and dispatch. More substantively:
+
+1. **`import_network` PG path**: Calls `api.add_node()` then potentially `api.retract_node()` then loops over justifications calling `api.add_justification()` — each of these is a separate DB round-trip. For large networks this will be very slow. The SQLite path using `store.save(network)` is a single bulk operation, creating asymmetric performance characteristics.
+
+2. **`search_beliefs_fts` SQLite path**: The FTS5 MATCH query at line ~345 joins `nodes n JOIN nodes_fts f ON f.id = n.id WHERE nodes_fts MATCH ?` — the `WHERE` clause references `nodes_fts` (the table) instead of `f` (the alias). This works in SQLite FTS5 (content table queries use the table name directly in MATCH), but is easy to misread.
+
+3. **`count_beliefs` / `count_nogoods`**: Use raw `sqlite3.connect()` instead of `reasons_lib` APIs, creating a direct dependency on the internal schema of `reasons_lib`. If `reasons_lib` changes its table schema, these will break silently.
+
+4. **`search` function**: The `isinstance(result, dict)` guard handles the case where `reasons_lib.api.search(format="dict")` might return a string, but this suggests uncertainty about the API contract.
+
+5. **`list_negative_candidates` SQLite path**: Loads ALL IN nodes into memory with `get_status()` then filters in Python. This is correct but won't scale.
+
+Tests cover count_beliefs, count_nogoods, import_network, and search_beliefs_fts. The PostgreSQL paths in the new functions are untested.
+
+---
+
+### expert_service/chat/tools.py
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: 
+
+1. **`_has_pgvector` check**: The module-level try/except sets `_has_pgvector` based on whether `Embedding` import succeeds AND `Embedding is not None`. This double-check is correct since models.py sets `Embedding = None` when pgvector is missing.
+
+2. **`semantic_search` conditionally defined**: The tool is only defined when `_has_pgvector and settings.db_backend == "postgresql"`, and inserted at index 7 in the tools list. The `tools.insert(7, semantic_search)` uses a hardcoded index that could break if the tool list order changes — a minor fragility. More importantly, the LLM system prompt should ideally tell it semantic_search is unavailable on SQLite, but the tool simply won't appear, which is the correct LangChain pattern.
+
+3. **`grep_content` belief search**: Changed from direct SQL `ILIKE` query to `rms_api.search(project_id, pattern)` followed by Python-side `pattern.lower() in b.get("text", "").lower()` filtering. This changes the matching semantics — the original used SQL `ILIKE` with `%pattern%`, while the new version uses `rms_api.search` (which does FTS) then Python substring match. FTS search semantics differ from ILIKE — FTS tokenizes while ILIKE is a raw substring match. This could return different results.
+
+4. **`search_knowledge`**: Now uses `plainto_fts_clause` for entries and `rms_api.search_beliefs_fts` for beliefs. The `plainto_fts_clause` uses AND semantics (matching the original `plainto_tsquery`), which is correct.
+
+---
+
+### expert_service/chat/loop.py
+VERDICT: CONCERN
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: 
+
+1. **Dead code**: `_build_or_tsquery()` (line 48-53) is defined but never called anywhere in the codebase after this refactor. Should be removed.
+
+2. **Duplicated stop words**: `_STOP_WORDS` is defined in both `chat/loop.py` and `db/search.py`. `_get_query_terms` in loop.py duplicates `_get_terms` in search.py. This creates a maintenance burden — changes to one won't propagate.
+
+3. **`_quick_belief_search`**: Now delegates to `rms_api.search_beliefs_fts()` which returns dicts instead of Row objects. The attribute access (`r.text`) is correctly changed to dict access (`r["text"]`). IDF re-ranking only runs on PostgreSQL, which is explicitly documented and correct.
+
+4. **`_search_source_chunks`**: Uses `fts_clause` correctly. The `_compute_idf` call still works since it returns `{}` on SQLite, and the `if idfs:` guard prevents re-ranking with empty weights.
+
+---
+
+### expert_service/chat/agent.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Clean conditional: SQLite gets `MemorySaver` (in-memory, ephemeral), PostgreSQL gets `AsyncPostgresSaver`. The docstring documents that chat history is lost on restart with SQLite — this is an acceptable trade-off for single-node deployments. Lazy imports avoid loading psycopg_pool when using SQLite.
+
+---
+
+### expert_service/graphs/checkpointer.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Same pattern as chat/agent.py — MemorySaver for SQLite, PostgresSaver for PostgreSQL. Consistent approach.
+
+---
+
+### expert_service/app.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: The `lifespan` context manager calls `init_db()` on startup, which is a no-op for PostgreSQL and creates SQLite tables for SQLite. All `rms_nodes`/`rms_nogoods` direct SQL queries replaced with `rms_api.count_beliefs`/`rms_api.count_nogoods` calls via `asyncio.to_thread`. Correct use of `asyncio.to_thread` since the rms_api functions are synchronous.
+
+---
+
+### expert_service/api/projects.py (import_reasons endpoint)
+VERDICT: CONCERN
+CORRECTNESS: QUESTIONABLE
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING: 
+
+1. **Error handling gap**: If `import_network` fails after the project is created and committed (line 142-143), the project remains in the database but has no beliefs. There's no rollback of the project creation. This leaves orphaned projects on failure.
+
+2. **Security**: The endpoint accepts any uploaded file and passes it to `Storage()` which opens it as a SQLite database. Malicious SQLite files could potentially trigger CVEs in the SQLite parser. The `try/except` catches errors and returns 400, but the file is already parsed. This is inherent to accepting SQLite uploads and documented in the error message, but worth noting.
+
+3. **Temp file handling**: Correct — `finally` block ensures cleanup with `missing_ok=True`.
+
+4. The test in `test_sqlite.py::TestImportReasonsEndpoint` doesn't actually test the HTTP endpoint — it tests `import_network` directly. The docstring says "Full round-trip: upload reasons.db → project created → beliefs imported" but the test doesn't touch the API at all.
+
+---
+
+### expert_service/api/data.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: The `search` endpoint correctly uses `fts_clause` for entries and source chunks, and `rms_api.search_beliefs_fts` for beliefs. The `substr()` vs `left()` dispatch for SQLite compatibility is correct. The `f-string` SQL construction is safe because `fts_clause` validates `text_expr` against the allowlist before interpolation, and `snippet_expr` comes from a controlled conditional.
+
+---
+
+### expert_service/api/chat.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Simple and correct — `json.loads()` handles SQLite returning JSON as string while PostgreSQL returns dict. The early return for `not row or not row.config` is cleaner than the original nested check.
+
+---
+
+### expert_service/embeddings.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Correctly guards `build_embeddings` with `settings.db_backend == "sqlite" or Embedding is None` and returns empty counts. Lazy import of `fastembed.TextEmbedding` avoids pulling in the dependency when not needed.
+
+---
+
+### tests/test_search.py (new file)
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: Good coverage of the FTS abstraction layer. Tests both SQLite and PostgreSQL paths via mocking `settings.db_backend`. Tests edge cases (empty strings, all stop words, SQL injection in text_expr). The tests correctly verify the generated SQL fragments and parameters without needing a running database.
+
+---
+
+### tests/test_sqlite.py (new file)
+VERDICT: CONCERN
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: PARTIAL
+INTEGRATION: PARTIAL
+REASONING: Tests cover count_beliefs, count_nogoods, search_beliefs_fts, import_network, and init_db. However:
+
+1. `TestImportReasonsEndpoint.test_import_reasons_sqlite` doesn't actually test the HTTP endpoint — it tests the underlying `import_network` function, making the test class name misleading.
+2. `test_tmp_file_cleanup_on_invalid_upload` simulates cleanup manually rather than testing through the actual endpoint.
+3. No tests for the PostgreSQL code paths in any of the new functions (count_beliefs PG, count_nogoods PG, search_beliefs_fts PG).
+4. `TestSearchBeliefsFts` uses the real `reasons_lib.storage.SCHEMA` to create FTS5 tables, which is a good integration test.
+
+---
+
+### pyproject.toml / uv.lock
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: `aiosqlite>=0.20` added as dependency. Lock file updated consistently.
+
+---
+
+## Summary
+
+**Overall assessment**: This is a well-structured dual-backend implementation. The main architectural decision — dispatch at the `rms/api.py` layer rather than creating a full repository abstraction — keeps the change manageable but creates significant repetition. The f-string SQL construction in search.py is secured by the `_ALLOWED_TEXT_EXPRS` allowlist.
+
+**Key concerns**:
+1. **Dead code**: `_build_or_tsquery()` in loop.py is unused
+2. **Duplicated logic**: Stop words and term extraction duplicated between `db/search.py` and `chat/loop.py`
+3. **Orphaned project on import failure**: `import_reasons` endpoint doesn't roll back the project if `import_network` fails
+4. **grep_content semantic change**: FTS search + Python filter differs from original SQL ILIKE behavior
+5. **No PostgreSQL path tests** for the new helper functions in `rms/api.py`
+
+---
+
+### SELF_REVIEW
+LIMITATIONS: Could not verify the full `reasons_lib.api.search` return type contract with `format="dict"` — relied on the defensive `isinstance` check in the code. Could not run the tests to verify they pass. Could not see the full `schema.sql` to verify `rms_nodes` table has `source_url` column. Could not verify whether `reasons_lib.storage.SCHEMA` matches the test helper's manual schema creation in `TestCountBeliefs._make_db`.
+
+---
+
+### FEATURE_REQUESTS
+- Include the full body of modified functions (not just diff hunks) when functions have significant context outside the changed lines
+- Show callers of modified functions to verify integration completeness
+- Flag when test class names don't match what they actually test (e.g. `TestImportReasonsEndpoint` not testing the endpoint)

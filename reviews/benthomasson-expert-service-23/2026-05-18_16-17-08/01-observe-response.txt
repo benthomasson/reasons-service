@@ -1,0 +1,18 @@
+```json
+[
+  {"name": "verify_auth_full_body", "tool": "function_body", "params": {"file_path": "expert_service/auth.py", "function_name": "verify_auth"}},
+  {"name": "data_router_all_endpoints", "tool": "file_imports", "params": {"file_path": "expert_service/api/data.py"}},
+  {"name": "data_router_full_routes", "tool": "find_usages", "params": {"symbol": "router.get", "file_path": "expert_service/api/data.py"}},
+  {"name": "data_router_read_endpoints", "tool": "function_body", "params": {"file_path": "expert_service/api/data.py", "function_name": "list_sources"}},
+  {"name": "dual_ask_raises", "tool": "raises_analysis", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "dual_ask"}},
+  {"name": "single_ask_raises", "tool": "raises_analysis", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "single_ask"}},
+  {"name": "httpx_httperror_hierarchy", "tool": "exception_hierarchy", "params": {"class_name": "httpx.HTTPError"}},
+  {"name": "quick_belief_search_callers", "tool": "find_callers", "params": {"symbol": "_quick_belief_search"}},
+  {"name": "check_llm_ready_body", "tool": "function_body", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "_check_llm_ready"}},
+  {"name": "verify_auth_or_public_callers", "tool": "find_callers", "params": {"symbol": "verify_auth_or_public"}},
+  {"name": "project_model_hierarchy", "tool": "class_hierarchy", "params": {"class_name": "Project", "file_path": "expert_service/db/models.py"}},
+  {"name": "settings_database_url_sync", "tool": "function_body", "params": {"file_path": "expert_service/config.py", "function_name": "database_url_sync"}},
+  {"name": "auth_test_coverage", "tool": "related_test_files", "params": {"file_path": "expert_service/auth.py"}},
+  {"name": "data_router_post_without_auth", "tool": "find_usages", "params": {"symbol": "router.post", "file_path": "expert_service/api/data.py"}}
+]
+```

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Add Sources — {{ project.name }}{% endblock %}
+{% block content %}
+<p><a href="/projects/{{ project.id }}">&larr; Back to {{ project.name }}</a></p>
+
+<hgroup>
+    <h1>Add Sources</h1>
+    <p>Fetch documentation and summarize into entries</p>
+</hgroup>
+
+<form method="post" action="/projects/{{ project.id }}/ingest">
+    <label for="url">Documentation URL
+        <input type="url" id="url" name="url" placeholder="https://docs.redhat.com/en/documentation/..." required>
+    </label>
+    <div class="grid">
+        <label for="depth">Crawl Depth
+            <input type="number" id="depth" name="depth" value="2" min="0" max="5">
+        </label>
+        <label for="delay">Delay (seconds)
+            <input type="number" id="delay" name="delay" value="1.0" min="0" max="10" step="0.5">
+        </label>
+    </div>
+    <button type="submit">Start Fetching</button>
+</form>
+
+<div id="progress" hx-get="/projects/{{ project.id }}/ingest/progress" hx-trigger="every 5s" hx-swap="innerHTML">
+</div>
+{% endblock %}

@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "completed_at": "2026-03-25T16:15:41.241550+00:00",
+    "question_count": 2,
+    "model": "gemini-2.5-pro",
+    "base_url": "http://localhost:8000"
+  },
+  "summary": {
+    "cross": {
+      "count": 2,
+      "avg_precision": 1.0,
+      "avg_recall": 0.75,
+      "avg_f1": 0.8333,
+      "perfect": 1
+    },
+    "overall": {
+      "count": 2,
+      "avg_precision": 1.0,
+      "avg_recall": 0.75,
+      "avg_f1": 0.8333,
+      "perfect": 1
+    }
+  },
+  "results": [
+    {
+      "question_id": "R31",
+      "question": "How do I use Ansible to automate RHEL system configuration?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "rhel-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert",
+        "rhel-expert"
+      ],
+      "routing": {
+        "question_id": "R31",
+        "expected_experts": [
+          "aap-expert",
+          "rhel-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert",
+          "rhel-expert"
+        ],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "category": "cross"
+      },
+      "latency_seconds": 54.78,
+      "tool_calls": [
+        {
+          "name": "list_experts",
+          "args": {}
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I use Ansible to automate RHEL system configuration?"
+          }
+        },
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "rhel-expert",
+            "question": "How do I use Ansible to automate RHEL system configuration?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-aap-installation"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-aap-installation",
+            "label": "expert knowledge",
+            "text": "The aap-expert knows about containerized and RPM-based installation of Ansible Automation Platform."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-aap-upgrades"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "node_id": "aap-expert-knows-aap-upgrades",
+            "label": "expert knowledge",
+            "text": "The aap-expert knows about upgrading Ansible Automation Platform."
+          }
+        },
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-ex467-certification"
+          }
+        }
+      ],
+      "citations": [
+        "rhel-system-roles-ansible"
+      ],
+      "answer_length": 599
+    },
+    {
+      "question_id": "R32",
+      "question": "How do I deploy AAP on OpenShift using the operator?",
+      "category": "cross",
+      "expected_experts": [
+        "aap-expert",
+        "openshift-expert"
+      ],
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "routing": {
+        "question_id": "R32",
+        "expected_experts": [
+          "aap-expert",
+          "openshift-expert"
+        ],
+        "consulted_experts": [
+          "aap-expert"
+        ],
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6666666666666666,
+        "category": "cross"
+      },
+      "latency_seconds": 35.57,
+      "tool_calls": [
+        {
+          "name": "ask_expert",
+          "args": {
+            "expert_name": "aap-expert",
+            "question": "How do I deploy AAP on OpenShift using the operator?"
+          }
+        }
+      ],
+      "reflection_calls": [
+        {
+          "name": "rms_search",
+          "args": {
+            "query": "aap-expert-knows-aap-ocp-operator-install"
+          }
+        },
+        {
+          "name": "rms_add",
+          "args": {
+            "sl": "aap-operator-source-redhat-operators,aap-ocp-operator-install",
+            "node_id": "aap-expert-knows-aap-ocp-operator-install",
+            "source": "ask_expert(expert_name='aap-expert', question='How do I deploy AAP on OpenShift using the operator?')",
+            "text": "The aap-expert knows the general steps for deploying Ansible Automation Platform on OpenShift using the operator from OperatorHub, including finding it in the redhat-operators catalog and creating an AutomationPlatform custom resource."
+          }
+        }
+      ],
+      "citations": [],
+      "answer_length": 977
+    }
+  ]
+}

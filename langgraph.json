@@ -1,0 +1,8 @@
+{
+    "dependencies": [".", "langchain-google-vertexai"],
+    "graphs": {
+        "ingest": "./reasons_service/graphs/ingest.py:ingest_graph",
+        "beliefs": "./reasons_service/graphs/beliefs.py:beliefs_graph",
+        "assessment": "./reasons_service/graphs/assessment.py:assessment_graph"
+    }
+}

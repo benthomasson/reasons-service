@@ -1,0 +1,34 @@
+Looking at this diff, I need to verify several things, especially around the security-critical auth changes and behavioral modifications.
+
+```json
+[
+  {"name": "data_router_endpoints", "tool": "function_body", "params": {"file_path": "expert_service/api/data.py", "function_name": "router"}},
+  {"name": "data_router_imports", "tool": "file_imports", "params": {"file_path": "expert_service/api/data.py"}},
+  {"name": "verify_auth_body", "tool": "function_body", "params": {"file_path": "expert_service/auth.py", "function_name": "verify_auth"}},
+  {"name": "role_enum", "tool": "find_usages", "params": {"symbol": "Role.READER"}},
+  {"name": "userinfo_class", "tool": "class_hierarchy", "params": {"class_name": "UserInfo", "file_path": "expert_service/auth.py"}},
+  {"name": "ask_router_endpoints", "tool": "file_imports", "params": {"file_path": "expert_service/api/ask.py"}},
+  {"name": "quick_belief_search_callers", "tool": "find_callers", "params": {"symbol": "_quick_belief_search"}},
+  {"name": "single_ask_callers", "tool": "find_callers", "params": {"symbol": "single_ask"}},
+  {"name": "dual_ask_raises", "tool": "raises_analysis", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "dual_ask"}},
+  {"name": "settings_database_url_sync", "tool": "function_body", "params": {"file_path": "expert_service/config.py", "function_name": "Settings"}},
+  {"name": "base_metadata", "tool": "class_hierarchy", "params": {"class_name": "Base", "file_path": "expert_service/db/models.py"}},
+  {"name": "auth_tests", "tool": "related_test_files", "params": {"file_path": "expert_service/auth.py"}},
+  {"name": "chat_api_tests", "tool": "related_test_files", "params": {"file_path": "expert_service/api/chat.py"}},
+  {"name": "data_router_full", "tool": "call_graph", "params": {"file_path": "expert_service/api/data.py", "function_name": "router"}}
+]
+```
+
+Key concerns driving these requests:
+
+1. **Security (critical)**: `data.router` switched from `verify_auth` to `verify_auth_or_public`. If data.router has write endpoints (POST/PUT/DELETE), unauthenticated users could modify public projects. Need to see all endpoints on that router.
+
+2. **Auth bypass scope**: `verify_auth_or_public` grants `Role.READER` to anonymous users on public projects. Need to understand what READER role permits and whether any of the now-public routes check role-based permissions internally.
+
+3. **Bare except**: The `except Exception` in `/ask` catches everything including `KeyboardInterrupt` subclasses (no, `Exception` doesn't catch those — but it does catch `asyncio.CancelledError` on older Python). Need to see what `dual_ask` actually raises.
+
+4. **Alembic config**: `env.py` references `settings.database_url_sync` — need to verify this property exists in the config class.
+
+5. **Behavioral change**: `_quick_belief_search` now returns fewer results due to the char budget. Need to verify callers handle this correctly.
+
+6. **Test coverage**: Auth changes are security-sensitive — need to know if tests exist.

@@ -1,0 +1,276 @@
+{
+  "description": "Meta-expert routing evaluation questions. Tests whether the meta-expert routes to the correct domain expert(s).",
+  "experts": ["aap-expert", "rhel-expert", "openshift-expert"],
+  "questions": [
+    {
+      "id": "R01",
+      "question": "How do I configure firewalld zones on RHEL 9?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R02",
+      "question": "What is the default firewall backend in RHEL 9?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R03",
+      "question": "How do I register a RHEL system with subscription-manager?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R04",
+      "question": "How do I set up a RHEL system as a DNS server?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R05",
+      "question": "What are the default SELinux contexts for web content on RHEL?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R06",
+      "question": "How do I configure LVM on RHEL?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R07",
+      "question": "How do I manage systemd services on RHEL?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R08",
+      "question": "How do I configure time synchronization with chrony on RHEL?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R09",
+      "question": "What is the difference between dnf and yum on RHEL 9?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R10",
+      "question": "How do I configure network bonding on RHEL?",
+      "expected_experts": ["rhel-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R11",
+      "question": "How do I install Ansible Automation Platform?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R12",
+      "question": "What are execution environments in AAP 2.6?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R13",
+      "question": "How do I configure automation mesh in AAP?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R14",
+      "question": "What is the automation controller in Ansible Automation Platform?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R15",
+      "question": "How do I create a job template in AAP?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R16",
+      "question": "What credentials does AAP support for connecting to managed hosts?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R17",
+      "question": "How do I set up automation hub in AAP?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R18",
+      "question": "What is Event-Driven Ansible and how does it work in AAP 2.6?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R19",
+      "question": "How do I configure RBAC in Ansible Automation Platform?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R20",
+      "question": "What are the supported deployment topologies for AAP 2.6?",
+      "expected_experts": ["aap-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R21",
+      "question": "How do I deploy an application on OpenShift?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R22",
+      "question": "What is the difference between a Deployment and a DeploymentConfig in OpenShift?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R23",
+      "question": "How do I configure routes in OpenShift?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R24",
+      "question": "What are operators in OpenShift and how do I install one?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R25",
+      "question": "How do I configure persistent storage in OpenShift?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R26",
+      "question": "What is the OpenShift image registry and how do I configure it?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R27",
+      "question": "How do I scale applications in OpenShift?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R28",
+      "question": "What are security context constraints (SCCs) in OpenShift?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R29",
+      "question": "How do I configure network policies in OpenShift?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R30",
+      "question": "What is RHCOS and why does OpenShift use it?",
+      "expected_experts": ["openshift-expert"],
+      "category": "single"
+    },
+    {
+      "id": "R31",
+      "question": "How do I use Ansible to automate RHEL system configuration?",
+      "expected_experts": ["aap-expert", "rhel-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R32",
+      "question": "How do I deploy AAP on OpenShift using the operator?",
+      "expected_experts": ["aap-expert", "openshift-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R33",
+      "question": "How do I manage RHEL firewall rules using Ansible playbooks?",
+      "expected_experts": ["aap-expert", "rhel-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R34",
+      "question": "How do I use Ansible to deploy applications to OpenShift?",
+      "expected_experts": ["aap-expert", "openshift-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R35",
+      "question": "How do I configure RHEL worker nodes in an OpenShift cluster?",
+      "expected_experts": ["rhel-expert", "openshift-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R36",
+      "question": "How do I set up SELinux policies on RHEL for OpenShift containers?",
+      "expected_experts": ["rhel-expert", "openshift-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R37",
+      "question": "How do I use AAP to manage both RHEL servers and OpenShift clusters?",
+      "expected_experts": ["aap-expert", "rhel-expert", "openshift-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R38",
+      "question": "How do I configure automation mesh hop nodes on RHEL for AAP?",
+      "expected_experts": ["aap-expert", "rhel-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R39",
+      "question": "How do I migrate from OpenShift 3 to OpenShift 4 and update my Ansible automation?",
+      "expected_experts": ["aap-expert", "openshift-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R40",
+      "question": "How do I configure RHEL networking for OpenShift node requirements?",
+      "expected_experts": ["rhel-expert", "openshift-expert"],
+      "category": "cross"
+    },
+    {
+      "id": "R41",
+      "question": "What is the capital of France?",
+      "expected_experts": [],
+      "category": "out-of-scope"
+    },
+    {
+      "id": "R42",
+      "question": "How do I make a chocolate cake?",
+      "expected_experts": [],
+      "category": "out-of-scope"
+    },
+    {
+      "id": "R43",
+      "question": "What programming language is Python?",
+      "expected_experts": [],
+      "category": "out-of-scope"
+    },
+    {
+      "id": "R44",
+      "question": "How do I set up a WordPress blog?",
+      "expected_experts": [],
+      "category": "out-of-scope"
+    },
+    {
+      "id": "R45",
+      "question": "What is the weather forecast for tomorrow?",
+      "expected_experts": [],
+      "category": "out-of-scope"
+    }
+  ]
+}

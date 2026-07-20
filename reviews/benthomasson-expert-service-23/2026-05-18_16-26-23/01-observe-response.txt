@@ -1,0 +1,25 @@
+Looking at this diff, I need to verify several areas before rendering verdicts:
+
+```json
+[
+  {"name": "httpx_error_hierarchy", "tool": "exception_hierarchy", "params": {"class_name": "httpx.HTTPError"}},
+  {"name": "anthropic_api_error_hierarchy", "tool": "exception_hierarchy", "params": {"class_name": "anthropic.APIError"}},
+  {"name": "google_api_error_hierarchy", "tool": "exception_hierarchy", "params": {"class_name": "google.api_core.exceptions.GoogleAPIError"}},
+  {"name": "dual_ask_raises", "tool": "raises_analysis", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "dual_ask"}},
+  {"name": "single_ask_raises", "tool": "raises_analysis", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "single_ask"}},
+  {"name": "verify_auth_full_body", "tool": "function_body", "params": {"file_path": "expert_service/auth.py", "function_name": "verify_auth"}},
+  {"name": "data_router_all_endpoints", "tool": "find_usages", "params": {"symbol": "router.post", "file_path": "expert_service/api/data.py"}},
+  {"name": "data_router_gets", "tool": "find_usages", "params": {"symbol": "router.get", "file_path": "expert_service/api/data.py"}},
+  {"name": "quick_belief_search_callers", "tool": "find_callers", "params": {"symbol": "_quick_belief_search"}},
+  {"name": "chat_py_imports", "tool": "file_imports", "params": {"file_path": "expert_service/api/chat.py"}},
+  {"name": "verify_auth_or_public_usages", "tool": "find_usages", "params": {"symbol": "verify_auth_or_public"}},
+  {"name": "ask_router_body", "tool": "function_body", "params": {"file_path": "expert_service/api/ask.py", "function_name": "ask"}},
+  {"name": "project_model_class", "tool": "class_hierarchy", "params": {"class_name": "Project", "file_path": "expert_service/db/models.py"}},
+  {"name": "base_metadata_models", "tool": "find_usages", "params": {"symbol": "Base.metadata"}},
+  {"name": "data_router_delete_put", "tool": "find_usages", "params": {"symbol": "router.delete", "file_path": "expert_service/api/data.py"}},
+  {"name": "check_llm_ready_body", "tool": "function_body", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "_check_llm_ready"}},
+  {"name": "tms_answer_iterative_full", "tool": "function_body", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "_tms_answer_iterative"}},
+  {"name": "test_coverage_auth", "tool": "related_test_files", "params": {"file_path": "expert_service/auth.py"}},
+  {"name": "test_coverage_chat_api", "tool": "related_test_files", "params": {"file_path": "expert_service/api/chat.py"}}
+]
+```

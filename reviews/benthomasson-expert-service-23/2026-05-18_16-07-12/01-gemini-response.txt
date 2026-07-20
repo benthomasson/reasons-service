@@ -1,0 +1,120 @@
+### .claude/checkpoint.md
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: Updated to reflect the current state of the project, specifically documenting the FD exhaustion and context window fixes.
+---
+
+### alembic/
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Standard Alembic initialization and a migration for the `public` column. The `include_name` filter in `env.py` is a good practice to prevent Alembic from attempting to manage tables prefixed with `rms_` (likely managed by the `ftl-reasons` library).
+---
+
+### expert_service/api/chat.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: The `/ask` endpoint now supports a `single` pass mode (useful for smaller/local models) and includes a `try/except` block to return a 502 status code instead of a 500 traceback upon LLM failure, which improves production stability.
+---
+
+### expert_service/api/projects.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Correctly exposes the new `public` field in project creation and retrieval APIs.
+---
+
+### expert_service/app.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: 
+- Added a useful `_open_fds` helper to the `/health` endpoint for monitoring file descriptor usage.
+- Updated router dependencies to use `verify_auth_or_public`, enabling the "public project" feature across chat and data APIs.
+---
+
+### expert_service/auth.py:verify_auth_or_public
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Implementation is sound; it checks the database for project publicity before falling back to standard authentication. Note: This adds a database query to every authenticated request on these routes, but for the current scale, this is an acceptable trade-off for simplicity.
+---
+
+### expert_service/chat/loop.py
+VERDICT: CONCERN
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: 
+- **Production Hardening**: The addition of `MAX_BELIEF_CONTEXT_CHARS` and `MAX_TOOL_RESULT_CHARS` directly addresses the context window overflow issue reported in the entries.
+- **Single Pass Mode**: `single_ask` provides a streamlined path for models that struggle with the dual-path merge logic.
+- **CONCERN**: No automated tests were added for the `single_ask` logic or the new truncation behavior in `_quick_belief_search` and `_tms_answer_iterative`. While the implementation looks correct, these are critical paths for reliability.
+---
+
+### expert_service/db/connection.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: Capping `pool_size` and `max_overflow` to 5/5 is the correct architectural fix for the file descriptor exhaustion issue (Errno 24) identified during load testing.
+---
+
+### expert_service/db/models.py & expert_service/db/schema.sql
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: Schema changes are consistent with the new public/private project feature.
+---
+
+### architecture.json & entries/
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: N/A
+INTEGRATION: N/A
+REASONING: Excellent documentation of the architecture and the technical rationale behind the recent production fixes. The cost analysis in the entries provides significant value for model selection.
+---
+
+### SELF_REVIEW
+LIMITATIONS: 
+- I could not verify if `Role.READER` is correctly defined as an Enum value in `expert_service/rbac.py` as that file was not in the diff, though usage in `auth.py` implies it exists.
+- I assumed `_strip_hallucinated_refs` and `_build_sources_section` are correctly implemented elsewhere as they are used but not defined in the provided diff (except for their usage in the new `single_ask` function).
+---

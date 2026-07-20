@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Reasons Service{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>Reasons Service</h1>
+    <p>Domain expert knowledge bases powered by epistemic reasoning</p>
+</hgroup>
+<h2>Public Experts</h2>
+{% if experts %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+    {% for e in experts %}
+    <article>
+        <header><strong>{{ e.name }}</strong></header>
+        {% if e.domain %}<p>{{ e.domain }}</p>{% endif %}
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value">{{ e.belief_count }}</div>
+                <div class="label">Beliefs (IN)</div>
+            </div>
+        </div>
+        <footer style="flex-wrap: wrap; gap: 0.5rem;">
+            <a href="/public/{{ e.name }}/beliefs" role="button" class="outline">View</a>
+            <a href="/public/{{ e.name }}/beliefs.json" role="button" class="outline secondary">JSON</a>
+            <a href="/public/{{ e.name }}/intro.json" role="button" class="outline secondary">Intro</a>
+            <form action="/public/{{ e.name }}/search" method="get" style="display: inline-flex; gap: 0.25rem; margin: 0;">
+                <input type="text" name="q" placeholder="Search..." style="margin: 0; padding: 0.25rem 0.5rem; height: auto; width: 8rem;">
+                <button type="submit" class="outline secondary" style="margin: 0; padding: 0.25rem 0.5rem; height: auto;">Go</button>
+            </form>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<p>No public experts available yet.</p>
+{% endif %}
+
+{% endblock %}

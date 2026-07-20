@@ -1,0 +1,490 @@
+{
+  "metadata": {
+    "source": "ex467-practice.md",
+    "domain": "Ansible Automation Platform 2.6",
+    "total": 40,
+    "type": "multiple_choice"
+  },
+  "questions": [
+    {
+      "id": "Q1",
+      "text": "What are the three main installation methods for Ansible Automation Platform 2.6?",
+      "choices": {
+        "a": "RPM-based, containerized (Podman on RHEL), and operator-based (on OpenShift)",
+        "b": "RPM-based, Docker-based, and Kubernetes-based",
+        "c": "Source compilation, RPM-based, and operator-based",
+        "d": "RPM-based, Snap-based, and operator-based"
+      },
+      "correct": "a",
+      "objective": "Understand the architecture of Ansible Automation Platform"
+    },
+    {
+      "id": "Q2",
+      "text": "What is the underlying overlay network protocol used by automation mesh?",
+      "choices": {
+        "a": "WireGuard",
+        "b": "Receptor",
+        "c": "Flannel",
+        "d": "Calico"
+      },
+      "correct": "b",
+      "objective": "Understand the architecture of Ansible Automation Platform"
+    },
+    {
+      "id": "Q3",
+      "text": "What are the four node types in automation mesh?",
+      "choices": {
+        "a": "Master, worker, proxy, and storage",
+        "b": "Control, hybrid, execution, and hop",
+        "c": "Primary, secondary, relay, and compute",
+        "d": "Manager, agent, router, and runner"
+      },
+      "correct": "b",
+      "objective": "Understand the architecture of Ansible Automation Platform"
+    },
+    {
+      "id": "Q4",
+      "text": "What was automation controller previously known as?",
+      "choices": {
+        "a": "Ansible Engine",
+        "b": "Ansible Core",
+        "c": "Ansible Tower",
+        "d": "Ansible Director"
+      },
+      "correct": "c",
+      "objective": "Understand the architecture of Ansible Automation Platform"
+    },
+    {
+      "id": "Q5",
+      "text": "What minimum RHEL version is required for AAP 2.6?",
+      "choices": {
+        "a": "RHEL 8.8",
+        "b": "RHEL 9.2",
+        "c": "RHEL 9.4",
+        "d": "RHEL 10.0"
+      },
+      "correct": "c",
+      "objective": "Install and configure automation controller"
+    },
+    {
+      "id": "Q6",
+      "text": "What is the default receptor listener port for automation mesh?",
+      "choices": {
+        "a": "443",
+        "b": "5432",
+        "c": "8443",
+        "d": "27199"
+      },
+      "correct": "d",
+      "objective": "Install and configure automation controller"
+    },
+    {
+      "id": "Q7",
+      "text": "In AAP 2.6, what is the status of the RPM installer?",
+      "choices": {
+        "a": "Fully supported for all new deployments",
+        "b": "Deprecated in 2.5, supported in 2.6 for migrations, removed in 2.7",
+        "c": "Only available for RHEL 8",
+        "d": "Replaced by the containerized installer in 2.6"
+      },
+      "correct": "b",
+      "objective": "Install and configure automation controller"
+    },
+    {
+      "id": "Q8",
+      "text": "What command runs the AAP RPM-based installer/upgrade?",
+      "choices": {
+        "a": "ansible-playbook install.yml",
+        "b": "aap-install --run",
+        "c": "./setup.sh",
+        "d": "dnf install ansible-automation-platform"
+      },
+      "correct": "c",
+      "objective": "Install and configure automation controller"
+    },
+    {
+      "id": "Q9",
+      "text": "What is the AAP component responsible for managing Ansible Content Collections and execution environments?",
+      "choices": {
+        "a": "Automation controller",
+        "b": "Private automation hub",
+        "c": "Event-Driven Ansible controller",
+        "d": "Platform gateway"
+      },
+      "correct": "b",
+      "objective": "Install and configure private automation hub"
+    },
+    {
+      "id": "Q10",
+      "text": "What storage class is required for automation hub on OpenShift?",
+      "choices": {
+        "a": "ReadWriteOnce (RWO)",
+        "b": "ReadWriteMany (RWX)",
+        "c": "ReadOnlyMany (ROX)",
+        "d": "No specific requirement"
+      },
+      "correct": "b",
+      "objective": "Install and configure private automation hub"
+    },
+    {
+      "id": "Q11",
+      "text": "What is the default behavior for content approval in automation hub?",
+      "choices": {
+        "a": "Content is automatically approved upon upload",
+        "b": "Content requires admin approval before it becomes available",
+        "c": "Content is approved by the uploader",
+        "d": "All content from certified sources is auto-approved"
+      },
+      "correct": "b",
+      "objective": "Install and configure private automation hub"
+    },
+    {
+      "id": "Q12",
+      "text": "Which storage backends does automation hub support?",
+      "choices": {
+        "a": "file, NFS, and Ceph",
+        "b": "file, S3, and Azure",
+        "c": "file, GCS, and S3",
+        "d": "S3, Azure, and GCS"
+      },
+      "correct": "b",
+      "objective": "Install and configure private automation hub"
+    },
+    {
+      "id": "Q13",
+      "text": "What access control model does AAP use?",
+      "choices": {
+        "a": "Attribute-Based Access Control (ABAC)",
+        "b": "Mandatory Access Control (MAC)",
+        "c": "Role-Based Access Control (RBAC)",
+        "d": "Discretionary Access Control (DAC)"
+      },
+      "correct": "c",
+      "objective": "Manage users, teams, and access control"
+    },
+    {
+      "id": "Q14",
+      "text": "What are authenticator maps in AAP?",
+      "choices": {
+        "a": "Network topology diagrams for authentication servers",
+        "b": "Rules that map external authentication identities to AAP roles, teams, or organizations",
+        "c": "Configuration files for LDAP directory structure",
+        "d": "Database schemas for user credentials"
+      },
+      "correct": "b",
+      "objective": "Manage users, teams, and access control"
+    },
+    {
+      "id": "Q15",
+      "text": "In AAP 2.6, what happens to controller admin accounts during an upgrade from 2.4?",
+      "choices": {
+        "a": "They are deleted and must be recreated",
+        "b": "They remain as controller-only admins",
+        "c": "They become platform gateway admins",
+        "d": "They are downgraded to regular users"
+      },
+      "correct": "c",
+      "objective": "Manage users, teams, and access control"
+    },
+    {
+      "id": "Q16",
+      "text": "What is the system-level read-only role in AAP called?",
+      "choices": {
+        "a": "Viewer",
+        "b": "Auditor",
+        "c": "Reader",
+        "d": "Observer"
+      },
+      "correct": "b",
+      "objective": "Manage users, teams, and access control"
+    },
+    {
+      "id": "Q17",
+      "text": "What happens when dynamic inventory updates encounter a host limit violation?",
+      "choices": {
+        "a": "The update succeeds but logs a warning",
+        "b": "The update fails",
+        "c": "Extra hosts are silently ignored",
+        "d": "The inventory is rolled back to its previous state"
+      },
+      "correct": "b",
+      "objective": "Manage inventories and host groups"
+    },
+    {
+      "id": "Q18",
+      "text": "In VM-based deployments, where is automation mesh topology defined?",
+      "choices": {
+        "a": "In the automation controller web UI",
+        "b": "In the AAP installer inventory file",
+        "c": "In a Kubernetes ConfigMap",
+        "d": "In the receptor configuration daemon"
+      },
+      "correct": "b",
+      "objective": "Manage inventories and host groups"
+    },
+    {
+      "id": "Q19",
+      "text": "Each job template in automation controller can specify which of the following?",
+      "choices": {
+        "a": "Which Python virtual environment to use",
+        "b": "Which execution environment to use",
+        "c": "Which container runtime to use",
+        "d": "Which Ansible version to install"
+      },
+      "correct": "b",
+      "objective": "Create and manage job templates"
+    },
+    {
+      "id": "Q20",
+      "text": "What feature allows end users to provide input values when launching a job template?",
+      "choices": {
+        "a": "Variables",
+        "b": "Extra vars",
+        "c": "Surveys",
+        "d": "Prompts"
+      },
+      "correct": "c",
+      "objective": "Create and manage job templates"
+    },
+    {
+      "id": "Q21",
+      "text": "What are provisioning callbacks in AAP?",
+      "choices": {
+        "a": "Webhook notifications sent after job completion",
+        "b": "A mechanism for hosts to request configuration without an agent",
+        "c": "API calls to provision new cloud instances",
+        "d": "Post-install validation scripts"
+      },
+      "correct": "b",
+      "objective": "Create and manage job templates"
+    },
+    {
+      "id": "Q22",
+      "text": "What is the default maximum number of running EDA rulebook activations per node?",
+      "choices": {
+        "a": "5",
+        "b": "8",
+        "c": "12",
+        "d": "20"
+      },
+      "correct": "c",
+      "objective": "Create and manage job templates"
+    },
+    {
+      "id": "Q23",
+      "text": "What are the three path types for workflow nodes?",
+      "choices": {
+        "a": "Start, middle, and end",
+        "b": "Success, failure, and always",
+        "c": "Primary, secondary, and tertiary",
+        "d": "Normal, error, and bypass"
+      },
+      "correct": "b",
+      "objective": "Create and manage workflows"
+    },
+    {
+      "id": "Q24",
+      "text": "What authentication method does EDA controller use to communicate with automation controller?",
+      "choices": {
+        "a": "Username and password",
+        "b": "SSH key pair",
+        "c": "Authentication token",
+        "d": "Client certificate"
+      },
+      "correct": "c",
+      "objective": "Create and manage workflows"
+    },
+    {
+      "id": "Q25",
+      "text": "What does a hop node do in automation mesh?",
+      "choices": {
+        "a": "Runs playbooks on managed hosts",
+        "b": "Relays traffic only, without executing jobs",
+        "c": "Manages the controller web interface",
+        "d": "Stores execution environment images"
+      },
+      "correct": "b",
+      "objective": "Configure and manage automation mesh"
+    },
+    {
+      "id": "Q26",
+      "text": "In automation mesh, which node initiates the connection?",
+      "choices": {
+        "a": "The node that is listed as a peer",
+        "b": "The node that declares the peer in the inventory file",
+        "c": "Always the control node",
+        "d": "The node with the lower IP address"
+      },
+      "correct": "b",
+      "objective": "Configure and manage automation mesh"
+    },
+    {
+      "id": "Q27",
+      "text": "What key mesh inventory variables define node behavior and connectivity?",
+      "choices": {
+        "a": "node_role, connections, and listen_port",
+        "b": "node_type, peers, and receptor_listener_port",
+        "c": "mesh_type, targets, and mesh_port",
+        "d": "instance_type, links, and bind_port"
+      },
+      "correct": "b",
+      "objective": "Configure and manage automation mesh"
+    },
+    {
+      "id": "Q28",
+      "text": "In operator-based (OpenShift) deployments, how is automation mesh configured?",
+      "choices": {
+        "a": "Through the AAP installer inventory file",
+        "b": "Through Kubernetes Custom Resources",
+        "c": "Through the automation controller UI",
+        "d": "Through receptor CLI commands"
+      },
+      "correct": "b",
+      "objective": "Configure and manage automation mesh"
+    },
+    {
+      "id": "Q29",
+      "text": "What is the difference between migration and upgrade in AAP?",
+      "choices": {
+        "a": "Migration changes the version; upgrade changes the installation type",
+        "b": "Migration changes the installation type; upgrade changes the platform version",
+        "c": "They are synonymous terms",
+        "d": "Migration is for minor versions; upgrade is for major versions"
+      },
+      "correct": "b",
+      "objective": "Manage projects and source control integration"
+    },
+    {
+      "id": "Q30",
+      "text": "What is Configuration as Code (CaC) in AAP 2.6?",
+      "choices": {
+        "a": "Writing playbooks to configure managed hosts",
+        "b": "Managing automation controller settings through declarative configuration files",
+        "c": "Using Git to store Ansible roles",
+        "d": "Encoding credentials in YAML files"
+      },
+      "correct": "b",
+      "objective": "Manage projects and source control integration"
+    },
+    {
+      "id": "Q31",
+      "text": "In AAP 2.6, what happened to the automation controller REST API naming?",
+      "choices": {
+        "a": "It was removed entirely",
+        "b": "It was renamed to the \"Automation Execution API\"",
+        "c": "It was merged with the Hub API",
+        "d": "It was replaced by a GraphQL API"
+      },
+      "correct": "b",
+      "objective": "Troubleshoot Ansible Automation Platform"
+    },
+    {
+      "id": "Q32",
+      "text": "What must happen to the EDA 2.4 database when upgrading to AAP 2.6?",
+      "choices": {
+        "a": "It is automatically migrated",
+        "b": "It must be dropped because migrations are incompatible",
+        "c": "It must be exported and reimported",
+        "d": "It requires a schema patch before upgrade"
+      },
+      "correct": "b",
+      "objective": "Troubleshoot Ansible Automation Platform"
+    },
+    {
+      "id": "Q33",
+      "text": "What is the supported upgrade path to AAP 2.6?",
+      "choices": {
+        "a": "Any previous version can upgrade directly to 2.6",
+        "b": "Only from AAP 2.4 or 2.5 to 2.6",
+        "c": "Only from AAP 2.5 to 2.6",
+        "d": "From AAP 2.3 or later to 2.6"
+      },
+      "correct": "b",
+      "objective": "Troubleshoot Ansible Automation Platform"
+    },
+    {
+      "id": "Q34",
+      "text": "What replaced Python virtual environments as the isolation mechanism in AAP 2.x?",
+      "choices": {
+        "a": "Docker containers",
+        "b": "Podman pods",
+        "c": "Execution environments",
+        "d": "Snap packages"
+      },
+      "correct": "c",
+      "objective": "Manage automation execution environments"
+    },
+    {
+      "id": "Q35",
+      "text": "What CLI tool is used to build custom execution environment images?",
+      "choices": {
+        "a": "ansible-runner",
+        "b": "ansible-builder",
+        "c": "podman build",
+        "d": "ansible-galaxy"
+      },
+      "correct": "b",
+      "objective": "Manage automation execution environments"
+    },
+    {
+      "id": "Q36",
+      "text": "Where are built execution environments stored?",
+      "choices": {
+        "a": "On the local filesystem of each controller node",
+        "b": "In container registries such as private automation hub or registry.redhat.io",
+        "c": "In the AAP PostgreSQL database",
+        "d": "In the project Git repository"
+      },
+      "correct": "b",
+      "objective": "Manage automation execution environments"
+    },
+    {
+      "id": "Q37",
+      "text": "What is a decision environment in Event-Driven Ansible?",
+      "choices": {
+        "a": "A virtual machine running rulebook activations",
+        "b": "A containerized image used by EDA controller to run rulebook activations",
+        "c": "A set of environment variables for decision logic",
+        "d": "A Python virtual environment with decision libraries"
+      },
+      "correct": "b",
+      "objective": "Manage automation execution environments"
+    },
+    {
+      "id": "Q38",
+      "text": "How do backup and recovery procedures differ in AAP?",
+      "choices": {
+        "a": "They are identical across all deployment types",
+        "b": "They are fundamentally different between operator-based and RPM-based deployments",
+        "c": "Only operator-based deployments support backup",
+        "d": "Backup is only available through third-party tools"
+      },
+      "correct": "b",
+      "objective": "Backup and recovery"
+    },
+    {
+      "id": "Q39",
+      "text": "What PostgreSQL versions does AAP 2.6 support for external databases?",
+      "choices": {
+        "a": "PostgreSQL 13 and 14",
+        "b": "PostgreSQL 14 and 15",
+        "c": "PostgreSQL 15, 16, and 17",
+        "d": "PostgreSQL 16 and 17 only"
+      },
+      "correct": "c",
+      "objective": "Backup and recovery"
+    },
+    {
+      "id": "Q40",
+      "text": "What limitation exists when using PostgreSQL 16 or 17 with AAP 2.6?",
+      "choices": {
+        "a": "They are not supported at all",
+        "b": "They require external backup/restore tooling because AAP's built-in tools depend on PG 15",
+        "c": "They only work with operator-based deployments",
+        "d": "They require a special license from Red Hat"
+      },
+      "correct": "b",
+      "objective": "Backup and recovery"
+    }
+  ]
+}

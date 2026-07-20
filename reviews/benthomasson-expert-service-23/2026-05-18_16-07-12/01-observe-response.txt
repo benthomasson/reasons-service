@@ -1,0 +1,22 @@
+Looking at this diff, the critical areas needing investigation are: (1) the security implications of `verify_auth_or_public` — ensuring all write endpoints on `data.router` have explicit auth, (2) the `_quick_belief_search` return value change, (3) exception handling breadth, and (4) Alembic config correctness.
+
+```json
+[
+  {"name": "verify_auth_body", "tool": "function_body", "params": {"file_path": "expert_service/auth.py", "function_name": "verify_auth"}},
+  {"name": "userinfo_and_role", "tool": "class_hierarchy", "params": {"class_name": "UserInfo", "file_path": "expert_service/auth.py"}},
+  {"name": "role_enum", "tool": "function_body", "params": {"file_path": "expert_service/auth.py", "function_name": "Role"}},
+  {"name": "data_router_all_endpoints", "tool": "find_usages", "params": {"symbol": "router.post", "file_path": "expert_service/api/data.py"}},
+  {"name": "data_router_get_endpoints", "tool": "find_usages", "params": {"symbol": "router.get", "file_path": "expert_service/api/data.py"}},
+  {"name": "data_router_delete_endpoints", "tool": "find_usages", "params": {"symbol": "router.delete", "file_path": "expert_service/api/data.py"}},
+  {"name": "quick_belief_search_callers", "tool": "find_callers", "params": {"symbol": "_quick_belief_search"}},
+  {"name": "single_ask_callers", "tool": "find_callers", "params": {"symbol": "single_ask"}},
+  {"name": "check_llm_ready_body", "tool": "function_body", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "_check_llm_ready"}},
+  {"name": "dual_ask_raises", "tool": "raises_analysis", "params": {"file_path": "expert_service/chat/loop.py", "function_name": "dual_ask"}},
+  {"name": "settings_config", "tool": "function_body", "params": {"file_path": "expert_service/config.py", "function_name": "Settings"}},
+  {"name": "auth_tests", "tool": "related_test_files", "params": {"file_path": "expert_service/auth.py"}},
+  {"name": "data_api_tests", "tool": "related_test_files", "params": {"file_path": "expert_service/api/data.py"}},
+  {"name": "verify_auth_or_public_usages", "tool": "find_usages", "params": {"symbol": "verify_auth_or_public"}},
+  {"name": "base_metadata_model", "tool": "class_hierarchy", "params": {"class_name": "Project", "file_path": "expert_service/db/models.py"}},
+  {"name": "app_file_imports", "tool": "file_imports", "params": {"file_path": "expert_service/app.py"}}
+]
+```

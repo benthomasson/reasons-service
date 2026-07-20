@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Public Experts — Reasons Service{% endblock %}
+{% block description %}Browse public domain expert knowledge bases — beliefs, entries, and source documents{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>Public Experts</h1>
+    <p>Domain expert knowledge bases — open access</p>
+</hgroup>
+
+{% if experts %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+    {% for e in experts %}
+    <article>
+        <header><h2 style="margin: 0; font-size: 1rem;">{{ e.name }}</h2></header>
+        {% if e.domain %}<p>{{ e.domain }}</p>{% endif %}
+        <dl class="stats-grid">
+            <div class="stat-card">
+                <dd class="value">{{ e.belief_count }}</dd>
+                <dt class="label">Beliefs (IN)</dt>
+            </div>
+        </dl>
+        <footer style="flex-wrap: wrap; gap: 0.5rem;">
+            <a href="/public/{{ e.name }}/beliefs" class="outline">View</a>
+            <a href="/public/{{ e.name }}/beliefs.json" class="outline secondary">JSON</a>
+            <a href="/public/{{ e.name }}/beliefs.md" class="outline secondary">MD</a>
+            <form action="/public/{{ e.name }}/search" method="get" style="display: inline-flex; gap: 0.25rem; margin: 0;">
+                <input type="text" name="q" placeholder="Search..." aria-label="Search {{ e.name }}" style="margin: 0; padding: 0.25rem 0.5rem; height: auto; width: 8rem;">
+                <button type="submit" class="outline secondary" style="margin: 0; padding: 0.25rem 0.5rem; height: auto;">Go</button>
+            </form>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<p>No public experts available yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,279 @@
+{
+  "metadata": {
+    "source": "hand-authored",
+    "domain": "Ansible Automation Platform 2.6",
+    "total": 15,
+    "type": "open_ended"
+  },
+  "questions": [
+    {
+      "id": "OE1",
+      "text": "Explain the relationship between execution environments and decision environments in AAP 2.6. How are they similar and how do they differ?",
+      "type": "open_ended",
+      "category": "conceptual",
+      "rubric": {
+        "correctness": "Both are container images. Execution environments run playbooks via automation controller. Decision environments run rulebook activations via EDA controller.",
+        "completeness": "Should mention: ansible-builder for EEs, container registries for storage, that both replaced Python virtual environments",
+        "key_facts": [
+          "Execution environments are container images for running Ansible content (playbooks, roles)",
+          "Decision environments are container images for running EDA rulebook activations",
+          "Both are built and stored in container registries like private automation hub",
+          "Execution environments are built with ansible-builder",
+          "Both replaced Python virtual environments as the isolation mechanism"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE2",
+      "text": "What is the platform gateway in AAP 2.6 and what problem does it solve?",
+      "type": "open_ended",
+      "category": "conceptual",
+      "rubric": {
+        "correctness": "Platform gateway provides a unified web interface and single entry point for all AAP components (controller, hub, EDA). Introduced in 2.5.",
+        "completeness": "Should mention: unified UI, single authentication entry point, replaces separate component logins",
+        "key_facts": [
+          "Platform gateway provides a unified web interface for all AAP components",
+          "Single sign-on entry point replacing separate logins for controller, hub, EDA",
+          "Introduced in AAP 2.5",
+          "Handles authentication and routing to component services"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE3",
+      "text": "Describe how RBAC works in AAP 2.6. What are the key role levels and how do permissions cascade?",
+      "type": "open_ended",
+      "category": "conceptual",
+      "rubric": {
+        "correctness": "RBAC with roles at platform, organization, and object levels. System auditor is read-only. Permissions cascade from organizations to teams to users.",
+        "completeness": "Should cover: system admin, system auditor, organization admin, team roles, object-level permissions",
+        "key_facts": [
+          "Role-Based Access Control (RBAC)",
+          "System-level roles: admin and auditor",
+          "Organization-level roles: admin, member",
+          "Object-level permissions on projects, inventories, templates",
+          "Teams group users and inherit permissions",
+          "Auditor role provides system-wide read-only access"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE4",
+      "text": "What is Configuration as Code (CaC) in AAP 2.6 and how is it different from writing playbooks?",
+      "type": "open_ended",
+      "category": "conceptual",
+      "rubric": {
+        "correctness": "CaC manages automation controller settings (organizations, projects, templates, credentials) through declarative config files, not managing target hosts like playbooks do.",
+        "completeness": "Should distinguish: CaC configures the platform itself, playbooks configure managed hosts",
+        "key_facts": [
+          "CaC manages automation controller configuration declaratively",
+          "Defines organizations, projects, job templates, credentials as code",
+          "Different from playbooks which configure managed infrastructure",
+          "Enables reproducible controller setups and GitOps workflows"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE5",
+      "text": "Explain how content signing works in private automation hub. Why is it important?",
+      "type": "open_ended",
+      "category": "conceptual",
+      "rubric": {
+        "correctness": "Collections can be signed with GPG keys in automation hub. Signatures verify authenticity and integrity. Ansible Galaxy CLI can verify signatures.",
+        "completeness": "Should cover: signing keys, signature verification, supply chain security",
+        "key_facts": [
+          "Collections are signed with GPG keys",
+          "Hub administrators configure signing keys",
+          "Signatures verify collection authenticity and integrity",
+          "Protects against supply chain attacks and tampering",
+          "ansible-galaxy CLI can verify signatures on install"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE6",
+      "text": "If you need to add an execution node behind a firewall that cannot accept incoming connections, what mesh topology changes are required and what configuration is needed?",
+      "type": "open_ended",
+      "category": "multi_hop",
+      "rubric": {
+        "correctness": "The execution node must peer TO the control/hop node (outbound connection). The peering direction must be set so the firewalled node initiates. A hop node may be needed as intermediary.",
+        "completeness": "Should cover: peers variable, receptor_listener_port, peering direction, that the node declaring peers initiates the connection",
+        "key_facts": [
+          "The node that declares peers in inventory initiates the connection",
+          "Firewalled execution node should declare the control/hop node as its peer",
+          "receptor_listener_port (default 27199) must be open on the receiving end",
+          "A hop node can relay traffic without executing jobs",
+          "Mesh topology is defined in the installer inventory file"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE7",
+      "text": "Walk through the complete process of migrating from AAP 2.4 RPM-based deployment to AAP 2.6 containerized deployment. What are the key steps and what data must be preserved?",
+      "type": "open_ended",
+      "category": "multi_hop",
+      "rubric": {
+        "correctness": "Must upgrade version AND change installation type. Supported path is 2.4->2.6 or 2.4->2.5->2.6. EDA database must be dropped. RPM installer still works in 2.6 for migration.",
+        "completeness": "Should cover: backup, inventory file changes, database migration, EDA database incompatibility, post-migration validation",
+        "key_facts": [
+          "Supported upgrade path: 2.4 or 2.5 to 2.6",
+          "Migration = change installation type, upgrade = change version",
+          "RPM installer deprecated in 2.5, supported in 2.6 for migrations, removed in 2.7",
+          "EDA 2.4 database must be dropped (incompatible migrations)",
+          "Backup controller database before migration",
+          "Containerized installer uses different inventory format"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE8",
+      "text": "How would you set up an AAP deployment with high availability for the automation controller? What components need redundancy?",
+      "type": "open_ended",
+      "category": "multi_hop",
+      "rubric": {
+        "correctness": "Multiple control/hybrid nodes behind a load balancer. External PostgreSQL with replication. Shared storage for hub if applicable.",
+        "completeness": "Should cover: multiple controller nodes, load balancer, external database, mesh topology considerations",
+        "key_facts": [
+          "Multiple control or hybrid nodes for controller HA",
+          "Load balancer in front of controller nodes",
+          "External PostgreSQL database with its own HA setup",
+          "Automation hub requires ReadWriteMany (RWX) storage for HA",
+          "Mesh topology should have multiple paths for resilience"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE9",
+      "text": "Explain how authenticator maps work when integrating AAP with an external LDAP directory. How do LDAP groups get mapped to AAP teams and organizations?",
+      "type": "open_ended",
+      "category": "multi_hop",
+      "rubric": {
+        "correctness": "Authenticator maps define rules that map external identities to AAP roles/teams/organizations. Map types include: allow, organization, team. LDAP groups can be mapped to AAP teams.",
+        "completeness": "Should cover: map types, trigger conditions, LDAP group to team mapping",
+        "key_facts": [
+          "Authenticator maps are rules mapping external auth identities to AAP",
+          "Map types: allow (permits login), organization (assigns org), team (assigns team)",
+          "Maps have triggers based on attributes from the external provider",
+          "LDAP groups can be mapped to AAP teams via authenticator maps",
+          "Multiple maps can be chained with ordering/priority"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE10",
+      "text": "A job template is failing with 'No execution environment found'. Walk through the troubleshooting steps and explain the execution environment resolution order.",
+      "type": "open_ended",
+      "category": "multi_hop",
+      "rubric": {
+        "correctness": "EE resolution: job template EE > project default EE > organization default EE > global default EE. Check that the EE image is accessible from execution nodes.",
+        "completeness": "Should cover: resolution hierarchy, container registry access, pulling images, credential configuration",
+        "key_facts": [
+          "EE resolution order: job template, project, organization, global default",
+          "Verify the EE image exists in the configured container registry",
+          "Execution nodes must be able to pull the image",
+          "Registry credentials may be needed for private registries",
+          "Check that the EE is assigned at the appropriate level"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE11",
+      "text": "What is the exact command to run the AAP containerized installer and what key files does it require?",
+      "type": "open_ended",
+      "category": "exact_command",
+      "rubric": {
+        "correctness": "The containerized installer runs via ansible-playbook with a specific inventory file. Key files: inventory, ansible.cfg.",
+        "completeness": "Should mention the inventory file format, required variables, and any prerequisites",
+        "key_facts": [
+          "Containerized installer uses ansible-playbook",
+          "Requires an inventory file with host groups and variables",
+          "Runs on RHEL 9.2+ with Podman",
+          "installer collection from automation hub or setup bundle"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE12",
+      "text": "What is the exact command to build a custom execution environment with ansible-builder? What files are needed?",
+      "type": "open_ended",
+      "category": "exact_command",
+      "rubric": {
+        "correctness": "ansible-builder build with an execution environment definition file (execution-environment.yml). The definition specifies base image, collections, Python packages, system packages.",
+        "completeness": "Should cover: the build command, EE definition file format, key sections",
+        "key_facts": [
+          "ansible-builder build command",
+          "execution-environment.yml definition file",
+          "Specifies base image (EE_BASE_IMAGE)",
+          "Can include collections via requirements.yml",
+          "Can include Python packages via requirements.txt",
+          "Can include system packages via bindep.txt"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE13",
+      "text": "What commands and configuration are needed to set up content signing in private automation hub?",
+      "type": "open_ended",
+      "category": "exact_command",
+      "rubric": {
+        "correctness": "Configure a GPG key in the hub. Sign collections through the hub UI or API. Configure signing service.",
+        "completeness": "Should cover: GPG key generation/import, signing service configuration, signing workflow",
+        "key_facts": [
+          "GPG key pair needed",
+          "Signing service configured in automation hub",
+          "Collections signed after approval",
+          "ansible-galaxy verify for client-side verification"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE14",
+      "text": "What is the exact command to run the AAP RPM-based installer and what are the key inventory file variables?",
+      "type": "open_ended",
+      "category": "exact_command",
+      "rubric": {
+        "correctness": "./setup.sh from the installer directory. Key variables: automationcontroller_*, automationhub_*, automationedacontroller_* in the inventory file.",
+        "completeness": "Should cover: setup.sh, inventory file location, key variable groups",
+        "key_facts": [
+          "./setup.sh is the installer command",
+          "Inventory file defines host groups and variables",
+          "Key variable prefixes: automationcontroller_, automationhub_, automationedacontroller_",
+          "admin_password and pg_password are critical variables",
+          "Host groups: [automationcontroller], [automationhub], [automationedacontroller], [database]"
+        ],
+        "max_score": 10
+      }
+    },
+    {
+      "id": "OE15",
+      "text": "How do you configure the receptor listener port and verify mesh connectivity between nodes?",
+      "type": "open_ended",
+      "category": "exact_command",
+      "rubric": {
+        "correctness": "receptor_listener_port (default 27199) set in installer inventory. Verify with receptorctl status or the mesh visualizer in the controller UI.",
+        "completeness": "Should cover: port configuration, firewall rules, connectivity testing",
+        "key_facts": [
+          "receptor_listener_port variable (default 27199)",
+          "Set in installer inventory file per node",
+          "Firewall must allow the port between peered nodes",
+          "receptorctl status for CLI verification",
+          "Mesh visualizer in automation controller UI shows topology"
+        ],
+        "max_score": 10
+      }
+    }
+  ]
+}

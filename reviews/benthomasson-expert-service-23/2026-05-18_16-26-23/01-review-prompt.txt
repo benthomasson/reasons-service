@@ -1,0 +1,2510 @@
+You are a senior code reviewer. Review the following code changes.
+
+## Specification
+
+No specification provided. Focus on correctness, tests, and integration.
+
+
+
+
+
+## Code Changes
+
+```diff
+diff --git a/.claude/checkpoint.md b/.claude/checkpoint.md
+index b5b1efd..57263ec 100644
+--- a/.claude/checkpoint.md
++++ b/.claude/checkpoint.md
+@@ -1,75 +1,68 @@
+ # Checkpoint
+ 
+-**Saved:** 2026-03-25 12:30
++**Saved:** 2026-05-14 10:30
+ **Project:** /Users/ben/git/expert-service
+ 
+ ## Task
+ 
+-Building meta-expert evaluation framework for expert-service. Phase 1 (routing accuracy) complete and smoke-tested. Migrated from rms to ftl-reasons earlier this session.
++Production hardening of expert-service: FD exhaustion fix, context window overflow fix, error handling, architecture documentation, and sd-architect diagram.
+ 
+ ## Status
+ 
+ ### Completed this session
+-- [x] Migrated `rms` → `ftl-reasons` (1 dependency + 5 import changes)
+-- [x] Fixed Starlette `TemplateResponse` API (7 calls)
+-- [x] Fixed Colima disk space (removed 50GB langfuse volumes)
+-- [x] Fixed garbled multi-expert streaming (`awaiting_tools` flag)
+-- [x] Fixed reflection prompt — v3 requires cited sources before recording beliefs
+-- [x] Retracted bad beliefs from transient errors and uncited answers
+-- [x] Smoke tested 7 meta-expert queries across 3 experts
+-- [x] Built Phase 1 meta-expert eval: driver, scorer, 45 questions, CLI runner
+-- [x] Smoke-tested eval: single-domain 100% F1, cross-domain 83% F1, out-of-scope 100% F1
+-- [x] All commits pushed
+-
+-### Not yet started
+-- [ ] Run full 45-question routing eval
+-- [ ] Phase 2: Synthesis quality (CIAK scoring)
+-- [ ] Phase 3: Citation preservation scoring
+-- [ ] Programmatic citation check in reflection step (not just prompt-based)
++- [x] Diagnosed FD exhaustion — macOS default 256 soft limit was the bottleneck, not rate limiting or DNS
++- [x] Added `ulimit -n 10240` to `scripts/start.local.sh`
++- [x] Added `pool_size=5, max_overflow=5` to both async and sync engines in `db/connection.py`
++- [x] Added `/health` endpoint FD monitoring: `_open_fds()` returns `{open, limit_soft, limit_hard}`
++- [x] Added try/except on `/ask` endpoint — returns 502 JSON instead of 500 traceback
++- [x] Diagnosed context window overflow — 211K tokens > 200K limit from unbounded beliefs + tool history
++- [x] Added context budgets: `MAX_BELIEF_CONTEXT_CHARS=30000`, `MAX_TOOL_RESULT_CHARS=10000` (constants moved to top of loop.py)
++- [x] Confirmed FD fix working under load: 366 FDs at peak with 4 concurrent users (was crashing at 256)
++- [x] Filed benthomasson/expert#1 — Plugin system for expert CLI
++- [x] Filed benthomasson/expert#2 — Rename package to ftl-expert for PyPI
++- [x] Written entries: FD exhaustion fix, context window overflow, architecture overview
++- [x] Created `architecture.json` for sd-architect visualization
++- [ ] Context budget changes not yet deployed (need restart)
+ 
+ ## Key Files
+ 
+-- `eval/meta_systems.py` — `MetaExpertDriver` captures ask_expert calls, reflection events, citations from SSE
+-- `eval/meta_scoring.py` — `score_routing()` precision/recall/F1, `score_citations()`, `aggregate_routing_scores()`
+-- `eval/meta_questions.json` — 45 questions: 30 single-domain, 10 cross-domain, 5 out-of-scope
+-- `eval/run_meta_eval.py` — CLI runner with `--category`, `--limit`, `--model`, `--output`
+-- `expert_service/chat/meta_loop.py` — streaming fix + reflection prompt v3
+-- `expert_service/chat/meta_agent.py` — meta-expert agent factory, system prompt
+-- `expert_service/chat/meta_tools.py` — `ask_expert` and `list_experts` tools
++- `expert_service/db/connection.py` — Added pool_size/max_overflow caps on both engines
++- `expert_service/chat/loop.py` — Added MAX_BELIEF_CONTEXT_CHARS, MAX_TOOL_RESULT_CHARS at top; belief search now budget-capped; tool history results truncated at 10K chars
++- `expert_service/api/chat.py` — Added try/except returning 502 JSON on LLM failures
++- `expert_service/app.py` — Added `_open_fds()` helper and FD info to `/health` endpoint
++- `scripts/start.local.sh` — Added `ulimit -n 10240`
++- `architecture.json` — sd-architect diagram (13 components, 12 connections)
++- `entries/2026/05/13/file-descriptor-exhaustion-fix-*.md` — FD fix writeup
++- `entries/2026/05/13/context-window-overflow-*.md` — Context overflow writeup
++- `entries/2026/05/14/expert-service-architecture-*.md` — Full architecture doc
+ 
+ ## Commands
+ 
+ ```bash
+-# Run full meta-expert routing eval
+-uv run python3 -m eval.run_meta_eval
+-
+-# Run by category
+-uv run python3 -m eval.run_meta_eval --category single --limit 5
+-uv run python3 -m eval.run_meta_eval --category cross
+-uv run python3 -m eval.run_meta_eval --category out-of-scope
+-
+-# RMS operations against Docker PG
+-DATABASE_URL_SYNC="postgresql+psycopg://expert:expert_dev@localhost:5433/expert_service" uv run python3 -c "
+-from expert_service.rms.api import search
+-from uuid import UUID
+-pid = UUID('b3ba781a-7a17-459a-9436-6531a35774bc')  # meta-expert
+-print(search(pid, 'knows'))
+-"
+-
+-# Rebuild service
+-docker compose up -d --build
++# Check FD usage on running service
++curl localhost:8000/health | jq .fds
++
++# Start with FD fix
++./scripts/start.local.sh
++
++# Visualize architecture
++python ~/git/sd-architect/demos/sd_demo.py architecture.json
++
++# Gemma3 single-pass mode via API
++curl -X POST localhost:8000/api/projects/{id}/ask \
++  -H 'Content-Type: application/json' \
++  -d '{"question":"test","model":"ollama:gemma3:27b","mode":"single"}'
+ ```
+ 
+ ## Next Step
+ 
+-Run the full 45-question routing eval (`uv run python3 -m eval.run_meta_eval`) to establish a baseline, then start Phase 2 (synthesis quality with CIAK scoring) for the 10 cross-domain questions.
++Restart expert-service to deploy the context budget changes (MAX_BELIEF_CONTEXT_CHARS, MAX_TOOL_RESULT_CHARS). Then verify 211K token errors stop occurring. The code is ready, just needs a process restart.
+ 
+ ## Context
+ 
+-- **ftl-reasons 0.3.0** installed, `rms 0.1.0` removed
+-- **Colima disk**: ~48GB free after removing langfuse volumes
+-- **Reflection prompt v3**: Only records beliefs when expert cited specific belief IDs, entry IDs, or sources. Tested working — uncited answers skipped, cited answers recorded.
+-- **Routing eval smoke test results**: R32 ("deploy AAP on OpenShift") got P=1.0 R=0.5 F1=0.67 — meta-expert only asked aap-expert, missed openshift-expert. Arguably reasonable but eval correctly flags it.
+-- **Project IDs**: meta-expert=`b3ba781a`, aap-expert=`a037a6a3`, rhel-expert=`6e82621f`, openshift-expert=`23c26c17`
+-- **Eval plan**: 6-phase plan in `~/git/project-analyze-understanding/entries/2026/03/20/meta-expert-evaluation-plan.md`
+-- **Latest commit**: `8b23a03` — Add meta-expert routing evaluation framework
++- **FD root cause confirmed**: 4 concurrent users peaked at 366 FDs; old 256 limit would crash. ~50 FDs per concurrent user.
++- **Context overflow**: Beliefs had no char budget (source chunks had 30K). Tool history (especially Snowflake results) accumulated unbounded across 3 iterative rounds. Fixed with per-source budgets.
++- **502 error handler working**: Saw `502 Bad Gateway` in logs instead of 500 traceback — confirms api/chat.py fix is live.
++- **Architecture decisions discussed**: Read-only stateless deployment on OpenShift, SQLite KB baked into container images, no chat logs needed (stateless is a feature).
++- **4000-question eval runs** are the stress test that exposed both FD and context issues.
++- **Pending from previous session**: Attribution prompt improvement (missing inline citations), auto-detect single mode for ollama models, fix langfuse in agents-python.
+diff --git a/alembic.ini b/alembic.ini
+new file mode 100644
+index 0000000..1315803
+--- /dev/null
++++ b/alembic.ini
+@@ -0,0 +1,37 @@
++[alembic]
++script_location = alembic
++prepend_sys_path = .
++sqlalchemy.url =
++
++[loggers]
++keys = root,sqlalchemy,alembic
++
++[handlers]
++keys = console
++
++[formatters]
++keys = generic
++
++[logger_root]
++level = WARN
++handlers = console
++
++[logger_sqlalchemy]
++level = WARN
++handlers =
++qualname = sqlalchemy.engine
++
++[logger_alembic]
++level = INFO
++handlers =
++qualname = alembic
++
++[handler_console]
++class = StreamHandler
++args = (sys.stderr,)
++level = NOTSET
++formatter = generic
++
++[formatter_generic]
++format = %(levelname)-5.5s [%(name)s] %(message)s
++datefmt = %H:%M:%S
+diff --git a/alembic/env.py b/alembic/env.py
+new file mode 100644
+index 0000000..9ebbb7a
+--- /dev/null
++++ b/alembic/env.py
+@@ -0,0 +1,58 @@
++from logging.config import fileConfig
++
++from alembic import context
++from sqlalchemy import engine_from_config, pool
++
++from expert_service.config import settings
++from expert_service.db.models import Base
++
++config = context.config
++if config.config_file_name is not None:
++    fileConfig(config.config_file_name)
++
++config.set_main_option("sqlalchemy.url", settings.database_url_sync)
++
++target_metadata = Base.metadata
++
++_EXCLUDED_PREFIXES = ("rms_",)
++
++
++def include_name(name, type_, parent_names):
++    if type_ == "table" and any(name.startswith(p) for p in _EXCLUDED_PREFIXES):
++        return False
++    return True
++
++
++def run_migrations_offline() -> None:
++    url = config.get_main_option("sqlalchemy.url")
++    context.configure(
++        url=url,
++        target_metadata=target_metadata,
++        literal_binds=True,
++        dialect_opts={"paramstyle": "named"},
++        include_name=include_name,
++    )
++    with context.begin_transaction():
++        context.run_migrations()
++
++
++def run_migrations_online() -> None:
++    connectable = engine_from_config(
++        config.get_section(config.config_ini_section, {}),
++        prefix="sqlalchemy.",
++        poolclass=pool.NullPool,
++    )
++    with connectable.connect() as connection:
++        context.configure(
++            connection=connection,
++            target_metadata=target_metadata,
++            include_name=include_name,
++        )
++        with context.begin_transaction():
++            context.run_migrations()
++
++
++if context.is_offline_mode():
++    run_migrations_offline()
++else:
++    run_migrations_online()
+diff --git a/alembic/script.py.mako b/alembic/script.py.mako
+new file mode 100644
+index 0000000..958df87
+--- /dev/null
++++ b/alembic/script.py.mako
+@@ -0,0 +1,25 @@
++"""${message}
++
++Revision ID: ${up_revision}
++Revises: ${down_revision | comma,n}
++Create Date: ${create_date}
++"""
++from typing import Sequence, Union
++
++from alembic import op
++import sqlalchemy as sa
++${imports if imports else ""}
++
++# revision identifiers, used by Alembic.
++revision: str = ${repr(up_revision)}
++down_revision: Union[str, None] = ${repr(down_revision)}
++branch_labels: Union[str, Sequence[str], None] = ${repr(branch_labels)}
++depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
++
++
++def upgrade() -> None:
++    ${upgrades if upgrades else "pass"}
++
++
++def downgrade() -> None:
++    ${downgrades if downgrades else "pass"}
+diff --git a/alembic/versions/0001_add_project_public_column.py b/alembic/versions/0001_add_project_public_column.py
+new file mode 100644
+index 0000000..b81c5ce
+--- /dev/null
++++ b/alembic/versions/0001_add_project_public_column.py
+@@ -0,0 +1,23 @@
++"""Add public column to projects table
++
++Revision ID: 0001
++Revises:
++Create Date: 2026-05-18
++"""
++from typing import Sequence, Union
++
++from alembic import op
++import sqlalchemy as sa
++
++revision: str = "0001"
++down_revision: Union[str, None] = None
++branch_labels: Union[str, Sequence[str], None] = None
++depends_on: Union[str, Sequence[str], None] = None
++
++
++def upgrade() -> None:
++    op.add_column("projects", sa.Column("public", sa.Boolean(), nullable=False, server_default="false"))
++
++
++def downgrade() -> None:
++    op.drop_column("projects", "public")
+diff --git a/architecture.json b/architecture.json
+new file mode 100644
+index 0000000..877ea3b
+--- /dev/null
++++ b/architecture.json
+@@ -0,0 +1,237 @@
++{
++  "components": [
++    {
++      "name": "Storage",
++      "type": "group",
++      "position": [
++        633,
++        323
++      ],
++      "size": [
++        836,
++        862
++      ]
++    },
++    {
++      "name": "LLMs",
++      "type": "group",
++      "position": [
++        634,
++        -407
++      ],
++      "size": [
++        838,
++        557
++      ]
++    },
++    {
++      "name": "Observability",
++      "type": "group",
++      "position": [
++        -252,
++        677
++      ],
++      "size": [
++        892,
++        442
++      ]
++    },
++    {
++      "name": "Services",
++      "type": "group",
++      "position": [
++        -249,
++        13
++      ],
++      "size": [
++        887,
++        855
++      ]
++    },
++    {
++      "name": "Clients",
++      "type": "group",
++      "position": [
++        -973,
++        15
++      ],
++      "size": [
++        515,
++        851
++      ]
++    },
++    {
++      "name": "browser",
++      "type": "client",
++      "position": [
++        -983,
++        34
++      ]
++    },
++    {
++      "name": "expert_cli",
++      "type": "client",
++      "position": [
++        -969,
++        -246
++      ]
++    },
++    {
++      "name": "mcp_server",
++      "type": "client",
++      "position": [
++        -988,
++        283
++      ]
++    },
++    {
++      "name": "expert_service",
++      "type": "service",
++      "position": [
++        -479,
++        1
++      ],
++      "technology": "FastAPI"
++    },
++    {
++      "name": "chat_loop",
++      "type": "service",
++      "position": [
++        -26,
++        -234
++      ],
++      "technology": "LangChain"
++    },
++    {
++      "name": "search_api",
++      "type": "service",
++      "position": [
++        -33,
++        156
++      ],
++      "technology": "FTS + IDF"
++    },
++    {
++      "name": "postgresql",
++      "type": "database",
++      "position": [
++        489,
++        61
++      ],
++      "technology": "PostgreSQL"
++    },
++    {
++      "name": "sqlite_kb",
++      "type": "database",
++      "position": [
++        868,
++        61
++      ],
++      "technology": "SQLite"
++    },
++    {
++      "name": "vertex_ai",
++      "type": "external",
++      "position": [
++        531,
++        -520
++      ],
++      "technology": "REST"
++    },
++    {
++      "name": "ollama",
++      "type": "external",
++      "position": [
++        532,
++        -288
++      ],
++      "technology": "REST"
++    },
++    {
++      "name": "snowflake",
++      "type": "external",
++      "position": [
++        503,
++        598
++      ],
++      "technology": "REST"
++    },
++    {
++      "name": "langfuse",
++      "type": "external",
++      "position": [
++        -260,
++        604
++      ],
++      "technology": "REST"
++    },
++    {
++      "name": "reasons_db",
++      "type": "database",
++      "position": [
++        490,
++        345
++      ],
++      "technology": "ftl-reasons"
++    },
++    {
++      "name": "reasons_db sqlite",
++      "type": "database",
++      "position": [
++        862,
++        352
++      ],
++      "technology": "SQLite"
++    }
++  ],
++  "connections": [
++    {
++      "from": "browser_request",
++      "to": "expert_service_in"
++    },
++    {
++      "from": "expert_cli_request",
++      "to": "expert_service_in"
++    },
++    {
++      "from": "mcp_server_request",
++      "to": "expert_service_in"
++    },
++    {
++      "from": "expert_service_out",
++      "to": "chat_loop_in"
++    },
++    {
++      "from": "expert_service_out",
++      "to": "search_api_in"
++    },
++    {
++      "from": "chat_loop_out",
++      "to": "postgresql_query"
++    },
++    {
++      "from": "chat_loop_out",
++      "to": "vertex_ai_ext_in"
++    },
++    {
++      "from": "chat_loop_out",
++      "to": "ollama_ext_in"
++    },
++    {
++      "from": "search_api_out",
++      "to": "postgresql_query"
++    },
++    {
++      "from": "expert_service_event",
++      "to": "langfuse_ext_in"
++    },
++    {
++      "from": "search_api_out",
++      "to": "snowflake_ext_in"
++    },
++    {
++      "from": "search_api_out",
++      "to": "reasons_db_query"
++    }
++  ]
++}
+diff --git a/entries/2026/05/12/langfuse-cost-data-full-eval-costs-across-four-model-tiers.md b/entries/2026/05/12/langfuse-cost-data-full-eval-costs-across-four-model-tiers.md
+new file mode 100644
+index 0000000..ed1eebd
+--- /dev/null
++++ b/entries/2026/05/12/langfuse-cost-data-full-eval-costs-across-four-model-tiers.md
+@@ -0,0 +1,49 @@
++# Langfuse Cost Data — Full Eval Costs Across Four Model Tiers
++
++**Date:** 2026-05-12
++**Time:** 15:12
++
++## Summary
++
++First complete cost picture from langfuse for expert-service evals. Four model tiers from $0 to $21.61 for a 50-question eval, with 15-60x token reduction vs agents-python's 300k tokens/query.
++
++## Eval Cost Data (from langfuse, 50 questions each)
++
++| Model | Tokens | Cost | A-Grade | Cost/Query | Cost per A |
++|-------|--------|------|---------|------------|------------|
++| Opus 4.6 | 933k | $21.61 | 88% (44) | $0.43 | $0.49 |
++| Sonnet 4.6 | 849k | $4.20 | 72% (36) | $0.08 | $0.12 |
++| Haiku 4.5 | 723k | $1.01 | 64% (32) | $0.02 | $0.03 |
++| Gemma3 27B | 501k | $0.00 | 44% (22) | $0.00 | $0.00 |
++
++Gemma3 total includes both dual (30% A) and single-pass (44% A) eval runs.
++
++## Token Usage Per Query
++
++| Model | Mode | Tokens/Query | LLM Calls |
++|-------|------|-------------|-----------|
++| Opus | dual | ~18k | 3 (TMS + RAG + merge) |
++| Sonnet | dual | ~17k | 3-5 (extra iterative rounds) |
++| Haiku | dual | ~14k | 3 |
++| Gemma3 | single | ~5k | 1 |
++| Gemma3 | dual | ~6k | 3 |
++
++## Comparison to agents-python
++
++agents-python uses ~300k tokens per query because the LLM drives the entire retrieval loop with tool calls. expert-service does retrieval in code (FTS + IDF re-ranking), then hands pre-ranked context to the LLM for synthesis only.
++
++| System | Tokens/Query | Reduction |
++|--------|-------------|-----------|
++| agents-python | ~300k | baseline |
++| expert-service (Opus dual) | ~18k | 17x |
++| expert-service (Gemma3 single) | ~5k | 60x |
++
++## Value Analysis
++
++**Sonnet is the value pick.** It delivers 82% of Opus's quality (72% vs 88% A-grade) at 19% of the cost ($4.20 vs $21.61). For a production Q&A service handling thousands of queries, the 5x cost difference adds up fast.
++
++**Haiku is the volume tier.** 73% of Opus quality at 5% of the cost, and 2.5x faster (119s vs 296s for 50 questions). At $0.02/query, cost is negligible even at scale.
++
++**Gemma3 is the air-gapped tier.** Zero marginal cost, runs on local hardware, no data leaves the network. 44% A-grade with single-pass is acceptable for internal use where speed and privacy matter more than polish.
++
++**Cost per correct answer** is the metric that matters for production: Opus $0.49, Sonnet $0.12, Haiku $0.03, Gemma3 $0.00. A service that routes easy questions to Haiku and hard ones to Opus could average under $0.10 per correct answer.
+diff --git a/entries/2026/05/12/slug-citations-fix-haiku-14pp-opus-hits-88-a-grade.md b/entries/2026/05/12/slug-citations-fix-haiku-14pp-opus-hits-88-a-grade.md
+new file mode 100644
+index 0000000..640d45c
+--- /dev/null
++++ b/entries/2026/05/12/slug-citations-fix-haiku-14pp-opus-hits-88-a-grade.md
+@@ -0,0 +1,65 @@
++# Slug Citations Fix — Haiku +14pp, Opus Hits 88% A-Grade
++
++**Date:** 2026-05-12
++**Time:** 14:20
++
++## Summary
++
++Keeping the LLM's original `[belief-id]` citations instead of converting them to numbered `[1]` references improved eval scores across all models, with Haiku getting the biggest lift: 50% → 64% A-grade (+14pp). Opus reached 88% A-grade, the highest score recorded.
++
++## The Change
++
++Three commits on `keep-slug-citations` branch, merged to main:
++
++1. **Remove numbered citation conversion.** `_build_sources_section` was assigning `[1]`, `[2]`, etc. and `_replace_inline_citations` was rewriting the LLM's `[belief-id]` refs to those numbers. Removed both — the LLM's original slugs pass through unchanged.
++2. **Log stripped citations.** Added logging to `_strip_hallucinated_refs` to diagnose false positives. Result: zero false positives — everything stripped was genuinely hallucinated.
++3. **Chat UI scroll links.** Updated `linkCitations` to work with slug-based refs instead of numbered ones. Collects slugs from the Sources/Beliefs footnotes and turns matching inline `[slug]` refs into clickable scroll links, scoped per message via `ref-{msgId}-{slug}`.
++
++## Results (50 questions, seed 42)
++
++### Before/After Citation Fix
++
++| Model | v1 A% | v2 A% | Delta | v1 Attr | v2 Attr | Delta |
++|-------|-------|-------|-------|---------|---------|-------|
++| Opus | 86% | 88% | +2pp | 4.30 | 4.58 | +0.28 |
++| Sonnet | 70% | 72% | +2pp | 3.96 | 3.84 | -0.12 |
++| Haiku | 50% | 64% | +14pp | 3.46 | 4.00 | +0.54 |
++
++### Full Dimensions (v2)
++
++| Dimension | Opus | Sonnet | Haiku |
++|-----------|------|--------|-------|
++| Honesty | 4.90 | 4.76 | 4.70 |
++| Relevance | 4.80 | 4.60 | 4.38 |
++| Attribution | 4.58 | 3.84 | 4.00 |
++| Accuracy | 4.58 | 4.36 | 4.42 |
++| Completeness | 4.52 | 4.10 | 3.76 |
++
++## Why Haiku Got the Biggest Lift
++
++Haiku was the worst at maintaining citation format — it frequently used numbered refs `[5]` or dropped citations entirely. When the post-processing converted valid `[belief-id]` refs to `[1]`, those numbered refs became indistinguishable from hallucinated ones. By keeping the original slugs:
++
++- The judge can verify each citation is a real belief ID
++- Self-documenting refs like `[rh-sellers-cannot-sell-watsonx-directly]` are clearly intentional citations, not hallucinations
++- The stripper only removes refs that don't match any retrieved belief/source
++
++## Key Finding: No False Positives in Citation Stripping
++
++The logging showed zero stripped citations that were actually valid. Every stripped ref was genuinely hallucinated. This means the "missing inline citations" problem (19 answers for Haiku, 15 for Sonnet) is purely the LLM not writing citations, not us incorrectly removing them. The next improvement is prompt engineering to demand inline citations on every factual claim.
++
++## Remaining Attribution Issues (by frequency)
++
++| Cause | Opus | Sonnet | Haiku |
++|-------|------|--------|-------|
++| Missing inline citations | 2 | 15 | 19 |
++| Mixed/inconsistent format | 2 | 6 | 5 |
++| Irrelevant sources cited | 1 | 3 | 10 |
++
++## Cost and Speed Per Query
++
++| Model | A-Grade | Cost/Query | Speed |
++|-------|---------|------------|-------|
++| Opus | 88% | ~$0.36 | ~6s |
++| Sonnet | 72% | ~$0.07 | ~6s |
++| Haiku | 64% | ~$0.02 | ~2s |
++| Gemma3 27B | untested | $0.00 | ~12s |
+diff --git a/entries/2026/05/13/context-window-overflow-211k-tokens-exceeds-200k-limit-in-iterative-tms.md b/entries/2026/05/13/context-window-overflow-211k-tokens-exceeds-200k-limit-in-iterative-tms.md
+new file mode 100644
+index 0000000..9bf42e7
+--- /dev/null
++++ b/entries/2026/05/13/context-window-overflow-211k-tokens-exceeds-200k-limit-in-iterative-tms.md
+@@ -0,0 +1,44 @@
++# Context Window Overflow — 211K Tokens Exceeds 200K Limit in Iterative TMS
++
++**Date:** 2026-05-13
++**Time:** 13:55
++
++## Summary
++
++Expert-service is hitting Anthropic's 200K token context limit during iterative TMS answering. A prompt with 211,845 tokens was sent, causing a 400 BadRequestError. The root cause is unbounded context accumulation across iterative search rounds.
++
++## Error
++
++```
++anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'prompt is too long: 211845 tokens > 200000 maximum'}}
++```
++
++## Root Cause
++
++Source chunks have a context budget (`MAX_CONTEXT_CHARS = 30000`, ~7.5K tokens), but beliefs and tool history have **no budget**. The iterative TMS loop (`_tms_answer_iterative`) accumulates context across up to 3 rounds:
++
++- **Round 1**: initial beliefs (up to 20, no char limit) + prompt template
++- **Round 2**: new beliefs + round 1 tool history + prompt
++- **Round 3**: new beliefs + rounds 1+2 tool history + prompt
++
++Each round appends full search results and Snowflake query responses to `tool_history` without truncation. A single `query_data` Snowflake result can return an enormous table, and belief text has no per-item or total character cap.
++
++## Asymmetry
++
++| Context source | Budget | Truncation |
++|----------------|--------|------------|
++| Source chunks | 30,000 chars (~7.5K tokens) | Per-chunk (2000 chars) + total cap |
++| Beliefs | None | Only count-limited (20 items) |
++| Tool history | None | Full text from all prior rounds |
++| Snowflake results | None | Raw query output |
++
++## Fix (not yet implemented)
++
++1. Add `MAX_BELIEF_CONTEXT_CHARS` budget to `_quick_belief_search`, matching the source chunk pattern
++2. Truncate individual `tool_history` entries (e.g., 5000 chars each)
++3. Cap total prompt size before sending to LLM — measure token count and trim oldest tool history first
++4. The 502 error handler added earlier today ensures the user gets a clean error message instead of a 500 traceback
++
++## Context
++
++This surfaced during 4000-question eval stress testing against the Red Hat expert knowledge base, which has large Snowflake connector results and verbose beliefs. Smaller knowledge bases are unlikely to hit this limit.
+diff --git a/entries/2026/05/13/file-descriptor-exhaustion-fix-ulimit-256-was-the-real-bottleneck.md b/entries/2026/05/13/file-descriptor-exhaustion-fix-ulimit-256-was-the-real-bottleneck.md
+new file mode 100644
+index 0000000..f9b08d4
+--- /dev/null
++++ b/entries/2026/05/13/file-descriptor-exhaustion-fix-ulimit-256-was-the-real-bottleneck.md
+@@ -0,0 +1,55 @@
++# File Descriptor Exhaustion Fix — ulimit 256 Was the Real Bottleneck
++
++**Date:** 2026-05-13
++**Time:** 06:10
++
++## Summary
++
++Expert-service was throwing DNS resolution failures and connection errors under eval load. The errors looked like Vertex AI rate limiting or network issues, but the root cause was macOS's default 256 file descriptor limit per process being exhausted.
++
++## Symptoms
++
++- `OSError: [Errno 24] Too many open files` when reading gcloud credentials
++- `NameResolutionError: Failed to resolve 'oauth2.googleapis.com'` — DNS sockets couldn't be created
++- `500 Internal Server Error` on `/ask` endpoint during eval runs
++- Errors appeared random — sometimes during OAuth refresh, sometimes during DNS, sometimes during API calls
++
++## Root Cause
++
++macOS `launchctl` sets a soft limit of **256 file descriptors per process**. A single `dual_ask` call opens ~10+ FDs:
++
++- 3 LLM calls via Vertex AI (each with HTTP connection + TLS)
++- 3 gcloud credential file reads for OAuth token refresh
++- 3 langfuse callback HTTP connections
++- 2+ database sessions (sync pool checkouts)
++- DNS sockets for each connection
++
++With eval runs doing 50-4000 questions, concurrent requests quickly exceeded 256 FDs. The OS then refused to open new sockets or files, causing failures at whichever stage happened to need a new FD next — making it look like DNS issues or rate limiting.
++
++## Fix
++
++Two changes:
++
++### 1. Raise FD limit in start script (`scripts/start.local.sh`)
++```bash
++ulimit -n 10240
++```
++
++### 2. Cap database connection pools (`db/connection.py`)
++```python
++engine = create_async_engine(url, pool_size=5, max_overflow=5)  # was unbounded overflow
++_sync_engine = create_engine(url, pool_size=5, max_overflow=5)
++```
++
++### 3. Error handling on /ask endpoint (`api/chat.py`)
++Added try/except around `dual_ask`/`single_ask` to return a clean 502 JSON response instead of crashing with a 500 and a wall of traceback.
++
++## Results
++
++- 7 errors during restart (in-flight requests), clean after that
++- Now running 4000-question eval runs without errors
++- The `ulimit` was the real fix; pool caps are defense in depth
++
++## Key Insight
++
++Connection errors under load are often FD exhaustion, not rate limiting or network problems. The error manifests at whatever syscall happens to need a new FD — DNS resolution, file reads, socket creation — which makes it look like unrelated issues. Always check `ulimit -n` and `launchctl limit maxfiles` on macOS.
+diff --git a/expert_service/api/chat.py b/expert_service/api/chat.py
+index 6587a5e..fe11b1e 100644
+--- a/expert_service/api/chat.py
++++ b/expert_service/api/chat.py
+@@ -1,15 +1,20 @@
+ """Chat API endpoint with SSE streaming."""
+ 
+ import json
+-
++import logging
+ from uuid import UUID, uuid4
+ 
++import anthropic
++import httpx
+ from fastapi import APIRouter
+-from fastapi.responses import StreamingResponse
++from google.api_core import exceptions as google_exceptions
++from fastapi.responses import JSONResponse, StreamingResponse
+ from pydantic import BaseModel
+ from sqlalchemy import select, text as sa_text
+ 
+-from expert_service.chat.loop import chat_stream, dual_ask, dual_chat_stream
++from expert_service.chat.loop import chat_stream, dual_ask, dual_chat_stream, single_ask
++
++logger = logging.getLogger(__name__)
+ from expert_service.db.connection import get_sync_session
+ 
+ router = APIRouter(prefix="/api/projects/{project_id}", tags=["chat"])
+@@ -67,11 +72,21 @@ async def chat(project_id: UUID, data: ChatRequest):
+ class AskRequest(BaseModel):
+     question: str
+     model: str = "claude-sonnet-4-6"
++    mode: str = "dual"  # "dual" (3-call merge) or "single" (1-call synthesis)
+ 
+ 
+ @router.post("/ask")
+ async def ask(project_id: UUID, data: AskRequest):
+-    """Non-streaming dual-path answer. Returns complete JSON — designed for evals."""
+-    allowed = _get_project_connectors(project_id)
+-    return await dual_ask(project_id, data.model, data.question,
+-                          allowed_connectors=allowed)
++    """Non-streaming answer. Mode: 'dual' (3-call merge) or 'single' (1-call synthesis)."""
++    try:
++        if data.mode == "single":
++            return await single_ask(project_id, data.model, data.question)
++        allowed = _get_project_connectors(project_id)
++        return await dual_ask(project_id, data.model, data.question,
++                              allowed_connectors=allowed)
++    except (httpx.HTTPError, anthropic.APIError, google_exceptions.GoogleAPIError, OSError, TimeoutError) as exc:
++        logger.exception("LLM call failed for project %s", project_id)
++        return JSONResponse(
++            status_code=502,
++            content={"error": "The language model is temporarily unavailable. Please try again."},
++        )
+diff --git a/expert_service/api/data.py b/expert_service/api/data.py
+index d91107e..bcc23c5 100644
+--- a/expert_service/api/data.py
++++ b/expert_service/api/data.py
+@@ -4,6 +4,7 @@
+ from uuid import UUID
+ 
+ from fastapi import APIRouter, Depends, Query
++from expert_service.auth import verify_auth
+ from pydantic import BaseModel
+ from sqlalchemy import func, insert, select, text
+ from sqlalchemy.ext.asyncio import AsyncSession
+@@ -302,7 +303,7 @@ class ClaimsImportRequest(BaseModel):
+     claims: list[ClaimImport]
+ 
+ 
+-@router.post("/import/sources")
++@router.post("/import/sources", dependencies=[Depends(verify_auth)])
+ async def import_sources(
+     project_id: UUID,
+     data: SourcesImportRequest,
+@@ -351,7 +352,7 @@ async def import_sources(
+     return {"imported": imported, "skipped": skipped}
+ 
+ 
+-@router.post("/import/entries")
++@router.post("/import/entries", dependencies=[Depends(verify_auth)])
+ async def import_entries(
+     project_id: UUID,
+     data: EntriesImportRequest,
+@@ -403,7 +404,7 @@ async def import_entries(
+     return {"imported": imported, "skipped": skipped, "linked": linked}
+ 
+ 
+-@router.post("/import/beliefs")
++@router.post("/import/beliefs", dependencies=[Depends(verify_auth)])
+ async def import_beliefs(
+     project_id: UUID,
+     data: ClaimsImportRequest,
+@@ -441,7 +442,7 @@ def _do_import():
+     return await asyncio.to_thread(_do_import)
+ 
+ 
+-@router.post("/link-entries-sources")
++@router.post("/link-entries-sources", dependencies=[Depends(verify_auth)])
+ async def link_entries_sources(
+     project_id: UUID,
+     session: AsyncSession = Depends(get_session),
+@@ -514,7 +515,7 @@ async def link_entries_sources(
+     return {"linked": linked, "migrated": migrated, "already_linked": already_linked}
+ 
+ 
+-@router.post("/chunk-sources")
++@router.post("/chunk-sources", dependencies=[Depends(verify_auth)])
+ async def chunk_sources(
+     project_id: UUID,
+     session: AsyncSession = Depends(get_session),
+diff --git a/expert_service/api/projects.py b/expert_service/api/projects.py
+index 85f2da4..d3c358d 100644
+--- a/expert_service/api/projects.py
++++ b/expert_service/api/projects.py
+@@ -27,6 +27,7 @@ class ProjectCreate(BaseModel):
+     name: str
+     domain: str
+     config: dict = {}
++    public: bool = False
+ 
+ 
+ class ProjectResponse(BaseModel):
+@@ -34,6 +35,7 @@ class ProjectResponse(BaseModel):
+     name: str
+     domain: str
+     config: dict
++    public: bool = False
+     created_at: str
+     source_count: int = 0
+     entry_count: int = 0
+@@ -44,7 +46,7 @@ class ProjectResponse(BaseModel):
+ 
+ @router.post("", response_model=ProjectResponse)
+ async def create_project(data: ProjectCreate, session: AsyncSession = Depends(get_session)):
+-    project = Project(name=data.name, domain=data.domain, config=data.config)
++    project = Project(name=data.name, domain=data.domain, config=data.config, public=data.public)
+     session.add(project)
+     await session.commit()
+     await session.refresh(project)
+@@ -54,6 +56,7 @@ async def create_project(data: ProjectCreate, session: AsyncSession = Depends(ge
+         name=project.name,
+         domain=project.domain,
+         config=project.config or {},
++        public=project.public,
+         created_at=project.created_at.isoformat(),
+     )
+ 
+@@ -78,6 +81,7 @@ async def list_projects(session: AsyncSession = Depends(get_session)):
+             name=p.name,
+             domain=p.domain,
+             config=p.config or {},
++            public=p.public,
+             created_at=p.created_at.isoformat(),
+             source_count=sc,
+             entry_count=ec,
+@@ -98,6 +102,7 @@ async def get_project(project_id: UUID, session: AsyncSession = Depends(get_sess
+         name=project.name,
+         domain=project.domain,
+         config=project.config or {},
++        public=project.public,
+         created_at=project.created_at.isoformat(),
+         source_count=sc,
+         entry_count=ec,
+diff --git a/expert_service/app.py b/expert_service/app.py
+index 8db36de..8ef5c92 100644
+--- a/expert_service/app.py
++++ b/expert_service/app.py
+@@ -15,7 +15,7 @@
+ from starlette.middleware.sessions import SessionMiddleware
+ 
+ from expert_service.api import projects, data, ask
+-from expert_service.auth import router as auth_router, verify_auth, verify_auth_web, _LoginRedirect
++from expert_service.auth import router as auth_router, verify_auth, verify_auth_or_public, verify_auth_web, _LoginRedirect
+ from expert_service.config import settings
+ from expert_service.db.connection import get_session, init_db
+ from expert_service.db.models import Assessment, Entry, Project, Source
+@@ -76,9 +76,24 @@ async def login_redirect_handler(request: Request, exc: _LoginRedirect):
+     return RedirectResponse(url="/login")
+ 
+ 
++def _open_fds() -> dict:
++    """Return open file descriptor count and limit."""
++    import os
++    import resource
++    try:
++        count = len(os.listdir("/dev/fd"))
++    except OSError:
++        try:
++            count = len(os.listdir(f"/proc/{os.getpid()}/fd"))
++        except OSError:
++            count = -1
++    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
++    return {"open": count, "limit_soft": soft, "limit_hard": hard}
++
++
+ @app.get("/health")
+ async def health():
+-    return {"status": "ok", "llm": settings.llm_enabled}
++    return {"status": "ok", "llm": settings.llm_enabled, "fds": _open_fds()}
+ 
+ 
+ # Auth routes (login/callback/logout — always public)
+@@ -93,16 +108,16 @@ async def version():
+ 
+ # API routes (protected by auth)
+ app.include_router(projects.router, dependencies=[Depends(verify_auth)])
+-app.include_router(data.router, dependencies=[Depends(verify_auth)])
++app.include_router(data.router, dependencies=[Depends(verify_auth_or_public)])
+ 
+ if settings.llm_enabled:
+     # LLM mode: chat.router provides /chat (streaming) and /ask (LLM-synthesized)
+-    app.include_router(chat.router, dependencies=[Depends(verify_auth)])
++    app.include_router(chat.router, dependencies=[Depends(verify_auth_or_public)])
+     app.include_router(meta_chat.router, dependencies=[Depends(verify_auth)])
+     app.include_router(pipeline.router, dependencies=[Depends(verify_auth)])
+ 
+ # Always register: FTS-only /ask (shadowed by chat.router's /ask in LLM mode)
+-app.include_router(ask.router, dependencies=[Depends(verify_auth)])
++app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public)])
+ 
+ # Templates
+ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+diff --git a/expert_service/auth.py b/expert_service/auth.py
+index 4da3fcc..faf91b6 100644
+--- a/expert_service/auth.py
++++ b/expert_service/auth.py
+@@ -196,6 +196,33 @@ async def verify_auth(
+     raise HTTPException(status_code=401, detail="Not authenticated")
+ 
+ 
++async def verify_auth_or_public(
++    request: Request,
++    credentials: HTTPAuthorizationCredentials | None = Depends(security),
++    session: AsyncSession = Depends(get_session),
++) -> UserInfo:
++    """Try auth first (preserving real identity); fall back to public access."""
++    try:
++        return await verify_auth(request, credentials, session)
++    except HTTPException as e:
++        if e.status_code != 401:
++            raise
++    # Auth failed with 401 — check if this is a public project
++    project_id = request.path_params.get("project_id")
++    if project_id:
++        from sqlalchemy import text as sa_text
++        result = await session.execute(
++            sa_text("SELECT public FROM projects WHERE id = :pid"),
++            {"pid": str(project_id)},
++        )
++        row = result.first()
++        if row and row.public:
++            user = UserInfo(identity="public", role=Role.READER)
++            request.state.user = user
++            return user
++    raise HTTPException(status_code=401, detail="Not authenticated")
++
++
+ class _LoginRedirect(Exception):
+     """Raised to trigger a redirect to /login for unauthenticated web requests."""
+     pass
+diff --git a/expert_service/chat/loop.py b/expert_service/chat/loop.py
+index 051d740..f80b1d0 100644
+--- a/expert_service/chat/loop.py
++++ b/expert_service/chat/loop.py
+@@ -21,6 +21,12 @@
+ 
+ logger = logging.getLogger(__name__)
+ 
++# Context budget constants
++MAX_CHUNK_CHARS = 2000  # Truncate individual source chunks
++MAX_CONTEXT_CHARS = 30000  # Total source chunk context budget (~7500 tokens)
++MAX_BELIEF_CONTEXT_CHARS = 30000  # Total belief context budget (~7500 tokens)
++MAX_TOOL_RESULT_CHARS = 10000  # Truncate individual tool/connector results
++
+ 
+ def _langfuse_config() -> dict:
+     """Return a LangChain config dict with langfuse callbacks if configured."""
+@@ -281,9 +287,18 @@ def _quick_belief_search(project_id: UUID, question: str, limit: int = 10) -> tu
+             belief_rows = sorted(belief_rows, key=lambda r: _idf_score(r["text"], idfs), reverse=True)
+ 
+     belief_rows = belief_rows[:limit]
+-    context = "\n".join(
+-        f"[{r.get('truth_value', 'IN')}] {r['id']} — {r['text']}" for r in belief_rows
+-    )
++    parts = []
++    total = 0
++    included_rows = []
++    for r in belief_rows:
++        line = f"[{r.get('truth_value', 'IN')}] {r['id']} — {r['text']}"
++        if total + len(line) > MAX_BELIEF_CONTEXT_CHARS:
++            break
++        parts.append(line)
++        total += len(line)
++        included_rows.append(r)
++    context = "\n".join(parts)
++    belief_rows = included_rows
+     sources = []
+     for r in belief_rows:
+         rid = r["id"]
+@@ -407,10 +422,6 @@ async def chat_stream(
+ 
+ # --- Dual-path architecture ---
+ 
+-MAX_CHUNK_CHARS = 2000  # Truncate individual chunks
+-MAX_CONTEXT_CHARS = 30000  # Total context budget (~7500 tokens)
+-
+-
+ def _search_source_chunks(project_id: UUID, query: str, limit: int = 10) -> tuple[str, list[SourceRef]]:
+     """FTS search over source_chunks with IDF re-ranking.
+ 
+@@ -652,10 +663,12 @@ async def _tms_answer_iterative(
+     for iteration in range(MAX_TMS_ITERATIONS):
+         history_section = ""
+         if tool_history:
+-            parts = [
+-                f"### Tool call: {e['tool']}(\"{e['query']}\")\n\n{e['result']}"
+-                for e in tool_history
+-            ]
++            parts = []
++            for e in tool_history:
++                result = e['result']
++                if len(result) > MAX_TOOL_RESULT_CHARS:
++                    result = result[:MAX_TOOL_RESULT_CHARS] + "\n[...truncated]"
++                parts.append(f"### Tool call: {e['tool']}(\"{e['query']}\")\n\n{result}")
+             history_section = "\n\n## Additional search results\n\n" + "\n\n---\n\n".join(parts)
+ 
+         if iteration == MAX_TMS_ITERATIONS - 1:
+@@ -693,6 +706,8 @@ async def _tms_answer_iterative(
+                         iteration + 1, connector, q)
+             result = await query_data(q, connector_name=connector,
+                                       allowed=allowed_connectors)
++            if len(result) > MAX_TOOL_RESULT_CHARS:
++                result = result[:MAX_TOOL_RESULT_CHARS] + "\n[...truncated]"
+             tool_history.append({"tool": f"query_data({connector or 'all'})",
+                                  "query": q, "result": result})
+             connector_label = (connector or "data").title()
+@@ -773,6 +788,90 @@ async def _rag_answer() -> str:
+     }
+ 
+ 
++SINGLE_PASS_PROMPT = """\
++You are an expert assistant answering questions using a curated knowledge base.
++You have two sources of context:
++
++1. **TMS Beliefs** — verified facts from a Truth Maintenance System, each with a truth value (IN = accepted, OUT = retracted) and a belief ID. Prefer IN beliefs. Cite beliefs by their ID in square brackets, e.g. [ec2-pay-per-instance-second].
++
++2. **Source Documents** — relevant passages from source documents, each with a source slug. Cite sources by their slug in square brackets, e.g. [ec2-instance-types].
++
++Rules:
++- Answer the question comprehensively using ONLY the provided context
++- If beliefs and sources disagree, prefer beliefs (they have been through truth maintenance)
++- Cite your sources inline using [belief-id] or [source-slug]
++- Structure your answer with clear headings and bullet points
++- If the context does not contain enough information, say so explicitly
++- Do not use knowledge outside the provided context
++
++## Question
++
++{question}
++
++## TMS Beliefs
++
++{beliefs}
++
++## Source Documents
++
++{sources}
++
++---
++
++Answer the question using the context above. Cite sources inline."""
++
++
++async def single_ask(
++    project_id: UUID,
++    model: str,
++    message: str,
++) -> dict:
++    """Single-pass: deep-search retrieval + one LLM synthesis call.
++
++    Better for smaller models (e.g. Gemma3) that struggle with the
++    3-call dual-path merge pattern. Mirrors the expert CLI ask-local flow.
++    """
++    llm_error = _check_llm_ready(model)
++    if llm_error:
++        return {"answer": llm_error, "tms_chars": 0, "rag_chars": 0}
++
++    # Retrieval: same as deep-search
++    (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(
++        asyncio.to_thread(_quick_belief_search, project_id, message, 20),
++        asyncio.to_thread(_search_source_chunks, project_id, message, 10),
++    )
++
++    if not belief_ctx and not chunk_ctx:
++        return {
++            "answer": "No matching beliefs or source documents found for this question.",
++            "tms_chars": 0,
++            "rag_chars": 0,
++        }
++
++    # Single LLM call
++    llm = get_chat_model(model)
++    prompt = SINGLE_PASS_PROMPT.format(
++        question=message,
++        beliefs=belief_ctx or "(none found)",
++        sources=chunk_ctx or "(none found)",
++    )
++    resp = await llm.ainvoke(prompt, config=_langfuse_config())
++    answer = _extract_text(resp.content)
++
++    # Strip hallucinated refs, append sources section
++    all_sources = belief_sources + chunk_sources
++    valid_keys = {s.cite_key for s in all_sources if s.cite_key}
++    answer = _strip_hallucinated_refs(answer, valid_keys)
++    sources_section = _build_sources_section(all_sources, response_text=answer)
++    answer += sources_section
++
++    return {
++        "answer": answer,
++        "tms_chars": len(belief_ctx or ""),
++        "rag_chars": len(chunk_ctx or ""),
++    }
++
++
+ async def dual_chat_stream(
+     project_id: UUID,
+     model: str,
+diff --git a/expert_service/db/connection.py b/expert_service/db/connection.py
+index 2ab4db7..a57824b 100644
+--- a/expert_service/db/connection.py
++++ b/expert_service/db/connection.py
+@@ -23,7 +23,8 @@ def _async_sqlite_pragmas(dbapi_conn, _connection_record):
+         cursor.execute("PRAGMA foreign_keys=ON")
+         cursor.close()
+ else:
+-    engine = create_async_engine(settings.database_url, echo=False)
++    engine = create_async_engine(settings.database_url, echo=False,
++                                 pool_size=5, max_overflow=5)
+ 
+ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+ 
+@@ -49,7 +50,8 @@ def _sqlite_pragmas(dbapi_conn, _connection_record):
+                 cursor.execute("PRAGMA foreign_keys=ON")
+                 cursor.close()
+         else:
+-            _sync_engine = create_engine(settings.database_url_sync, echo=False)
++            _sync_engine = create_engine(settings.database_url_sync, echo=False,
++                                         pool_size=5, max_overflow=5)
+     return _sync_engine
+ 
+ 
+diff --git a/expert_service/db/models.py b/expert_service/db/models.py
+index 4759b50..cb07797 100644
+--- a/expert_service/db/models.py
++++ b/expert_service/db/models.py
+@@ -5,6 +5,7 @@
+ 
+ from sqlalchemy import (
+     JSON,
++    Boolean,
+     Column,
+     DateTime,
+     ForeignKey,
+@@ -48,6 +49,7 @@ class Project(Base):
+     name = Column(String, nullable=False, unique=True)
+     domain = Column(String, nullable=False)
+     config = Column(JSON, default=dict)
++    public = Column(Boolean, nullable=False, server_default="false")
+     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+ 
+diff --git a/expert_service/db/schema.sql b/expert_service/db/schema.sql
+index a68acc4..8502b40 100644
+--- a/expert_service/db/schema.sql
++++ b/expert_service/db/schema.sql
+@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS projects (
+     name TEXT NOT NULL UNIQUE,
+     domain TEXT NOT NULL,
+     config JSONB DEFAULT '{}',
++    public BOOLEAN NOT NULL DEFAULT FALSE,
+     created_at TIMESTAMPTZ DEFAULT now(),
+     updated_at TIMESTAMPTZ DEFAULT now()
+ );
+diff --git a/pyproject.toml b/pyproject.toml
+index 605d32f..3b89359 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -29,6 +29,7 @@ dependencies = [
+     "authlib>=1.3",
+     "itsdangerous>=2.1",
+     "aiosqlite>=0.20",
++    "alembic>=1.13",
+ ]
+ 
+ [project.optional-dependencies]
+diff --git a/tests/test_auth.py b/tests/test_auth.py
+index 9a533a8..875881f 100644
+--- a/tests/test_auth.py
++++ b/tests/test_auth.py
+@@ -8,7 +8,7 @@
+ from fastapi.testclient import TestClient
+ from starlette.middleware.sessions import SessionMiddleware
+ 
+-from expert_service.auth import verify_auth, verify_auth_web, _LoginRedirect
++from expert_service.auth import verify_auth, verify_auth_or_public, verify_auth_web, _LoginRedirect
+ from expert_service.rbac import Action, Role, UserInfo, has_permission, require_action
+ 
+ 
+@@ -339,3 +339,80 @@ def test_role_enum_compares_with_string(self):
+         assert Role.ADMIN == "admin"
+         assert Role.EDITOR == "editor"
+         assert Role.READER == "reader"
++
++
++# --- Public project access ---
++
++
++class TestPublicProjectAccess:
++    """verify_auth_or_public allows unauthenticated access to public projects."""
++
++    @staticmethod
++    def _make_public_app(public_value):
++        from unittest.mock import AsyncMock, MagicMock
++        from expert_service.db.connection import get_session
++
++        mock_row = MagicMock()
++        mock_row.public = public_value
++
++        mock_result = MagicMock()
++        mock_result.first.return_value = mock_row if public_value is not None else None
++
++        mock_session = AsyncMock()
++        mock_session.execute.return_value = mock_result
++
++        app = FastAPI()
++        app.add_middleware(SessionMiddleware, secret_key="test-secret")
++        app.dependency_overrides[get_session] = lambda: mock_session
++
++        @app.get("/api/projects/{project_id}/data")
++        async def project_data(project_id: str, user: UserInfo = Depends(verify_auth_or_public)):
++            return {"identity": user.identity, "role": user.role}
++
++        return app
++
++    def test_public_project_allows_anonymous(self):
++        app = self._make_public_app(True)
++        client = TestClient(app)
++        with patch("expert_service.auth.settings") as mock_settings:
++            mock_settings.api_key = ""
++            mock_settings.google_client_id = "set"
++            resp = client.get("/api/projects/00000000-0000-0000-0000-000000000001/data")
++        assert resp.status_code == 200
++        body = resp.json()
++        assert body["identity"] == "public"
++        assert body["role"] == "reader"
++
++    def test_private_project_requires_auth(self):
++        app = self._make_public_app(False)
++        client = TestClient(app)
++        with patch("expert_service.auth.settings") as mock_settings:
++            mock_settings.api_key = ""
++            mock_settings.google_client_id = "set"
++            resp = client.get("/api/projects/00000000-0000-0000-0000-000000000001/data")
++        assert resp.status_code == 401
++
++    def test_nonexistent_project_requires_auth(self):
++        app = self._make_public_app(None)
++        client = TestClient(app)
++        with patch("expert_service.auth.settings") as mock_settings:
++            mock_settings.api_key = ""
++            mock_settings.google_client_id = "set"
++            resp = client.get("/api/projects/00000000-0000-0000-0000-000000000099/data")
++        assert resp.status_code == 401
++
++    def test_public_project_with_api_key_preserves_identity(self):
++        """Authenticated users on public projects keep their real identity."""
++        app = self._make_public_app(True)
++        client = TestClient(app)
++        with patch("expert_service.auth.settings") as mock_settings:
++            mock_settings.api_key = "test-key"
++            mock_settings.google_client_id = "set"
++            resp = client.get(
++                "/api/projects/00000000-0000-0000-0000-000000000001/data",
++                headers={"Authorization": "Bearer test-key"},
++            )
++        assert resp.status_code == 200
++        body = resp.json()
++        assert body["identity"] == "api"
++        assert body["role"] == "admin"
+diff --git a/uv.lock b/uv.lock
+index 4a7af00..1b0cabf 100644
+--- a/uv.lock
++++ b/uv.lock
+@@ -16,6 +16,20 @@ wheels = [
+     { url = "https://files.pythonhosted.org/packages/00/b7/e3bf5133d697a08128598c8d0abc5e16377b51465a33756de24fa7dee953/aiosqlite-0.22.1-py3-none-any.whl", hash = "sha256:21c002eb13823fad740196c5a2e9d8e62f6243bd9e7e4a1f87fb5e44ecb4fceb", size = 17405, upload-time = "2025-12-23T19:25:42.139Z" },
+ ]
+ 
++[[package]]
++name = "alembic"
++version = "1.18.4"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "mako" },
++    { name = "sqlalchemy" },
++    { name = "typing-extensions" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/94/13/8b084e0f2efb0275a1d534838844926f798bd766566b1375174e2448cd31/alembic-1.18.4.tar.gz", hash = "sha256:cb6e1fd84b6174ab8dbb2329f86d631ba9559dd78df550b57804d607672cedbc", size = 2056725, upload-time = "2026-02-10T16:00:47.195Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/d2/29/6533c317b74f707ea28f8d633734dbda2119bbadfc61b2f3640ba835d0f7/alembic-1.18.4-py3-none-any.whl", hash = "sha256:a5ed4adcf6d8a4cb575f3d759f071b03cd6e5c7618eb796cb52497be25bfe19a", size = 263893, upload-time = "2026-02-10T16:00:49.997Z" },
++]
++
+ [[package]]
+ name = "annotated-doc"
+ version = "0.0.4"
+@@ -413,6 +427,7 @@ version = "0.2.0"
+ source = { editable = "." }
+ dependencies = [
+     { name = "aiosqlite" },
++    { name = "alembic" },
+     { name = "anthropic", extra = ["vertex"] },
+     { name = "asyncpg" },
+     { name = "authlib" },
+@@ -445,6 +460,7 @@ ollama = [
+ [package.metadata]
+ requires-dist = [
+     { name = "aiosqlite", specifier = ">=0.20" },
++    { name = "alembic", specifier = ">=1.13" },
+     { name = "anthropic", extras = ["vertex"], specifier = ">=0.49" },
+     { name = "asyncpg", specifier = ">=0.30" },
+     { name = "authlib", specifier = ">=1.3" },
+@@ -1376,6 +1392,18 @@ wheels = [
+     { url = "https://files.pythonhosted.org/packages/0c/29/0348de65b8cc732daa3e33e67806420b2ae89bdce2b04af740289c5c6c8c/loguru-0.7.3-py3-none-any.whl", hash = "sha256:31a33c10c8e1e10422bfd431aeb5d351c7cf7fa671e3c4df004162264b28220c", size = 61595, upload-time = "2024-12-06T11:20:54.538Z" },
+ ]
+ 
++[[package]]
++name = "mako"
++version = "1.3.12"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "markupsafe" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/00/62/791b31e69ae182791ec67f04850f2f062716bbd205483d63a215f3e062d3/mako-1.3.12.tar.gz", hash = "sha256:9f778e93289bd410bb35daadeb4fc66d95a746f0b75777b942088b7fd7af550a", size = 400219, upload-time = "2026-04-28T19:01:08.512Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/bc/b1/a0ec7a5a9db730a08daef1fdfb8090435b82465abbf758a596f0ea88727e/mako-1.3.12-py3-none-any.whl", hash = "sha256:8f61569480282dbf557145ce441e4ba888be453c30989f879f0d652e39f53ea9", size = 78521, upload-time = "2026-04-28T19:01:10.393Z" },
++]
++
+ [[package]]
+ name = "markdown-it-py"
+ version = "4.0.0"
+
+```
+
+## Observation Results
+
+You previously requested observations. Here are the results:
+
+```json
+{
+  "httpx_error_hierarchy": {
+    "error": "No module named 'httpx'",
+    "class": "httpx.HTTPError"
+  },
+  "anthropic_api_error_hierarchy": {
+    "error": "No module named 'anthropic'",
+    "class": "anthropic.APIError"
+  },
+  "google_api_error_hierarchy": {
+    "error": "No module named 'google'",
+    "class": "google.api_core.exceptions.GoogleAPIError"
+  },
+  "dual_ask_raises": {
+    "function": "dual_ask",
+    "file": "expert_service/chat/loop.py",
+    "explicit_raises": [],
+    "calls": [
+      "len",
+      "_rag_answer",
+      "_check_llm_ready",
+      "to_thread",
+      "format",
+      "gather",
+      "_extract_text",
+      "ainvoke",
+      "get_chat_model",
+      "_langfuse_config",
+      "_tms_answer_iterative",
+      "_build_sources_section",
+      "list_connectors",
+      "bool",
+      "_strip_hallucinated_refs",
+      "get"
+    ]
+  },
+  "single_ask_raises": {
+    "function": "single_ask",
+    "file": "expert_service/chat/loop.py",
+    "explicit_raises": [],
+    "calls": [
+      "len",
+      "_check_llm_ready",
+      "to_thread",
+      "format",
+      "gather",
+      "_extract_text",
+      "ainvoke",
+      "get_chat_model",
+      "_langfuse_config",
+      "_build_sources_section",
+      "_strip_hallucinated_refs"
+    ]
+  },
+  "verify_auth_full_body": {
+    "function": "verify_auth",
+    "file": "expert_service/auth.py",
+    "start_line": 144,
+    "end_line": 196,
+    "source": "async def verify_auth(\n    request: Request,\n    credentials: HTTPAuthorizationCredentials | None = Depends(security),\n    session: AsyncSession = Depends(get_session),\n) -> UserInfo:\n    \"\"\"Authenticate via bearer token, Google ID token, OAuth session, or dev-mode bypass.\"\"\"\n\n    # 1. Static API key (programmatic access)\n    if credentials and settings.api_key and hmac.compare_digest(credentials.credentials, settings.api_key):\n        user = UserInfo(identity=\"api\", role=Role.ADMIN)\n        request.state.user = user\n        return user\n\n    # 2. Google ID token (CLI/programmatic access with per-user identity)\n    if credentials and settings.google_client_id:\n        email = await _verify_google_id_token(credentials.credentials)\n        if email:\n            email = email.strip().lower()\n            result = await session.execute(select(User).where(User.email == email))\n            db_user = result.scalar_one_or_none()\n            if db_user:\n                user = UserInfo(\n                    identity=email,\n                    role=db_user.role,\n                    display_name=db_user.display_name,\n                )\n                request.state.user = user\n                return user\n            else:\n                raise HTTPException(status_code=403, detail=\"User not registered\")\n\n    # 3. OAuth session (browser access)\n    email = request.session.get(\"user_email\")\n    if email:\n        result = await session.execute(select(User).where(User.email == email))\n        db_user = result.scalar_one_or_none()\n        if not db_user:\n            raise HTTPException(status_code=403, detail=\"User not registered\")\n        user = UserInfo(\n            identity=email,\n            role=db_user.role,\n            display_name=db_user.display_name,\n        )\n        request.state.user = user\n        return user\n\n    # 3. Dev mode \u2014 no OAuth configured, allow anonymous access\n    if not settings.google_client_id:\n        user = UserInfo(identity=\"dev\", role=Role.ADMIN, display_name=\"Developer\")\n        request.state.user = user\n        return user\n\n    raise HTTPException(status_code=401, detail=\"Not authenticated\")"
+  },
+  "data_router_all_endpoints": {
+    "symbol": "router.post",
+    "usages": [
+      {
+        "file": "expert_service/api/ask.py",
+        "line": 20,
+        "text": "@router.post(\"/ask\")"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 50,
+        "text": "@router.post(\"/chat\")"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 78,
+        "text": "@router.post(\"/ask\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 110,
+        "text": "@router.post(\"/ingest\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 207,
+        "text": "@router.post(\"/beliefs/propose\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 260,
+        "text": "@router.post(\"/beliefs/review\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 356,
+        "text": "@router.post(\"/assess/coverage\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 393,
+        "text": "@router.post(\"/assess/exam\")"
+      },
+      {
+        "file": "expert_service/api/meta_chat.py",
+        "line": 20,
+        "text": "@router.post(\"/chat\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 47,
+        "text": "@router.post(\"\", response_model=ProjectResponse)"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 125,
+        "text": "@router.post(\"/import-reasons\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 306,
+        "text": "@router.post(\"/import/sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 355,
+        "text": "@router.post(\"/import/entries\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 407,
+        "text": "@router.post(\"/import/beliefs\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 445,
+        "text": "@router.post(\"/link-entries-sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 518,
+        "text": "@router.post(\"/chunk-sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 2667,
+        "text": "return self.router.post("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1117,
+        "text": "like `router.get()`, `router.post()`, etc."
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 2934,
+        "text": "@router.post(\"/items/\")"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/api/ask.py",
+        "line": 20,
+        "text": "@router.post(\"/ask\")"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 50,
+        "text": "@router.post(\"/chat\")"
+      },
+      {
+        "file": "expert_service/api/chat.py",
+        "line": 78,
+        "text": "@router.post(\"/ask\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 110,
+        "text": "@router.post(\"/ingest\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 207,
+        "text": "@router.post(\"/beliefs/propose\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 260,
+        "text": "@router.post(\"/beliefs/review\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 356,
+        "text": "@router.post(\"/assess/coverage\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 393,
+        "text": "@router.post(\"/assess/exam\")"
+      },
+      {
+        "file": "expert_service/api/meta_chat.py",
+        "line": 20,
+        "text": "@router.post(\"/chat\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 47,
+        "text": "@router.post(\"\", response_model=ProjectResponse)"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 125,
+        "text": "@router.post(\"/import-reasons\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 306,
+        "text": "@router.post(\"/import/sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 355,
+        "text": "@router.post(\"/import/entries\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 407,
+        "text": "@router.post(\"/import/beliefs\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 445,
+        "text": "@router.post(\"/link-entries-sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 518,
+        "text": "@router.post(\"/chunk-sources\", dependencies=[Depends(verify_auth)])"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 2667,
+        "text": "return self.router.post("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1117,
+        "text": "like `router.get()`, `router.post()`, etc."
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 2934,
+        "text": "@router.post(\"/items/\")"
+      }
+    ],
+    "test_usages": [],
+    "production_count": 19,
+    "test_count": 0,
+    "total_count": 19
+  },
+  "data_router_gets": {
+    "symbol": "router.get",
+    "usages": [
+      {
+        "file": "expert_service/auth.py",
+        "line": 31,
+        "text": "@router.get(\"/login\")"
+      },
+      {
+        "file": "expert_service/auth.py",
+        "line": 41,
+        "text": "@router.get(\"/auth/callback\")"
+      },
+      {
+        "file": "expert_service/auth.py",
+        "line": 81,
+        "text": "@router.get(\"/logout\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 147,
+        "text": "@router.get(\"/pipeline/{run_id}\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 242,
+        "text": "@router.get(\"/beliefs/proposed\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 72,
+        "text": "@router.get(\"\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 93,
+        "text": "@router.get(\"/{project_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 23,
+        "text": "@router.get(\"/sources\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 33,
+        "text": "@router.get(\"/sources/{slug}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 56,
+        "text": "@router.get(\"/sources/{slug}/entries\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 76,
+        "text": "@router.get(\"/entries\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 101,
+        "text": "@router.get(\"/entries/{entry_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 124,
+        "text": "@router.get(\"/beliefs\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 135,
+        "text": "@router.get(\"/beliefs/status\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 141,
+        "text": "@router.get(\"/issues\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 149,
+        "text": "@router.get(\"/beliefs/{node_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 158,
+        "text": "@router.get(\"/beliefs/{node_id}/explain\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 167,
+        "text": "@router.get(\"/beliefs/{node_id}/what-if\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 176,
+        "text": "@router.get(\"/search\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 229,
+        "text": "@router.get(\"/deep-search\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 1911,
+        "text": "return self.router.get("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1019,
+        "text": "@router.get(\"/users/\", tags=[\"users\"])"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1117,
+        "text": "like `router.get()`, `router.post()`, etc."
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1701,
+        "text": "@users_router.get(\"/users/\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 2170,
+        "text": "@router.get(\"/items/\")"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/auth.py",
+        "line": 31,
+        "text": "@router.get(\"/login\")"
+      },
+      {
+        "file": "expert_service/auth.py",
+        "line": 41,
+        "text": "@router.get(\"/auth/callback\")"
+      },
+      {
+        "file": "expert_service/auth.py",
+        "line": 81,
+        "text": "@router.get(\"/logout\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 147,
+        "text": "@router.get(\"/pipeline/{run_id}\")"
+      },
+      {
+        "file": "expert_service/api/pipeline.py",
+        "line": 242,
+        "text": "@router.get(\"/beliefs/proposed\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 72,
+        "text": "@router.get(\"\")"
+      },
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 93,
+        "text": "@router.get(\"/{project_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 23,
+        "text": "@router.get(\"/sources\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 33,
+        "text": "@router.get(\"/sources/{slug}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 56,
+        "text": "@router.get(\"/sources/{slug}/entries\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 76,
+        "text": "@router.get(\"/entries\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 101,
+        "text": "@router.get(\"/entries/{entry_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 124,
+        "text": "@router.get(\"/beliefs\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 135,
+        "text": "@router.get(\"/beliefs/status\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 141,
+        "text": "@router.get(\"/issues\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 149,
+        "text": "@router.get(\"/beliefs/{node_id}\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 158,
+        "text": "@router.get(\"/beliefs/{node_id}/explain\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 167,
+        "text": "@router.get(\"/beliefs/{node_id}/what-if\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 176,
+        "text": "@router.get(\"/search\")"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 229,
+        "text": "@router.get(\"/deep-search\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 1911,
+        "text": "return self.router.get("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1019,
+        "text": "@router.get(\"/users/\", tags=[\"users\"])"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1117,
+        "text": "like `router.get()`, `router.post()`, etc."
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 1701,
+        "text": "@users_router.get(\"/users/\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 2170,
+        "text": "@router.get(\"/items/\")"
+      }
+    ],
+    "test_usages": [],
+    "production_count": 25,
+    "test_count": 0,
+    "total_count": 25
+  },
+  "quick_belief_search_callers": {
+    "symbol": "_quick_belief_search",
+    "production_callers": [
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 266,
+        "text": "def _quick_belief_search(project_id: UUID, question: str, limit: int = 10) -> tuple[str, list[Source",
+        "context_function": "_replace",
+        "context_snippet": "   263: \n   264: \n   265: \n>> 266: def _quick_belief_search(project_id: UUID, question: str, limit: int = 10) -> tuple[str, list[SourceRef]]:\n   267:     \"\"\"Fast belief pre-check with IDF re-ranking.\n   268: \n   269:     PostgreSQL: tsvector FTS with ts_rank_cd baseline, IDF re-ranking."
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 371,
+        "text": "belief_context, _sources = _quick_belief_search(project_id, message)",
+        "context_function": "chat_stream",
+        "context_snippet": "   368: \n   369:     # Belief-first pre-check: inject matching beliefs so the LLM can\n   370:     # answer directly without a tool call when beliefs are sufficient.\n>> 371:     belief_context, _sources = _quick_belief_search(project_id, message)\n   372:     if belief_context:\n   373:         augmented = f\"{message}\\n\\n[Belief matches:\\n{belief_context}\\n]\"\n   374:         logger.info(\"Belief pre-check: %d matches for %r\","
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 695,
+        "text": "_quick_belief_search, project_id, query, 20,",
+        "context_function": "_tms_answer_iterative",
+        "context_snippet": "   692:             query = tool_call.get(\"query\", \"\")\n   693:             logger.info(\"TMS iterative search round %d: %r\", iteration + 1, query)\n   694:             extra_ctx, iter_sources = await asyncio.to_thread(\n>> 695:                 _quick_belief_search, project_id, query, 20,\n   696:             )\n   697:             tool_history.append({\"tool\": \"search_beliefs\", \"query\": query,\n   698:                                  \"result\": extra_ctx or \"No results found.\"})"
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 739,
+        "text": "asyncio.to_thread(_quick_belief_search, project_id, message, 20),",
+        "context_function": "dual_ask",
+        "context_snippet": "   736: \n   737:     # Phase 1: parallel retrieval\n   738:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n>> 739:         asyncio.to_thread(_quick_belief_search, project_id, message, 20),\n   740:         asyncio.to_thread(_search_source_chunks, project_id, message, 10),\n   741:     )\n   742: "
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 840,
+        "text": "asyncio.to_thread(_quick_belief_search, project_id, message, 20),",
+        "context_function": "single_ask",
+        "context_snippet": "   837: \n   838:     # Retrieval: same as deep-search\n   839:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n>> 840:         asyncio.to_thread(_quick_belief_search, project_id, message, 20),\n   841:         asyncio.to_thread(_search_source_chunks, project_id, message, 10),\n   842:     )\n   843: "
+      },
+      {
+        "file": "expert_service/chat/loop.py",
+        "line": 898,
+        "text": "asyncio.to_thread(_quick_belief_search, project_id, message, 20),",
+        "context_function": "dual_chat_stream",
+        "context_snippet": "   895: \n   896:     # Phase 1: parallel retrieval (sync \u2192 run in threads)\n   897:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n>> 898:         asyncio.to_thread(_quick_belief_search, project_id, message, 20),\n   899:         asyncio.to_thread(_search_source_chunks, project_id, message, 10),\n   900:     )\n   901: "
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 242,
+        "text": "from expert_service.chat.loop import _quick_belief_search, _search_source_chunks",
+        "context_function": "deep_search",
+        "context_snippet": "   239: \n   240:     Returns pre-ranked, pre-formatted results ready for client-side synthesis.\n   241:     \"\"\"\n>> 242:     from expert_service.chat.loop import _quick_belief_search, _search_source_chunks\n   243: \n   244:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n   245:         asyncio.to_thread(_quick_belief_search, project_id, q, 20),"
+      },
+      {
+        "file": "expert_service/api/data.py",
+        "line": 245,
+        "text": "asyncio.to_thread(_quick_belief_search, project_id, q, 20),",
+        "context_function": "deep_search",
+        "context_snippet": "   242:     from expert_service.chat.loop import _quick_belief_search, _search_source_chunks\n   243: \n   244:     (belief_ctx, belief_sources), (chunk_ctx, chunk_sources) = await asyncio.gather(\n>> 245:         asyncio.to_thread(_quick_belief_search, project_id, q, 20),\n   246:         asyncio.to_thread(_search_source_chunks, project_id, q, 10),\n   247:     )\n   248: "
+      }
+    ],
+    "test_callers": [],
+    "production_count": 8,
+    "test_count": 0,
+    "total_count": 8
+  },
+  "chat_py_imports": {
+    "file": "expert_service/api/chat.py",
+    "imports": [
+      "json",
+      "logging",
+      "anthropic",
+      "httpx"
+    ],
+    "from_imports": [
+      {
+        "module": "uuid",
+        "names": [
+          "UUID",
+          "uuid4"
+        ]
+      },
+      {
+        "module": "fastapi",
+        "names": [
+          "APIRouter"
+        ]
+      },
+      {
+        "module": "google.api_core",
+        "names": [
+          "exceptions"
+        ]
+      },
+      {
+        "module": "fastapi.responses",
+        "names": [
+          "JSONResponse",
+          "StreamingResponse"
+        ]
+      },
+      {
+        "module": "pydantic",
+        "names": [
+          "BaseModel"
+        ]
+      },
+      {
+        "module": "sqlalchemy",
+        "names": [
+          "select",
+          "text"
+        ]
+      },
+      {
+        "module": "expert_service.chat.loop",
+        "names": [
+          "chat_stream",
+          "dual_ask",
+          "dual_chat_stream",
+          "single_ask"
+        ]
+      },
+      {
+        "module": "expert_service.db.connection",
+        "names": [
+          "get_sync_session"
+        ]
+      }
+    ],
+    "import_section": "\"\"\"Chat API endpoint with SSE streaming.\"\"\"\n\nimport json\nimport logging\nfrom uuid import UUID, uuid4\n\nimport anthropic\nimport httpx\nfrom fastapi import APIRouter\nfrom google.api_core import exceptions as google_exceptions\nfrom fastapi.responses import JSONResponse, StreamingResponse\nfrom pydantic import BaseModel\nfrom sqlalchemy import select, text as sa_text\n\nfrom expert_service.chat.loop import chat_stream, dual_ask, dual_chat_stream, single_ask\n\nlogger = logging.getLogger(__name__)\nfrom expert_service.db.connection import get_sync_session\n\nrouter = APIRouter(prefix=\"/api/projects/{project_id}\", tags=[\"chat\"])\n\n\ndef _get_project_connectors(project_id: UUID) -> list[str] | None:\n    \"\"\"Read the project's connector whitelist from config.\"\"\""
+  },
+  "verify_auth_or_public_usages": {
+    "symbol": "verify_auth_or_public",
+    "usages": [
+      {
+        "file": "expert_service/auth.py",
+        "line": 199,
+        "text": "async def verify_auth_or_public("
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 18,
+        "text": "from expert_service.auth import router as auth_router, verify_auth, verify_auth_or_public, verify_au"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 111,
+        "text": "app.include_router(data.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 115,
+        "text": "app.include_router(chat.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 120,
+        "text": "app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "tests/test_auth.py",
+        "line": 11,
+        "text": "from expert_service.auth import verify_auth, verify_auth_or_public, verify_auth_web, _LoginRedirect"
+      },
+      {
+        "file": "tests/test_auth.py",
+        "line": 348,
+        "text": "\"\"\"verify_auth_or_public allows unauthenticated access to public projects.\"\"\""
+      },
+      {
+        "file": "tests/test_auth.py",
+        "line": 369,
+        "text": "async def project_data(project_id: str, user: UserInfo = Depends(verify_auth_or_public)):"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/auth.py",
+        "line": 199,
+        "text": "async def verify_auth_or_public("
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 18,
+        "text": "from expert_service.auth import router as auth_router, verify_auth, verify_auth_or_public, verify_au"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 111,
+        "text": "app.include_router(data.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 115,
+        "text": "app.include_router(chat.router, dependencies=[Depends(verify_auth_or_public)])"
+      },
+      {
+        "file": "expert_service/app.py",
+        "line": 120,
+        "text": "app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public)])"
+      }
+    ],
+    "test_usages": [
+      {
+        "file": "tests/test_auth.py",
+        "line": 11,
+        "text": "from expert_service.auth import verify_auth, verify_auth_or_public, verify_auth_web, _LoginRedirect"
+      },
+      {
+        "file": "tests/test_auth.py",
+        "line": 348,
+        "text": "\"\"\"verify_auth_or_public allows unauthenticated access to public projects.\"\"\""
+      },
+      {
+        "file": "tests/test_auth.py",
+        "line": 369,
+        "text": "async def project_data(project_id: str, user: UserInfo = Depends(verify_auth_or_public)):"
+      }
+    ],
+    "production_count": 5,
+    "test_count": 3,
+    "total_count": 8
+  },
+  "ask_router_body": {
+    "function": "ask",
+    "file": "expert_service/api/ask.py",
+    "start_line": 20,
+    "end_line": 38,
+    "source": "@router.post(\"/ask\")\nasync def ask(project_id: UUID, data: AskRequest):\n    try:\n        result = rms_api.search(project_id, data.question)\n        results = result.get(\"results\", [])\n        count = result.get(\"count\", len(results))\n    except Exception:\n        logger.exception(\"Search failed for project %s\", project_id)\n        raise HTTPException(status_code=500, detail=\"Search failed\")\n    compact = \"\\n\".join(\n        f\"[{r.get('truth_value', 'UNKNOWN')}] {r.get('id', '?')} \u2014 {r.get('text', '')}\"\n        for r in results\n    )\n    return {\n        \"question\": data.question,\n        \"beliefs\": results,\n        \"count\": count,\n        \"compact\": compact,\n    }"
+  },
+  "project_model_class": {
+    "class_name": "Project",
+    "file": "expert_service/db/models.py",
+    "bases": [
+      "Base"
+    ],
+    "own_init_signature": null,
+    "base_init_signatures": {
+      "Base": null
+    }
+  },
+  "base_metadata_models": {
+    "symbol": "Base.metadata",
+    "usages": [
+      {
+        "file": "expert_service/db/models.py",
+        "line": 66,
+        "text": "Base.metadata,"
+      },
+      {
+        "file": "expert_service/db/connection.py",
+        "line": 79,
+        "text": "Base.metadata.create_all(get_sync_engine())"
+      },
+      {
+        "file": "tests/test_sqlite.py",
+        "line": 174,
+        "text": "# Mock Base.metadata.create_all"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/sqlalchemy/ext/automap.py",
+        "line": 152,
+        "text": "Base.metadata.create_all(e)"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/sqlalchemy/ext/automap.py",
+        "line": 182,
+        "text": "Base.metadata.create_all(e)"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/sqlalchemy/ext/automap.py",
+        "line": 693,
+        "text": "@event.listens_for(Base.metadata, \"column_reflect\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/alembic/templates/pyproject_async/env.py",
+        "line": 22,
+        "text": "# target_metadata = mymodel.Base.metadata"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/alembic/templates/async/env.py",
+        "line": 22,
+        "text": "# target_metadata = mymodel.Base.metadata"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/alembic/templates/pyproject/env.py",
+        "line": 20,
+        "text": "# target_metadata = mymodel.Base.metadata"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/alembic/templates/generic/env.py",
+        "line": 20,
+        "text": "# target_metadata = mymodel.Base.metadata"
+      },
+      {
+        "file": "alembic/env.py",
+        "line": 15,
+        "text": "target_metadata = Base.metadata"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/db/models.py",
+        "line": 66,
+        "text": "Base.metadata,"
+      },
+      {
+        "file": "expert_service/db/connection.py",
+        "line": 79,
+        "text": "Base.metadata.create_all(get_sync_engine())"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/sqlalchemy/ext/automap.py",
+        "line": 152,
+        "text": "Base.metadata.create_all(e)"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/sqlalchemy/ext/automap.py",
+        "line": 182,
+        "text": "Base.metadata.create_all(e)"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/sqlalchemy/ext/automap.py",
+        "line": 693,
+        "text": "@event.listens_for(Base.metadata, \"column_reflect\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/alembic/templates/pyproject_async/env.py",
+        "line": 22,
+        "text": "# target_metadata = mymodel.Base.metadata"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/alembic/templates/async/env.py",
+        "line": 22,
+        "text": "# target_metadata = mymodel.Base.metadata"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/alembic/templates/pyproject/env.py",
+        "line": 20,
+        "text": "# target_metadata = mymodel.Base.metadata"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/alembic/templates/generic/env.py",
+        "line": 20,
+        "text": "# target_metadata = mymodel.Base.metadata"
+      },
+      {
+        "file": "alembic/env.py",
+        "line": 15,
+        "text": "target_metadata = Base.metadata"
+      }
+    ],
+    "test_usages": [
+      {
+        "file": "tests/test_sqlite.py",
+        "line": 174,
+        "text": "# Mock Base.metadata.create_all"
+      }
+    ],
+    "production_count": 10,
+    "test_count": 1,
+    "total_count": 11
+  },
+  "data_router_delete_put": {
+    "symbol": "router.delete",
+    "usages": [
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 113,
+        "text": "@router.delete(\"/{project_id}\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 3040,
+        "text": "return self.router.delete("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 3311,
+        "text": "@router.delete(\"/items/{item_id}\")"
+      }
+    ],
+    "production_usages": [
+      {
+        "file": "expert_service/api/projects.py",
+        "line": 113,
+        "text": "@router.delete(\"/{project_id}\")"
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/applications.py",
+        "line": 3040,
+        "text": "return self.router.delete("
+      },
+      {
+        "file": ".venv/lib/python3.14/site-packages/fastapi/routing.py",
+        "line": 3311,
+        "text": "@router.delete(\"/items/{item_id}\")"
+      }
+    ],
+    "test_usages": [],
+    "production_count": 3,
+    "test_count": 0,
+    "total_count": 3
+  },
+  "check_llm_ready_body": {
+    "function": "_check_llm_ready",
+    "file": "expert_service/chat/loop.py",
+    "start_line": 40,
+    "end_line": 47,
+    "source": "def _check_llm_ready(model: str | None = None) -> str | None:\n    \"\"\"Check if the LLM is configured and return an error message if not.\"\"\"\n    model = model or settings.default_model\n    if model.startswith(\"ollama:\"):\n        return None  # Ollama doesn't need cloud credentials\n    if not settings.google_cloud_project:\n        return \"LLM mode is enabled but no LLM is configured.\"\n    return None"
+  },
+  "tms_answer_iterative_full": {
+    "function": "_tms_answer_iterative",
+    "file": "expert_service/chat/loop.py",
+    "start_line": 639,
+    "end_line": 723,
+    "source": "async def _tms_answer_iterative(\n    project_id: UUID, llm, question: str, initial_beliefs: str,\n    allowed_connectors: list[str] | None = None,\n) -> tuple[str, list[SourceRef]]:\n    \"\"\"TMS answer with up to 3 iterative search rounds, matching CLI behavior.\n\n    When data connectors are available (via allowed_connectors), the LLM can\n    also call query_data to fetch live data alongside belief searches.\n\n    Returns (answer_text, extra_sources) where extra_sources includes both\n    connector queries and beliefs discovered during iterative searches.\n    \"\"\"\n    beliefs_ctx = initial_beliefs\n    connector_tools = _connector_tool_section(allowed_connectors)\n\n    if not beliefs_ctx and not connector_tools:\n        return \"No matching beliefs found in the network.\", []\n    if not beliefs_ctx:\n        beliefs_ctx = \"(no belief matches \u2014 use query_data if available)\"\n    logger.info(\"TMS iterative: connectors=%r, tools_section=%d chars\",\n                allowed_connectors, len(connector_tools))\n    tool_history: list[dict] = []\n    extra_sources: list[SourceRef] = []\n\n    for iteration in range(MAX_TMS_ITERATIONS):\n        history_section = \"\"\n        if tool_history:\n            parts = []\n            for e in tool_history:\n                result = e['result']\n                if len(result) > MAX_TOOL_RESULT_CHARS:\n                    result = result[:MAX_TOOL_RESULT_CHARS] + \"\\n[...truncated]\"\n                parts.append(f\"### Tool call: {e['tool']}(\\\"{e['query']}\\\")\\n\\n{result}\")\n            history_section = \"\\n\\n## Additional search results\\n\\n\" + \"\\n\\n---\\n\\n\".join(parts)\n\n        if iteration == MAX_TMS_ITERATIONS - 1:\n            prompt = TMS_FINAL_PROMPT.format(\n                question=question, beliefs=beliefs_ctx, tool_history=history_section,\n            )\n        else:\n            prompt = TMS_ASK_PROMPT.format(\n                question=question, beliefs=beliefs_ctx,\n                tool_history=history_section, connector_tools=connector_tools,\n            )\n\n        resp = await llm.ainvoke(prompt, config=_langfuse_config())\n        response_text = _extract_text(resp.content)\n\n        tool_call = _extract_tool_call(response_text)\n        if tool_call is None:\n            return response_text, extra_sources\n\n        if tool_call.get(\"tool\") == \"search_beliefs\":\n            query = tool_call.get(\"query\", \"\")\n            logger.info(\"TMS iterative search round %d: %r\", iteration + 1, query)\n            extra_ctx, iter_sources = await asyncio.to_thread(\n                _quick_belief_search, project_id, query, 20,\n            )\n            tool_history.append({\"tool\": \"search_beliefs\", \"query\": query,\n                                 \"result\": extra_ctx or \"No results found.\"})\n            if extra_ctx:\n                beliefs_ctx = extra_ctx\n                extra_sources.extend(iter_sources)\n        elif tool_call.get(\"tool\") == \"query_data\":\n            q = tool_call.get(\"question\", \"\")\n            connector = tool_call.get(\"connector\")\n            logger.info(\"TMS data query round %d: connector=%s query=%r\",\n                        iteration + 1, connector, q)\n            result = await query_data(q, connector_name=connector,\n                                      allowed=allowed_connectors)\n            if len(result) > MAX_TOOL_RESULT_CHARS:\n                result = result[:MAX_TOOL_RESULT_CHARS] + \"\\n[...truncated]\"\n            tool_history.append({\"tool\": f\"query_data({connector or 'all'})\",\n                                 \"query\": q, \"result\": result})\n            connector_label = (connector or \"data\").title()\n            extra_sources.append(SourceRef(\n                label=f\"{connector_label} Query: {q}\",\n                slug=f\"{connector_label} - Direct Query\",\n                url=\"\",\n                category=\"Data\",\n            ))\n        else:\n            return response_text, extra_sources\n\n    return response_text, extra_sources"
+  },
+  "test_coverage_auth": {
+    "source_file": "expert_service/auth.py",
+    "test_files": [
+      {
+        "path": "tests/test_auth.py",
+        "exists": true,
+        "line_count": 418
+      },
+      {
+        "path": "tests/test_authpy",
+        "exists": false
+      }
+    ],
+    "test_count": 2
+  },
+  "test_coverage_chat_api": {
+    "source_file": "expert_service/api/chat.py",
+    "test_files": [
+      {
+        "path": "venv/lib/python314/site-packages/google/genai/tests/chats/test_get_historypy",
+        "exists": false
+      }
+    ],
+    "test_count": 1
+  }
+}
+```
+
+Use these results to inform your review. Do not request the same observations again.
+
+
+## Instructions
+
+For each significant change (new file, modified function, etc.), provide a structured verdict.
+
+Use this exact format for each change:
+
+### <file_path or file_path:function_name>
+VERDICT: PASS | CONCERN | BLOCK
+CORRECTNESS: VALID | QUESTIONABLE | BROKEN
+SPEC_COMPLIANCE: MEETS | PARTIAL | VIOLATES | N/A
+ISSUE_COMPLIANCE: ADDRESSES | PARTIAL | UNRELATED | N/A
+BELIEF_COMPLIANCE: CONSISTENT | VIOLATES | N/A
+TEST_COVERAGE: COVERED | PARTIAL | UNTESTED
+INTEGRATION: WIRED | PARTIAL | MISSING
+REASONING: <brief explanation of your assessment>
+---
+
+## Review Criteria
+
+1. **CORRECTNESS**: Does the code do what it claims? Is the logic sound?
+   - VALID: Logic is correct, no bugs apparent
+   - QUESTIONABLE: Logic may have edge cases or unclear behavior
+   - BROKEN: Clear bugs or incorrect behavior
+
+2. **SPEC_COMPLIANCE**: Does it meet MUST requirements from the spec?
+   - MEETS: All relevant spec requirements satisfied
+   - PARTIAL: Some requirements met, others missing or incomplete
+   - VIOLATES: Contradicts spec requirements
+   - N/A: No spec provided or not applicable
+
+3. **ISSUE_COMPLIANCE** (only when an issue is provided): Do the changes address the problem or feature described in the issue?
+   - ADDRESSES: Changes directly solve the issue's stated problem or implement the requested feature
+   - PARTIAL: Changes partially address the issue but leave some aspects unresolved
+   - UNRELATED: Changes do not appear related to the issue
+   - N/A: No issue provided
+
+4. **TEST_COVERAGE**: Are there tests for the new/changed code?
+   - COVERED: Tests exist and cover the changes
+   - PARTIAL: Some tests exist but coverage is incomplete
+   - UNTESTED: No tests for the changes
+
+5. **INTEGRATION**: Are callers updated? Is the feature usable end-to-end?
+   - WIRED: Feature is fully integrated and usable
+   - PARTIAL: Interface exists but callers not updated, or integration incomplete
+   - MISSING: No integration with existing code
+
+6. **BELIEF_COMPLIANCE** (only when beliefs are provided): Do the changes respect known architectural invariants, contracts, and rules?
+   - CONSISTENT: Changes align with or reinforce known beliefs
+   - VIOLATES: Changes contradict a specific belief — cite the belief ID
+   - N/A: No beliefs provided or no relevant beliefs apply
+
+## Verdict Guidelines
+
+- **BLOCK**: Security issues, broken functionality, spec violations, or missing critical integration
+- **CONCERN**: Missing tests, partial integration, questionable patterns, or unclear logic
+- **PASS**: Correct, tested, well-integrated code
+
+## Important
+
+- Full function bodies for modified functions may be available in the observations section — use them to verify the complete logic, not just the diff hunks
+- Related test files (prefixed with ``related_test:``) may be included in observations — check whether existing test assertions still match modified return types, signatures, or behavior. Flag any test that would break due to the changes
+- If duplicate test coverage is detected (multiple test files covering the same source), note it in your review
+- Focus on actual issues, not style preferences
+- If a method signature is added but callers aren't updated, that's PARTIAL integration
+- Be specific in reasoning - reference line numbers or function names
+- When in doubt, use CONCERN rather than PASS
+
+## Self-Review
+
+After completing your review, add a brief self-assessment:
+
+### SELF_REVIEW
+LIMITATIONS: <what context were you missing that affected review quality?>
+---
+
+Examples of limitations:
+- "Could not see full class to verify no other methods access the modified field"
+- "Test file not included in diff - cannot verify coverage claims"
+- "Spec file referenced but not provided"
+
+
+## Feature Requests
+
+If this review tool could be improved to help you do a better job, suggest features:
+
+### FEATURE_REQUESTS
+- <suggestion 1>
+- <suggestion 2>
+---
+
+Examples:
+- "Include full file context for modified functions, not just diff hunks"
+- "Show callers of modified methods to verify integration"
+- "Include test file alongside implementation changes"
+
+Only include this section if you have specific suggestions. Skip if none.

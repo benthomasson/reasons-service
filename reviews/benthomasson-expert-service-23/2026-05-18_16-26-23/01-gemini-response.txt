@@ -1,0 +1,164 @@
+These changes represent a significant production hardening phase, addressing critical stability issues (File Descriptor exhaustion, Context Window overflows) and adding a well-designed public access model. The logic for context budgeting and connection pooling is sound and directly tackles the root causes identified in the diagnostic entries.
+
+### alembic.ini
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Standard Alembic configuration file. Required for database migrations mentioned in the production hardening task.
+---
+
+### alembic/env.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Standard Alembic environment setup. Correctly excludes `rms_` prefixed tables (likely legacy or managed externally). Uses project settings for database URL.
+---
+
+### alembic/versions/0001_add_project_public_column.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Migration script correctly adds the `public` column to the `projects` table. Matches the model and schema updates.
+---
+
+### expert_service/api/chat.py:ask
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Added support for `single` pass mode and improved error handling for LLM failures (502 response instead of 500). The specific exception list is appropriate for the service dependencies (Anthropic, Google, HTTPX).
+---
+
+### expert_service/api/data.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Explicitly added `verify_auth` to destructive/administrative endpoints (`/import/*`, `/link-entries-sources`, `/chunk-sources`). This is critical because the router-level dependency was relaxed to `verify_auth_or_public`.
+---
+
+### expert_service/app.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: PARTIAL
+INTEGRATION: WIRED
+REASONING: Added FD monitoring to `/health` which directly supports diagnosing the FD exhaustion issue reported. Relaxed auth on RAG endpoints to allow public project access, while sensitive data management endpoints remain protected via explicit overrides in `data.py`.
+---
+
+### expert_service/auth.py:verify_auth_or_public
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: Correct implementation of the public project fallback. It maintains the user's real identity if they are authenticated but grants `READER` access if the project is marked public. Logic is verified by new tests in `test_auth.py`.
+---
+
+### expert_service/chat/loop.py:single_ask
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Implements a single-pass retrieval and synthesis flow. This is a useful alternative for models that struggle with multi-round TMS logic (like Gemma3). Reuses existing retrieval primitives correctly.
+---
+
+### expert_service/chat/loop.py:_quick_belief_search
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Implements context budgeting for belief results. Correctly returns only the rows that fit within the budget to ensure consistency between the context string and the source references.
+---
+
+### expert_service/chat/loop.py:_tms_answer_iterative
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Adds truncation for tool results (like Snowflake query data). This prevents context window overflow during multi-round iterations, addressing the 211K token error described in the entries.
+---
+
+### expert_service/db/connection.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Added connection pool limits (`pool_size=5, max_overflow=5`). This is a key part of the fix for file descriptor exhaustion under heavy load.
+---
+
+### expert_service/db/models.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: Added `public` boolean column to `Project` model. Used by the new public access logic.
+---
+
+### expert_service/db/schema.sql
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: SQL schema updated to match the model.
+---
+
+### tests/test_auth.py:TestPublicProjectAccess
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: Comprehensive tests for the new public project access logic, covering various auth states and project configurations.
+---
+
+### SELF_REVIEW
+LIMITATIONS: No unit tests were added for the new `single_ask` function or the truncation logic in `loop.py`, although they were manually verified according to the checkpoint entries. I could not verify the exact token count reduction without running the code against an LLM provider.
+---
+
+### FEATURE_REQUESTS
+- Automatically detect and highlight potential circular dependencies introduced by local imports (e.g., in `auth.py`).
+- Provide token count estimates for prompts generated in RAG loops.
+---

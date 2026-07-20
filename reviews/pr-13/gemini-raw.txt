@@ -1,0 +1,49 @@
+The code changes successfully address the identified error handling gaps in the `/ask` endpoint and provide comprehensive test coverage. A secondary change in the chat loop was also identified and verified for integration.
+
+### expert_service/api/ask.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: The implementation now correctly wraps the search call in a try/except block, logs failures server-side, and returns a clean 500 error to the client. It also uses `.get()` for all result fields, preventing KeyErrors when the RMS API returns incomplete data.
+---
+
+### expert_service/chat/loop.py:_build_sources_section
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: UNRELATED
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: UNTESTED
+INTEGRATION: WIRED
+REASONING: This change refactors the sources section builder to return a citation map for inline replacement. While unrelated to the /ask error handling task, the change is internally consistent; all callers in `loop.py` (L705, L783) have been updated to handle the new tuple return type.
+---
+
+### tests/test_ask.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: MEETS
+ISSUE_COMPLIANCE: ADDRESSES
+BELIEF_COMPLIANCE: CONSISTENT
+TEST_COVERAGE: COVERED
+INTEGRATION: WIRED
+REASONING: Provides thorough coverage for both happy paths and edge cases, including DB connection failures, internal KeyErrors, and missing fields in result dictionaries. It ensures that sensitive details (like DB URLs) do not leak in error responses.
+---
+
+### tests/conftest.py
+VERDICT: PASS
+CORRECTNESS: VALID
+SPEC_COMPLIANCE: N/A
+ISSUE_COMPLIANCE: N/A
+BELIEF_COMPLIANCE: N/A
+TEST_COVERAGE: N/A
+INTEGRATION: WIRED
+REASONING: Correctly sets up the FastAPI test client and mocking infrastructure for the `/ask` endpoint tests.
+---
+
+### SELF_REVIEW
+LIMITATIONS: I verified all callers of `_build_sources_section` in `loop.py` but the provided diff for that file was partial (it omitted the updated return statement at the bottom of the function, which I verified via `read_file`). I also confirmed the return type contract of `rms_api.search` to ensure the defensive `.get()` calls were appropriately placed.
+---

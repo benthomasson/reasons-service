@@ -1,0 +1,512 @@
+{
+  "metadata": {
+    "completed_at": "2026-03-25T22:55:34.451009+00:00",
+    "question_count": 30,
+    "model": "gemini-2.5-pro",
+    "base_url": "http://localhost:8000",
+    "note": "Expert answer citations are from 200-char truncated tool_result SSE summaries. Full preservation measurement requires expanding tool_result summaries or capturing expert answers server-side."
+  },
+  "summary": {
+    "questions_total": 30,
+    "questions_answered": 29,
+    "questions_with_final_citations": 15,
+    "citation_presence_rate": 0.5172,
+    "total_final_citations": 33,
+    "avg_citations_per_answer": 1.14,
+    "questions_with_expert_citations": 1,
+    "total_expert_citations": 1,
+    "total_preserved": 0,
+    "overall_preservation_rate": 0.0
+  },
+  "results": [
+    {
+      "question_id": "R01",
+      "question": "How do I configure firewalld zones on RHEL 9?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [
+        "da884514013e"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 42.83,
+      "answer_length": 418
+    },
+    {
+      "question_id": "R02",
+      "question": "What is the default firewall backend in RHEL 9?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 25.5,
+      "answer_length": 128
+    },
+    {
+      "question_id": "R03",
+      "question": "How do I register a RHEL system with subscription-manager?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [
+        "subscription-manager-register-activationkey-org"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 25.43,
+      "answer_length": 501
+    },
+    {
+      "question_id": "R04",
+      "question": "How do I set up a RHEL system as a DNS server?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 47.68,
+      "answer_length": 405
+    },
+    {
+      "question_id": "R05",
+      "question": "What are the default SELinux contexts for web content on RHEL?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [
+        "b426f9e170ad"
+      ],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": 0.0,
+      "latency_seconds": 33.35,
+      "answer_length": 190
+    },
+    {
+      "question_id": "R06",
+      "question": "How do I configure LVM on RHEL?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [
+        "rhel94-image-builder-partitioning-modes",
+        "dd3973c482ec"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 2,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 48.6,
+      "answer_length": 416
+    },
+    {
+      "question_id": "R07",
+      "question": "How do I manage systemd services on RHEL?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 29.03,
+      "answer_length": 655
+    },
+    {
+      "question_id": "R08",
+      "question": "How do I configure time synchronization with chrony on RHEL?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [
+        "chrony-ntp-time-sync",
+        "0869ae699b09"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 2,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 30.33,
+      "answer_length": 788
+    },
+    {
+      "question_id": "R09",
+      "question": "What is the difference between dnf and yum on RHEL 9?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 25.07,
+      "answer_length": 300
+    },
+    {
+      "question_id": "R10",
+      "question": "How do I configure network bonding on RHEL?",
+      "category": "single",
+      "consulted_experts": [
+        "rhel-expert"
+      ],
+      "final_citations": [
+        "e8ccc1ec6e84"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 44.18,
+      "answer_length": 580
+    },
+    {
+      "question_id": "R11",
+      "question": "How do I install Ansible Automation Platform?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 30.39,
+      "answer_length": 352
+    },
+    {
+      "question_id": "R12",
+      "question": "What are execution environments in AAP 2.6?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 29.92,
+      "answer_length": 869
+    },
+    {
+      "question_id": "R13",
+      "question": "How do I configure automation mesh in AAP?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 42.11,
+      "answer_length": 874
+    },
+    {
+      "question_id": "R14",
+      "question": "What is the automation controller in Ansible Automation Platform?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 26.7,
+      "answer_length": 655
+    },
+    {
+      "question_id": "R15",
+      "question": "How do I create a job template in AAP?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 95.09,
+      "answer_length": 248
+    },
+    {
+      "question_id": "R16",
+      "question": "What credentials does AAP support for connecting to managed hosts?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 50.33,
+      "answer_length": 329
+    },
+    {
+      "question_id": "R17",
+      "question": "How do I set up automation hub in AAP?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 38.29,
+      "answer_length": 572
+    },
+    {
+      "question_id": "R18",
+      "question": "What is Event-Driven Ansible and how does it work in AAP 2.6?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [
+        "d6784ed76432"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 61.43,
+      "answer_length": 981
+    },
+    {
+      "question_id": "R19",
+      "question": "How do I configure RBAC in Ansible Automation Platform?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 44.83,
+      "answer_length": 414
+    },
+    {
+      "question_id": "R20",
+      "question": "What are the supported deployment topologies for AAP 2.6?",
+      "category": "single",
+      "consulted_experts": [
+        "aap-expert"
+      ],
+      "final_citations": [
+        "d699914a106c"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 39.96,
+      "answer_length": 435
+    },
+    {
+      "question_id": "R21",
+      "question": "How do I deploy an application on OpenShift?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [
+        "198d85e2a632"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 32.09,
+      "answer_length": 781
+    },
+    {
+      "question_id": "R22",
+      "question": "What is the difference between a Deployment and a DeploymentConfig in OpenShift?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [],
+      "expert_answer_citations": [],
+      "citation_count": 0,
+      "has_citations": false,
+      "preservation_rate": null,
+      "latency_seconds": 41.91,
+      "answer_length": 1257
+    },
+    {
+      "question_id": "R23",
+      "question": "How do I configure routes in OpenShift?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [
+        "ocp-ingress-translates-to-routes",
+        "openshift-ingress-translates-to-routes",
+        "route-openshift-ingress-kubernetes",
+        "ocp-route-tls-termination-types",
+        "route-host-immutable-after-creation",
+        "route-http2-requires-custom-cert",
+        "component-route-certs-openshift-config",
+        "registry-not-exposed-by-default"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 8,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 44.25,
+      "answer_length": 1544
+    },
+    {
+      "question_id": "R24",
+      "question": "What are operators in OpenShift and how do I install one?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [
+        "00e110a3efca"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 40.23,
+      "answer_length": 1041
+    },
+    {
+      "question_id": "R25",
+      "question": "How do I configure persistent storage in OpenShift?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [
+        "e-64fa2019eab7",
+        "64fa2019eab7"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 2,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 63.71,
+      "answer_length": 1359
+    },
+    {
+      "question_id": "R26",
+      "question": "What is the OpenShift image registry and how do I configure it?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [
+        "registry-storage-credentials-secret",
+        "registry-credential-secret-name"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 2,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 40.56,
+      "answer_length": 1119
+    },
+    {
+      "question_id": "R27",
+      "question": "How do I scale applications in OpenShift?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [
+        "ocp-4x-kubernetes-based",
+        "hpa-is-namespaced-resource",
+        "hpa-requires-metrics-source",
+        "hpa-api-group-autoscaling-v2",
+        "hpa-v2-in-ocp417",
+        "autoscaler-types-pod-vs-node",
+        "cbdfac484e20",
+        "acfc3ae0f763"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 8,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 72.58,
+      "answer_length": 1321
+    },
+    {
+      "question_id": "R28",
+      "question": "What are security context constraints (SCCs) in OpenShift?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [
+        "ocp-scc-distinct-from-rbac"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 3885.09,
+      "answer_length": 495
+    },
+    {
+      "question_id": "R29",
+      "error": "peer closed connection without sending complete message body (incomplete chunked read)"
+    },
+    {
+      "question_id": "R30",
+      "question": "What is RHCOS and why does OpenShift use it?",
+      "category": "single",
+      "consulted_experts": [
+        "openshift-expert"
+      ],
+      "final_citations": [
+        "b8f02fccfe03"
+      ],
+      "expert_answer_citations": [],
+      "citation_count": 1,
+      "has_citations": true,
+      "preservation_rate": null,
+      "latency_seconds": 77.59,
+      "answer_length": 616
+    }
+  ]
+}
