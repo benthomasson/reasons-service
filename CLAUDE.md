@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**reasons-service** is a FastAPI-based web service for building domain expert knowledge bases. It ingests documentation, extracts structured entries and beliefs, and exposes them via REST API, MCP server, and web UI.
+**reasons-service** is a FastAPI-based web service for building domain knowledge bases. It ingests documentation, extracts structured entries and beliefs, and exposes them via REST API, MCP server, and web UI.
 
 ## Architecture
 

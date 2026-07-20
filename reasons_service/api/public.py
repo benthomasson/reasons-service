@@ -220,7 +220,7 @@ async def beliefs_html(domain_name: str, session: AsyncSession = Depends(get_ses
     )
     html = _HTML_TEMPLATE.format(
         title=f"{domain_obj.name} — Beliefs",
-        description=f"Belief registry for {domain_obj.name} — {domain_obj.description or 'expert knowledge base'}",
+        description=f"Belief registry for {domain_obj.name} — {domain_obj.description or 'knowledge base'}",
         body=nav + body,
     )
     return HTMLResponse(
@@ -246,7 +246,7 @@ async def beliefs_in_html(domain_name: str, session: AsyncSession = Depends(get_
     )
     html = _HTML_TEMPLATE.format(
         title=f"{domain_obj.name} — Beliefs (IN)",
-        description=f"Active beliefs for {domain_obj.name} — {domain_obj.description or 'expert knowledge base'}",
+        description=f"Active beliefs for {domain_obj.name} — {domain_obj.description or 'knowledge base'}",
         body=nav + body,
     )
     return HTMLResponse(

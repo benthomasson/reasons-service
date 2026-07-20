@@ -317,7 +317,7 @@ async def list_beliefs(status: str = "", domain: str = "") -> str:
 
 @mcp.tool()
 async def list_domains() -> str:
-    """List all available expert knowledge bases with belief, entry, and source counts."""
+    """List all available knowledge bases with belief, entry, and source counts."""
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{BASE_URL}/api/domains",
