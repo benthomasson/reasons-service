@@ -42,7 +42,7 @@ def _get_terms(question: str) -> list[str]:
     words = re.findall(r'\w+', question)
     terms = [w.lower() for w in words if w.lower() not in _STOP_WORDS and len(w) > 1]
     if not terms:
-        terms = [w.lower() for w in re.findall(r'\w+', question) if len(w) > 1]
+        terms = [w.lower() for w in words]
     return terms
 
 
