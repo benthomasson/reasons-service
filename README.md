@@ -171,7 +171,5 @@ Claude models automatically use `us-east5` (Anthropic on Vertex AI).
 
 | Project | Purpose |
 |---------|---------|
-| [expert-agent-builder](https://github.com/benthomasson/expert-agent-builder) | CLI pipeline (what this service ports) |
-| [aap-expert](https://github.com/benthomasson/aap-expert) | AAP domain expert (built with expert-build) |
-| [beliefs](https://github.com/benthomasson/beliefs) | Belief registry CLI |
-| [shared-enterprise](https://github.com/benthomasson/shared-enterprise) | SQLite knowledge base indexer |
+| [reasons-app](https://github.com/benthomasson/reasons-app) | Desktop menu bar app with local MCP server |
+| [reasonsforge](https://github.com/benthomasson/reasonsforge) | CLI pipeline for building domain knowledge bases |
