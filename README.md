@@ -2,7 +2,7 @@
 
 Web service for building domain expert knowledge bases, powered by LangGraph.
 
-Takes the CLI-based [expert-build](https://github.com/benthomasson/expert-agent-builder) pipeline and delivers it as a deployed service with REST API and web UI — accessible to non-developers who can't work in a git repo with Claude Code.
+Takes the CLI-based [Reasons Forge](https://github.com/benthomasson/reasonsforge) pipeline and delivers it as a deployed service with REST API and web UI — accessible to non-developers who can't work in a git repo with Claude Code.
 
 ## What It Does
 
