@@ -1,33 +1,33 @@
 # Reasons Service
 
-Web service for building domain expert knowledge bases, powered by LangGraph.
+Serves pre-built Reasons knowledge bases over REST API, MCP, and web UI. Knowledge bases are built with [Reasons Forge](https://github.com/benthomasson/reasonsforge) and loaded into this service for querying.
 
-Takes the CLI-based [Reasons Forge](https://github.com/benthomasson/reasonsforge) pipeline and delivers it as a deployed service with REST API and web UI — accessible to non-developers who can't work in a git repo with Claude Code.
+Designed for users who need access to domain knowledge bases without installing anything — connect Claude Desktop to the hosted MCP server at reasonsforge.com.
 
 ## What It Does
 
 ```
-Documentation URL
-       │
-       ▼
-┌─────────────┐     ┌──────────────┐     ┌────────────────┐
-│  1. Ingest  │────▶│  2. Beliefs  │────▶│  3. Assessment │
-│             │     │              │     │                │
-│ Fetch docs  │     │ Propose via  │     │ Cert coverage  │
-│ HTML → MD   │     │ LLM extract  │     │ Practice exams │
-│ Summarize   │     │ Human review │     │ Nogood capture │
-│ via LLM     │     │ Accept/reject│     │                │
-└─────────────┘     └──────────────┘     └────────────────┘
-       │                   │                     │
-       ▼                   ▼                     ▼
-   sources table      claims table       assessments table
-   entries table                          nogoods table
-                    ┌──────────┐
-                    │ PostgreSQL│
-                    └──────────┘
+┌──────────────────┐
+│  Reasons Forge   │  Build knowledge bases
+│  (separate tool) │  from documentation
+└────────┬─────────┘
+         │ import
+         ▼
+┌──────────────────────────────────────────────┐
+│              Reasons Service                 │
+│                                              │
+│  ┌─────────┐  ┌─────────┐  ┌─────────────┐  │
+│  │ Search  │  │  Chat   │  │ MCP Server  │  │
+│  │ FTS +   │  │ LLM     │  │ Claude      │  │
+│  │ vector  │  │ synthesis│  │ Desktop     │  │
+│  └─────────┘  └─────────┘  └─────────────┘  │
+│                                              │
+│  ┌──────────────────────────────────────┐    │
+│  │           PostgreSQL + pgvector      │    │
+│  │  beliefs · entries · sources · topics │    │
+│  └──────────────────────────────────────┘    │
+└──────────────────────────────────────────────┘
 ```
-
-Each stage is a separate [LangGraph](https://langchain-ai.github.io/langgraph/) graph with its own state, checkpointing, and lifecycle. The beliefs graph uses `interrupt()` for human-in-the-loop review.
 
 ## Quick Start
 
@@ -42,49 +42,63 @@ docker compose up -d
 
 # Open web UI
 open http://localhost:8000
+
+# Import a pre-built knowledge base
+python scripts/load_reasons_db.py ~/path/to/reasons.db project-name --domain "Your domain"
+python scripts/build_embeddings.py --project-id <uuid>
+```
+
+## MCP Server
+
+The MCP server at `/mcp` exposes these tools to Claude Desktop and Claude Code:
+
+| Tool | Description |
+|------|-------------|
+| `deep_search` | IDF-ranked search across beliefs and source documents |
+| `search` | Full-text search across beliefs, entries, and sources |
+| `explain_belief` | Trace why a belief is IN or OUT |
+| `what_if` | Simulate retracting or asserting a belief |
+| `get_belief` | Full details for a specific belief |
+| `list_beliefs` | List beliefs with optional status filter |
+| `list_projects` | List available knowledge bases |
+| `list_topics` | Browse topic structure of a knowledge base |
+| `list_entries` | List analysis entries by topic |
+| `get_entry` | Read full entry content |
+
+Connect Claude Desktop by adding to your config:
+
+```json
+{
+  "mcpServers": {
+    "reasons": {
+      "url": "https://reasons.reasonsforge.com/mcp"
+    }
+  }
+}
 ```
 
 ## API
 
 ```bash
-# Create a project
-curl -X POST localhost:8000/api/projects \
-  -H "Content-Type: application/json" \
-  -d '{"name": "aap-expert", "domain": "Ansible Automation Platform 2.6"}'
+# Search a knowledge base
+curl localhost:8000/api/projects/{id}/search?q=drug+interactions
 
-# Ingest documentation
-curl -X POST localhost:8000/api/projects/{id}/ingest \
-  -d '{"url": "https://docs.example.com/", "depth": 2}'
+# Deep search (IDF-ranked, dual-path retrieval)
+curl localhost:8000/api/projects/{id}/deep-search?q=clinical+trials
 
-# Propose beliefs from entries
-curl -X POST localhost:8000/api/projects/{id}/beliefs/propose
+# List beliefs
+curl localhost:8000/api/projects/{id}/beliefs
 
-# Review proposed beliefs (or use the web UI)
-curl localhost:8000/api/projects/{id}/beliefs/proposed
+# Explain a belief
+curl localhost:8000/api/projects/{id}/beliefs/{node_id}/explain
 
-# Submit review decisions
-curl -X POST localhost:8000/api/projects/{id}/beliefs/review \
-  -d '{"decisions": {"belief-id-1": "accept", "belief-id-2": "reject"}}'
+# What-if analysis
+curl localhost:8000/api/projects/{id}/beliefs/{node_id}/what-if?action=retract
 
-# Run certification coverage analysis
-curl -X POST localhost:8000/api/projects/{id}/assess/coverage \
-  -d '{"objectives": [{"id": "OBJ-001", "domain": "Install", "text": "..."}]}'
-
-# Run practice exam
-curl -X POST localhost:8000/api/projects/{id}/assess/exam \
-  -d '{"questions": [{"id": "Q1", "text": "...", "choices": {"a": "...", "b": "..."}, "correct": "b"}]}'
-
-# Check pipeline status
-curl localhost:8000/api/projects/{id}/pipeline/{run_id}
-
-# Search entries
-curl localhost:8000/api/projects/{id}/search?q=ansible+tower
-
-# List all data
+# Browse data
 curl localhost:8000/api/projects/{id}/sources
 curl localhost:8000/api/projects/{id}/entries
-curl localhost:8000/api/projects/{id}/claims
-curl localhost:8000/api/projects/{id}/nogoods
+curl localhost:8000/api/projects/{id}/topics
 ```
 
 ## Architecture
@@ -94,78 +108,59 @@ reasons-service/
 ├── reasons_service/
 │   ├── app.py                  # FastAPI app + web UI routes
 │   ├── config.py               # Settings (DB, API keys, model)
-│   ├── core/                   # Business logic (ported from expert-build)
-│   │   ├── fetch.py            #   HTML → markdown, URL crawling
-│   │   ├── summarize.py        #   Batch LLM summarization
-│   │   ├── propose.py          #   Belief extraction from entries
-│   │   ├── coverage.py         #   Cert objective matching
-│   │   └── exam.py             #   Practice exam + nogood discovery
-│   ├── graphs/                 # LangGraph state machines
-│   │   ├── ingest.py           #   fetch → summarize (batch loop)
-│   │   ├── beliefs.py          #   propose → interrupt() → accept
-│   │   └── assessment.py       #   load_beliefs → coverage | exam
+│   ├── mcp.py                  # MCP server (streamable HTTP)
 │   ├── api/                    # REST API routes
-│   │   ├── projects.py         #   CRUD
-│   │   ├── pipeline.py         #   Pipeline triggers + status
-│   │   └── data.py             #   Sources, entries, claims, search
-│   ├── db/                     # PostgreSQL
-│   │   ├── schema.sql          #   7 tables + FTS indexes
+│   │   ├── projects.py         #   Project CRUD + import
+│   │   ├── data.py             #   Sources, entries, beliefs, search
+│   │   ├── ask.py              #   FTS-only ask (no LLM)
+│   │   ├── chat.py             #   LLM chat with streaming
+│   │   └── meta_chat.py        #   Cross-project meta-expert
+│   ├── chat/                   # Chat system
+│   │   ├── agent.py            #   LangGraph ReAct agent
+│   │   ├── loop.py             #   SSE streaming loop
+│   │   └── tools.py            #   Search tools for chat agent
+│   ├── db/                     # PostgreSQL + pgvector
+│   │   ├── schema.sql          #   Tables + FTS indexes
 │   │   ├── models.py           #   SQLAlchemy models
 │   │   └── connection.py       #   Async + sync engines
-│   ├── llm/                    # LLM integration
-│   │   ├── provider.py         #   ChatModel factory (Vertex AI)
-│   │   └── prompts.py          #   Prompt templates
+│   ├── rms/                    # Reason Maintenance System
+│   │   └── api.py              #   Belief network operations
+│   ├── embeddings.py           # fastembed + pgvector
 │   └── templates/              # Jinja2 + HTMX + Pico CSS
-├── langgraph.json              # LangGraph Platform deployment
+├── scripts/
+│   ├── load_reasons_db.py      # Import from reasons.db (SQLite)
+│   ├── import_expert.py        # Import from file-based repos
+│   ├── build_embeddings.py     # Build vector embeddings
+│   └── manage_users.py         # User management
 ├── docker-compose.yml          # PostgreSQL + service
 └── Dockerfile
 ```
 
-## Three Graphs, Three Lifecycles
-
-| Graph | Duration | Key Feature | Nodes |
-|-------|----------|-------------|-------|
-| **Ingest** | Minutes | Batch checkpointing | init → fetch → summarize (loop) |
-| **Beliefs** | Hours/days | `interrupt()` for human review | propose → review → accept |
-| **Assessment** | Minutes | Routing (coverage vs exam) | load_beliefs → coverage \| exam |
-
-They are separate graphs because their lifecycles differ — fetching takes minutes, belief review takes days, exams are on-demand. Each graph has its own state type and can run independently.
-
 ## Database
 
-PostgreSQL replaces the file-based storage from expert-build:
+| Table | Purpose |
+|-------|---------|
+| `projects` | Multi-project knowledge base isolation |
+| `sources` | Imported documentation chunks |
+| `entries` | Analysis entries and summaries |
+| `claims` | Beliefs with IN/OUT truth values |
+| `nogoods` | Recorded contradictions |
+| `topics` | Topic structure for browsing |
 
-| expert-build | reasons-service | Purpose |
-|-------------|----------------|---------|
-| `sources/*.md` | `sources` table | Fetched documentation |
-| `entries/YYYY/MM/DD/*.md` | `entries` table | LLM summaries |
-| `beliefs.md` | `claims` table | Factual claims (IN/OUT/PROPOSED) |
-| `nogoods.md` | `nogoods` table | Contradictions from exams |
-| — | `assessments` table | Coverage + exam results |
-| — | `projects` table | Multi-project support |
-| — | `pipeline_runs` table | Pipeline execution tracking |
-
-Full-text search via PostgreSQL GIN indexes on entries and claims.
+Full-text search via PostgreSQL GIN indexes. Vector similarity via pgvector.
 
 ## Configuration
 
-Uses **Vertex AI** for all LLM access (same credentials as agents-python). Authenticate with:
-
-```bash
-gcloud auth application-default login
-```
-
-Environment variables:
-
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `GOOGLE_CLOUD_PROJECT` | — | GCP project for Vertex AI |
-| `GOOGLE_CLOUD_LOCATION` | `global` | Vertex AI region (Gemini) |
-| `DEFAULT_MODEL` | `gemini-2.5-pro` | Default LLM |
 | `DATABASE_URL` | `postgresql+asyncpg://...localhost.../reasons_service` | Async DB connection |
-| `DATABASE_URL_SYNC` | `postgresql://...localhost.../reasons_service` | Sync DB (graphs + checkpointer) |
+| `DATABASE_URL_SYNC` | `postgresql+psycopg://...localhost.../reasons_service` | Sync DB (chat checkpointer) |
+| `GOOGLE_CLOUD_PROJECT` | — | GCP project for Vertex AI (chat only) |
+| `REASONS_LLM` | `true` | Set `false` for data-only mode (no chat) |
+| `REASONS_SERVICE_API_KEY` | — | API key for authenticated access |
+| `MCP_ISSUER_URL` | `https://reasons.reasonsforge.com/mcp` | MCP OAuth issuer |
 
-Claude models automatically use `us-east5` (Anthropic on Vertex AI).
+LLM access via Vertex AI is only required for the chat feature. Search, MCP tools, and data access work without it.
 
 ## Related Projects
 
