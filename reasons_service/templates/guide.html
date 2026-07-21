@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Getting Started — Reasons Service{% endblock %}
+{% block description %}How to connect Claude Code and Claude Desktop to a Reasons Service knowledge base.{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Getting Started</h1>
+    <p>Connect Claude to domain knowledge bases served by Reasons Service.</p>
+</hgroup>
+
+<h2>What is Reasons Service?</h2>
+<p>
+    Reasons Service hosts domain knowledge bases built with
+    <a href="https://github.com/benthomasson/reasonsforge">Reasons Forge</a>
+    and serves them over a REST API, MCP server, and web UI.
+    Each knowledge base contains beliefs with tracked truth values, source documents,
+    and a reason maintenance system that propagates retractions automatically.
+</p>
+
+<hr>
+
+<h2>Connecting Claude Code</h2>
+<p>The quickest way to add the MCP server:</p>
+<pre><code>claude mcp add reasons-service --transport streamable-http {{ mcp_url }}</code></pre>
+<p>Or add it manually to your project-level or global <code>.claude.json</code>:</p>
+<pre><code>{
+  "mcpServers": {
+    "reasons-service": {
+      "type": "streamable-http",
+      "url": "{{ mcp_url }}"
+    }
+  }
+}</code></pre>
+<p>
+    When you first use an MCP tool, Claude Code will open a browser window
+    for OAuth authentication. After signing in with Google, return to Claude Code —
+    the session is saved automatically.
+</p>
+
+<h2>Connecting Claude Desktop</h2>
+<p>The easiest way is through the UI:</p>
+<ol>
+    <li>Open Claude Desktop and click <strong>Customize</strong> (bottom-left)</li>
+    <li>Go to <strong>Connectors</strong></li>
+    <li>Click <strong>Add</strong> → <strong>Add custom connector</strong></li>
+    <li>Enter <code>{{ mcp_url }}</code> as the Remote MCP server URL</li>
+    <li>Complete the OAuth sign-in when prompted</li>
+</ol>
+<p>Or add it manually to your config file
+    (<code>~/Library/Application Support/Claude/claude_desktop_config.json</code> on macOS):</p>
+<pre><code>{
+  "mcpServers": {
+    "reasons-service": {
+      "url": "{{ mcp_url }}"
+    }
+  }
+}</code></pre>
+<p>
+    Claude Desktop auto-detects the transport type. Restart Claude Desktop after editing the config file.
+</p>
+
+<hr>
+
+<h2>Available MCP Tools</h2>
+<table>
+    <thead>
+        <tr><th>Tool</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><code>deep_search</code></td><td>IDF-ranked search across beliefs and source documents — recommended default</td></tr>
+        <tr><td><code>search</code></td><td>Full-text search across beliefs, entries, and sources</td></tr>
+        <tr><td><code>explain_belief</code></td><td>Trace why a belief is IN or OUT through the justification chain</td></tr>
+        <tr><td><code>what_if</code></td><td>Simulate retracting or asserting a belief without modifying data</td></tr>
+        <tr><td><code>get_belief</code></td><td>Full details for a specific belief including justifications and dependents</td></tr>
+        <tr><td><code>list_beliefs</code></td><td>List beliefs with optional status filter (IN, OUT, or all)</td></tr>
+        <tr><td><code>list_domains</code></td><td>List available knowledge bases with counts</td></tr>
+        <tr><td><code>list_topics</code></td><td>Browse topic structure of a knowledge base</td></tr>
+        <tr><td><code>list_entries</code></td><td>List analysis entries by topic</td></tr>
+        <tr><td><code>get_entry</code></td><td>Read the full content of an analysis entry</td></tr>
+    </tbody>
+</table>
+
+<hr>
+
+<h2>Quick Start (Self-Hosting)</h2>
+
+<h3>SQLite (simplest)</h3>
+<pre><code>git clone https://github.com/benthomasson/reasons-service.git
+cd reasons-service
+uv venv && uv pip install -e .
+
+# Start with SQLite (no PostgreSQL needed)
+DATABASE_URL=sqlite+aiosqlite:///reasons.db uv run reasons-service</code></pre>
+
+<h3>PostgreSQL + Docker</h3>
+<pre><code># Start PostgreSQL with pgvector
+docker compose up -d
+
+# Open web UI
+open http://localhost:8000
+
+# Import a knowledge base
+uv run python scripts/load_reasons_db.py ~/path/to/reasons.db domain-name --domain "Your domain"
+uv run python scripts/build_embeddings.py --domain-id &lt;uuid&gt;</code></pre>
+
+<h3>Optional dependencies</h3>
+<p>
+    PostgreSQL support is optional. Install with extras if needed:
+</p>
+<pre><code>uv pip install -e ".[postgres]"    # asyncpg, psycopg, pgvector
+uv pip install -e ".[ollama]"      # local model serving via Ollama</code></pre>
+
+<hr>
+
+<h2>Configuration</h2>
+<table>
+    <thead>
+        <tr><th>Variable</th><th>Default</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><code>DATABASE_URL</code></td><td><code>postgresql+asyncpg://...localhost.../reasons_service</code></td><td>Async DB connection (use <code>sqlite+aiosqlite:///file.db</code> for SQLite)</td></tr>
+        <tr><td><code>GOOGLE_CLOUD_PROJECT</code></td><td>—</td><td>GCP project for Vertex AI (LLM features)</td></tr>
+        <tr><td><code>REASONS_LLM</code></td><td><code>true</code></td><td>Set <code>false</code> for data-only mode (no LLM endpoints)</td></tr>
+        <tr><td><code>REASONS_SERVICE_API_KEY</code></td><td>—</td><td>Static bearer token for API access</td></tr>
+        <tr><td><code>GOOGLE_CLIENT_ID</code></td><td>—</td><td>Google OAuth client ID (enables authentication)</td></tr>
+        <tr><td><code>GOOGLE_CLIENT_SECRET</code></td><td>—</td><td>Google OAuth client secret</td></tr>
+        <tr><td><code>SECRET_KEY</code></td><td><code>dev-insecure-key</code></td><td>Session cookie signing key — set to a random string in production</td></tr>
+        <tr><td><code>MCP_ISSUER_URL</code></td><td><code>https://reasons.reasonsforge.com/mcp</code></td><td>MCP OAuth issuer URL (set to your domain's <code>/mcp</code> path)</td></tr>
+        <tr><td><code>MCP_BASE_URL</code></td><td><code>http://localhost:8000</code></td><td>URL that MCP tools use for internal API calls</td></tr>
+        <tr><td><code>REASONS_HUB_MODE</code></td><td><code>false</code></td><td>Public hub mode — disables login and shows only public domains</td></tr>
+    </tbody>
+</table>
+
+<hr>
+
+<h2>REST API</h2>
+<pre><code># Search a knowledge base
+curl localhost:8000/api/domains/{id}/search?q=query+terms
+
+# Deep search (IDF-ranked, dual-path retrieval)
+curl localhost:8000/api/domains/{id}/deep-search?q=query+terms
+
+# List beliefs
+curl localhost:8000/api/domains/{id}/beliefs
+
+# Explain a belief
+curl localhost:8000/api/domains/{id}/beliefs/{node_id}/explain
+
+# What-if analysis
+curl localhost:8000/api/domains/{id}/beliefs/{node_id}/what-if?action=retract
+
+# Browse data
+curl localhost:8000/api/domains/{id}/sources
+curl localhost:8000/api/domains/{id}/entries
+curl localhost:8000/api/domains/{id}/topics</code></pre>
+
+<hr>
+
+<h2>Related Projects</h2>
+<div class="card-grid">
+    <article>
+        <header><strong>Reasons Forge</strong></header>
+        <p>CLI pipeline for building domain knowledge bases from documentation.</p>
+        <footer><a href="https://github.com/benthomasson/reasonsforge">GitHub</a> · <a href="https://reasonsforge.io">Docs</a></footer>
+    </article>
+    <article>
+        <header><strong>Reasons App</strong></header>
+        <p>Desktop menu bar app with a local MCP server for on-device knowledge bases.</p>
+        <footer><a href="https://github.com/benthomasson/reasons-app">GitHub</a></footer>
+    </article>
+</div>
+{% endblock %}

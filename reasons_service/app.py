@@ -222,6 +222,14 @@ templates.env.globals["hub_mode"] = settings.hub_mode
 # --- Web UI Routes ---
 
 
+@app.get("/guide", response_class=HTMLResponse)
+async def guide(request: Request):
+    """Getting started guide — connecting Claude Code and Claude Desktop."""
+    return templates.TemplateResponse(request, "guide.html", {
+        "mcp_url": settings.mcp_issuer_url,
+    })
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, session: AsyncSession = Depends(get_session)):
     """Public landing page — lists public domains, links to login."""
