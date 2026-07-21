@@ -34,7 +34,7 @@ if settings.google_client_id and settings.google_client_secret:
         "auth_server_provider": _provider,
         "auth": AuthSettings(
             issuer_url=settings.mcp_issuer_url,
-            resource_server_url=f"{settings.mcp_issuer_url}/mcp",
+            resource_server_url=settings.mcp_issuer_url,
             client_registration_options=ClientRegistrationOptions(enabled=True),
         ),
     }
@@ -42,6 +42,7 @@ if settings.google_client_id and settings.google_client_secret:
 mcp = FastMCP(
     "reasons-service",
     stateless_http=True,
+    streamable_http_path="/",
     transport_security={"enable_dns_rebinding_protection": False},
     **_auth_kwargs,
 )

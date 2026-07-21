@@ -160,11 +160,10 @@ if settings.google_client_id and settings.google_client_secret:
 
     def _prm_response():
         issuer = settings.mcp_issuer_url
-        resource = f"{issuer}/mcp"
         return ProtectedResourceMetadata(
-            resource=resource,
+            resource=issuer,
             authorization_servers=[issuer],
-        ).model_dump(mode="json")
+        ).model_dump(mode="json", exclude_none=True)
 
     def _asm_response():
         issuer = settings.mcp_issuer_url.rstrip("/")
@@ -177,7 +176,7 @@ if settings.google_client_id and settings.google_client_secret:
             grant_types_supported=["authorization_code", "refresh_token"],
             token_endpoint_auth_methods_supported=["client_secret_post", "client_secret_basic"],
             code_challenge_methods_supported=["S256"],
-        ).model_dump(mode="json")
+        ).model_dump(mode="json", exclude_none=True)
 
     # Register at all paths clients may try (WWW-Authenticate hint, path-based, root)
     @app.get("/.well-known/oauth-protected-resource/mcp/mcp")
