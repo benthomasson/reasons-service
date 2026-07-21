@@ -202,6 +202,14 @@ if settings.google_client_id and settings.google_client_secret:
 # MCP server (streamable HTTP at /mcp)
 app.mount("/mcp", _mcp_http_app)
 
+
+@app.middleware("http")
+async def mcp_trailing_slash(request: Request, call_next):
+    """Rewrite /mcp to /mcp/ internally to avoid Starlette's 307 redirect."""
+    if request.url.path == "/mcp":
+        request.scope["path"] = "/mcp/"
+    return await call_next(request)
+
 # Static files (CSS, JS, images)
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
