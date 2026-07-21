@@ -12,7 +12,7 @@ from starlette.responses import HTMLResponse, RedirectResponse, Response
 
 from reasons_service.config import settings
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = settings.mcp_base_url
 TIMEOUT = 120.0
 
 # --- Auth configuration (conditional on Google OAuth being set up) ---
@@ -42,6 +42,7 @@ if settings.google_client_id and settings.google_client_secret:
 mcp = FastMCP(
     "reasons-service",
     stateless_http=True,
+    json_response=True,
     streamable_http_path="/",
     transport_security={"enable_dns_rebinding_protection": False},
     **_auth_kwargs,

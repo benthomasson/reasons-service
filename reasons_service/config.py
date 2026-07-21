@@ -62,6 +62,7 @@ class Settings(BaseModel):
     secret_key: str = os.getenv("SECRET_KEY", "dev-insecure-key")
     api_key: str = os.getenv("REASONS_SERVICE_API_KEY", os.getenv("EXPERT_SERVICE_API_KEY", ""))
     mcp_issuer_url: str = os.getenv("MCP_ISSUER_URL", "https://reasons.reasonsforge.com/mcp")
+    mcp_base_url: str = os.getenv("MCP_BASE_URL", "http://localhost:8000")
 
     @property
     def llm_enabled(self) -> bool:
