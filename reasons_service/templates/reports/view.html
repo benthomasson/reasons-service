@@ -4,21 +4,6 @@
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<style>
-    .report-content { max-width: 80ch; margin: 0 auto; line-height: 1.7; }
-    .report-content h1 { margin-top: 0; }
-    .report-content h2 { margin-top: 2rem; }
-    .report-content h3 { margin-top: 1.5rem; }
-    .report-content blockquote { border-left: 3px solid var(--pico-primary); padding-left: 1rem; }
-    .report-content table { font-size: 0.9rem; }
-
-    .belief-ref {
-        font-family: monospace; font-size: 0.85em;
-        background: var(--pico-muted-border-color); padding: 0.1rem 0.4rem;
-        border-radius: 3px; cursor: default;
-    }
-    .back-link { margin-bottom: 1rem; display: inline-block; }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -30,18 +15,14 @@
 const domainId = "{{ domain.id }}";
 const rawMarkdown = {{ content_json | safe }};
 
-// Render markdown
 document.getElementById('report').innerHTML = marked.parse(rawMarkdown);
 
-// Post-process: find belief IDs in footnotes and make them interactive
 enhanceBeliefRefs();
 
 function enhanceBeliefRefs() {
     const report = document.getElementById('report');
-    // Find all footnote paragraphs and inline code elements containing belief IDs
     const beliefPattern = /^[a-z][a-z0-9]*(?::[a-z][a-z0-9-]*(?:-[a-z0-9]+)*|(?:-[a-z0-9]+)+)$/;
 
-    // Enhance inline code elements that look like belief IDs
     report.querySelectorAll('code').forEach(code => {
         const text = code.textContent.trim();
         if (beliefPattern.test(text)) {

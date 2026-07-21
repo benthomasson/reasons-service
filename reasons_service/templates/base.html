@@ -1,34 +1,23 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="{% block description %}Reasons Service — domain knowledge bases with belief tracking{% endblock %}">
     <title>{% block title %}Reasons Service{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/starlight-theme.css">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <style>
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; }
-        .stat-card { text-align: center; padding: 1rem; background: var(--pico-card-background-color); border-radius: var(--pico-border-radius); }
-        .stat-card .value { font-size: 2rem; font-weight: bold; }
-        .stat-card .label { font-size: 0.85rem; color: var(--pico-muted-color); }
-        .pipeline-steps { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
-        .pipeline-step { padding: 0.5rem 1rem; border-radius: var(--pico-border-radius); font-size: 0.85rem; }
-        .pipeline-step.done { background: #d4edda; color: #155724; }
-        .pipeline-step.active { background: #fff3cd; color: #856404; }
-        .pipeline-step.pending { background: #e2e3e5; color: #383d41; }
-        .belief-row { padding: 1rem; margin-bottom: 0.5rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); }
-        .belief-row .belief-id { font-family: monospace; font-weight: bold; }
-        .belief-row .belief-source { font-size: 0.8rem; color: var(--pico-muted-color); }
-        nav .brand { font-weight: bold; font-size: 1.2rem; }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
-        .sr-only:focus { position: static; width: auto; height: auto; padding: 0.5rem 1rem; margin: 0; overflow: visible; clip: auto; background: var(--pico-primary); color: #fff; z-index: 1000; }
-    </style>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme');
+            if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
     <a href="#main-content" class="sr-only">Skip to content</a>
-    <nav class="container" aria-label="Main">
+    <nav aria-label="Main">
         <ul><li><a href="/" class="brand">Reasons Service</a></li></ul>
         <ul>
             {% if not hub_mode %}<li><a href="/domains">Domains</a></li>{% endif %}
@@ -41,6 +30,13 @@
             <li><a href="/logout">Logout</a></li>
             {% endif %}
             {% endif %}
+            <li>
+                <div class="theme-toggle" role="radiogroup" aria-label="Select theme">
+                    <span role="radio" tabindex="0" data-theme-value="dark" aria-pressed="false">Dark</span>
+                    <span role="radio" tabindex="0" data-theme-value="light" aria-pressed="false">Light</span>
+                    <span role="radio" tabindex="0" data-theme-value="auto" aria-pressed="false">Auto</span>
+                </div>
+            </li>
         </ul>
     </nav>
     <main class="container" id="main-content">
@@ -49,5 +45,36 @@
     <footer class="container">
         <small>Reasons Service v0.1.0{% if not llm_enabled %} (data-only mode){% endif %}</small>
     </footer>
+    <script>
+        (function() {
+            var toggle = document.querySelector('.theme-toggle');
+            if (!toggle) return;
+            var current = localStorage.getItem('theme') || 'auto';
+            function apply(val) {
+                current = val;
+                localStorage.setItem('theme', val);
+                if (val === 'auto') {
+                    document.documentElement.removeAttribute('data-theme');
+                } else {
+                    document.documentElement.setAttribute('data-theme', val);
+                }
+                toggle.querySelectorAll('span').forEach(function(s) {
+                    s.setAttribute('aria-pressed', s.dataset.themeValue === val ? 'true' : 'false');
+                });
+            }
+            apply(current);
+            toggle.addEventListener('click', function(e) {
+                var span = e.target.closest('span[data-theme-value]');
+                if (span) apply(span.dataset.themeValue);
+            });
+            toggle.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    var span = e.target.closest('span[data-theme-value]');
+                    if (span) apply(span.dataset.themeValue);
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

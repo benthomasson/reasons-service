@@ -7,7 +7,7 @@
 </hgroup>
 <h2>Public Domains</h2>
 {% if public_domains %}
-<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+<div class="card-grid">
     {% for e in public_domains %}
     <article>
         <header><strong>{{ e.name }}</strong></header>
@@ -18,13 +18,13 @@
                 <div class="label">Beliefs (IN)</div>
             </div>
         </div>
-        <footer style="flex-wrap: wrap; gap: 0.5rem;">
+        <footer>
             <a href="/public/{{ e.name }}/beliefs" role="button" class="outline">View</a>
             <a href="/public/{{ e.name }}/beliefs.json" role="button" class="outline secondary">JSON</a>
             <a href="/public/{{ e.name }}/intro.json" role="button" class="outline secondary">Intro</a>
-            <form action="/public/{{ e.name }}/search" method="get" style="display: inline-flex; gap: 0.25rem; margin: 0;">
-                <input type="text" name="q" placeholder="Search..." style="margin: 0; padding: 0.25rem 0.5rem; height: auto; width: 8rem;">
-                <button type="submit" class="outline secondary" style="margin: 0; padding: 0.25rem 0.5rem; height: auto;">Go</button>
+            <form action="/public/{{ e.name }}/search" method="get" class="inline-search">
+                <input type="text" name="q" placeholder="Search..." aria-label="Search {{ e.name }}">
+                <button type="submit" class="outline secondary">Go</button>
             </form>
         </footer>
     </article>

@@ -6,12 +6,12 @@
     <p>Domain knowledge bases</p>
 </hgroup>
 
-<div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+<div class="action-grid" style="margin-bottom: 1.5rem;">
     <a href="/domains/new" role="button">+ New Domain</a>
 </div>
 
 {% if domains %}
-<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+<div class="card-grid">
     {% for d in domains %}
     <article>
         <header><strong>{{ d.name }}</strong></header>

@@ -9,6 +9,7 @@ from uuid import UUID
 import uvicorn
 from fastapi import FastAPI, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select, text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -201,6 +202,9 @@ if settings.google_client_id and settings.google_client_secret:
 
 # MCP server (streamable HTTP at /mcp)
 app.mount("/mcp", _mcp_http_app)
+
+# Static files (CSS, JS, images)
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 # Templates
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
