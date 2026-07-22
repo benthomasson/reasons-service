@@ -502,7 +502,7 @@ def search_beliefs_fts(domain_id: UUID, query: str, limit: int = 10, visible_to:
         try:
             try:
                 rows = conn.execute(
-                    "SELECT n.id, n.text, n.truth_value, n.source, n.metadata "
+                    "SELECT n.id, n.text, n.truth_value, n.source, n.metadata_json "
                     "FROM nodes n "
                     "JOIN nodes_fts f ON f.id = n.id "
                     "WHERE nodes_fts MATCH ? AND n.truth_value = 'IN' "
@@ -514,7 +514,7 @@ def search_beliefs_fts(domain_id: UUID, query: str, limit: int = 10, visible_to:
                 like_conditions = " OR ".join(f"lower(text) LIKE ?" for _ in terms)
                 like_params = [f"%{t}%" for t in terms]
                 rows = conn.execute(
-                    f"SELECT id, text, truth_value, source, metadata FROM nodes "
+                    f"SELECT id, text, truth_value, source, metadata_json FROM nodes "
                     f"WHERE truth_value = 'IN' AND ({like_conditions}) "
                     f"LIMIT ?",
                     like_params + [fetch_limit],
@@ -527,7 +527,7 @@ def search_beliefs_fts(domain_id: UUID, query: str, limit: int = 10, visible_to:
         visible_set = set(visible_to) if visible_to is not None else None
         for r in rows:
             if visible_set is not None:
-                meta = _json.loads(r["metadata"]) if r["metadata"] else {}
+                meta = _json.loads(r["metadata_json"]) if r["metadata_json"] else {}
                 tags = meta.get("access_tags", [])
                 if tags and not set(tags) <= visible_set:
                     continue
