@@ -23,6 +23,8 @@
 <h2>Connecting Claude Code</h2>
 <p>The quickest way to add the MCP server:</p>
 <pre><code>claude mcp add reasons-service --transport streamable-http {{ mcp_url }}</code></pre>
+<p>Then authenticate:</p>
+<pre><code>claude mcp login reasons-service</code></pre>
 <p>Or add it manually to your project-level or global <code>.claude.json</code>:</p>
 <pre><code>{
   "mcpServers": {
