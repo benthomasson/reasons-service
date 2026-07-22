@@ -138,6 +138,22 @@ async def _verify_google_id_token(token: str) -> str | None:
         return None
 
 
+def _verify_mcp_access_token(token: str) -> str | None:
+    """Check if the token is a valid MCP access token. Returns email or None."""
+    import time
+    from reasons_service.mcp import _provider
+
+    if not _provider:
+        return None
+
+    access = _provider._access_tokens.get(token)
+    if not access:
+        return None
+    if access.expires_at <= time.time():
+        return None
+    return access.subject
+
+
 def _resolve_visible_tags(db_user: User) -> list[str] | None:
     """Return the user's visible_tags, or None if admin (unrestricted)."""
     if db_user.role == Role.ADMIN:
@@ -161,7 +177,26 @@ async def verify_auth(
         request.state.user = user
         return user
 
-    # 2. Google ID token (CLI/programmatic access with per-user identity)
+    # 2. MCP access token (issued by our MCP OAuth provider)
+    if credentials:
+        email = _verify_mcp_access_token(credentials.credentials)
+        if email:
+            email = email.strip().lower()
+            result = await session.execute(select(User).where(User.email == email))
+            db_user = result.scalar_one_or_none()
+            if db_user:
+                user = UserInfo(
+                    identity=email,
+                    role=db_user.role,
+                    display_name=db_user.display_name,
+                    visible_tags=_resolve_visible_tags(db_user),
+                )
+                request.state.user = user
+                return user
+            else:
+                raise HTTPException(status_code=403, detail="User not registered")
+
+    # 3. Google ID token (CLI/programmatic access with per-user identity)
     if credentials and settings.google_client_id:
         email = await _verify_google_id_token(credentials.credentials)
         if email:
@@ -180,7 +215,7 @@ async def verify_auth(
             else:
                 raise HTTPException(status_code=403, detail="User not registered")
 
-    # 3. OAuth session (browser access)
+    # 4. OAuth session (browser access)
     email = request.session.get("user_email")
     if email:
         result = await session.execute(select(User).where(User.email == email))
@@ -196,7 +231,7 @@ async def verify_auth(
         request.state.user = user
         return user
 
-    # 3. Dev mode — no OAuth configured, allow anonymous access
+    # 5. Dev mode — no OAuth configured, allow anonymous access
     if not settings.google_client_id:
         user = UserInfo(identity="dev", role=Role.ADMIN, display_name="Developer")
         request.state.user = user
