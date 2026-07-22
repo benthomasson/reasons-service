@@ -292,6 +292,29 @@ async def get_belief(node_id: str, domain: str) -> str:
 
 
 @mcp.tool()
+async def find_issues(domain: str) -> str:
+    """Find gated beliefs — beliefs that are OUT because one or more antecedents are OUT.
+
+    These represent blocked conclusions: things the knowledge base would believe
+    if the missing dependencies were satisfied. Useful for identifying what
+    needs to be fixed or investigated.
+
+    Args:
+        domain: Domain name or UUID
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BASE_URL}/api/domains/{pid}/issues",
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return json.dumps({"gated": data.get("gated", [])}, indent=2)
+
+
+@mcp.tool()
 async def list_beliefs(status: str = "", domain: str = "") -> str:
     """List beliefs in the knowledge base.
 
