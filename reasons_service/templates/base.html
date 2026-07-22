@@ -23,16 +23,16 @@
         <ul><li><a href="/" class="brand">Reasons Service</a></li></ul>
         <ul>
             <li><a href="/guide">Guide</a></li>
-            {% if not hub_mode %}<li><a href="/domains">Domains</a></li>{% endif %}
-            {% if not hub_mode %}
-            {% if not request.state.user %}
+            {%- if not hub_mode %}<li><a href="/domains">Domains</a></li>{% endif %}
+            {%- if not hub_mode %}
+            {%- if not request.state.user %}
             <li><a href="/login">Login</a></li>
-            {% endif %}
-            {% if request.state.user %}
+            {%- endif %}
+            {%- if request.state.user %}
             <li><small>{{ request.state.user.display_name or request.state.user.identity }}</small></li>
             <li><a href="/logout">Logout</a></li>
-            {% endif %}
-            {% endif %}
+            {%- endif %}
+            {%- endif %}
             <li>
                 <div class="theme-toggle" role="radiogroup" aria-label="Select theme">
                     <span role="radio" tabindex="0" data-theme-value="dark" aria-pressed="false">Dark</span>
@@ -46,7 +46,7 @@
         {% block content %}{% endblock %}
     </main>
     <footer class="container">
-        <small>Reasons Service v0.1.0{% if not llm_enabled %} (data-only mode){% endif %}</small>
+        <small>Reasons Service v{{ version }}{% if not llm_enabled %} (data-only mode){% endif %}</small>
     </footer>
     <script>
         (function() {

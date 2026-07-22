@@ -260,6 +260,7 @@ p, ul, ol, dl, pre, blockquote, table, details { margin-top: 1rem; }
 p:first-child, ul:first-child, ol:first-child { margin-top: 0; }
 
 li + li { margin-top: 0.25rem; }
+nav[aria-label] li + li { margin-top: 0; }
 
 hgroup {
   margin-bottom: 1.5rem;

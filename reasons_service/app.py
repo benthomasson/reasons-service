@@ -227,6 +227,8 @@ app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.globals["llm_enabled"] = settings.llm_enabled
 templates.env.globals["hub_mode"] = settings.hub_mode
+from reasons_service import __version__
+templates.env.globals["version"] = __version__
 
 
 # --- Web UI Routes ---
