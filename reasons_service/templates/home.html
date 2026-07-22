@@ -5,8 +5,35 @@
     <h1>Reasons Service</h1>
     <p>Domain knowledge bases powered by epistemic reasoning</p>
 </hgroup>
-<h2>Public Domains</h2>
+
+<h2>Connecting Claude Code</h2>
+<p>The quickest way to add the MCP server:</p>
+<pre><code>claude mcp add reasons-service --transport streamable-http {{ mcp_url }}</code></pre>
+<p>Then authenticate:</p>
+<pre><code>claude mcp login reasons-service</code></pre>
+
+<h2>Example Prompts</h2>
+<p>Once connected, try asking Claude:</p>
+<table>
+    <thead>
+        <tr><th>Prompt</th><th>What it does</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><code>List domains</code></td><td>Shows all available knowledge bases</td></tr>
+        <tr><td><code>List beliefs for <em>my-domain</em></code></td><td>Browse beliefs in a knowledge base</td></tr>
+        <tr><td><code>Find issues for <em>my-domain</em></code></td><td>Finds gated beliefs blocked by unless-list dependencies</td></tr>
+        <tr><td><code>Explain <em>belief-id</em> in <em>my-domain</em></code></td><td>Traces the justification chain for why a belief is IN or OUT</td></tr>
+        <tr><td><code>Deep search about security in <em>my-domain</em></code></td><td>IDF-ranked search across beliefs and source documents</td></tr>
+        <tr><td><code>Search for authentication in <em>my-domain</em></code></td><td>Full-text search across beliefs, entries, and sources</td></tr>
+        <tr><td><code>What would happen if we retracted <em>belief-id</em> in <em>my-domain</em>?</code></td><td>Simulates the retraction cascade without modifying data</td></tr>
+    </tbody>
+</table>
+
+<p>For more details, see the <a href="/guide">full guide</a> including Claude Desktop setup, self-hosting, and REST API examples.</p>
+
 {% if public_domains %}
+<hr>
+<h2>Public Domains</h2>
 <div class="card-grid">
     {% for e in public_domains %}
     <article>
@@ -30,8 +57,6 @@
     </article>
     {% endfor %}
 </div>
-{% else %}
-<p>No public domains available yet.</p>
 {% endif %}
 
 {% endblock %}

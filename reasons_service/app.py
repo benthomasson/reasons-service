@@ -257,6 +257,7 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
         })
     return templates.TemplateResponse(request, "home.html", {
         "public_domains": public_domains,
+        "mcp_url": settings.mcp_issuer_url,
     })
 
 
