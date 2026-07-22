@@ -98,7 +98,7 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
 
         access = secrets.token_urlsafe(32)
         refresh = secrets.token_urlsafe(32)
-        expires_at = int(time.time()) + 3600
+        expires_at = int(time.time()) + 86400
 
         self._access_tokens[access] = AccessToken(
             token=access,
@@ -119,7 +119,7 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
             access_token=access,
             refresh_token=refresh,
             token_type="Bearer",
-            expires_in=3600,
+            expires_in=86400,
         )
 
     async def load_access_token(self, token: str) -> AccessToken | None:
@@ -147,7 +147,7 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
 
         access = secrets.token_urlsafe(32)
         new_refresh = secrets.token_urlsafe(32)
-        expires_at = int(time.time()) + 3600
+        expires_at = int(time.time()) + 86400
 
         self._access_tokens[access] = AccessToken(
             token=access,
@@ -167,7 +167,7 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
             access_token=access,
             refresh_token=new_refresh,
             token_type="Bearer",
-            expires_in=3600,
+            expires_in=86400,
         )
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
