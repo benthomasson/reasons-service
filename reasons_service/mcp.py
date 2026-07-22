@@ -293,11 +293,11 @@ async def get_belief(node_id: str, domain: str) -> str:
 
 @mcp.tool()
 async def find_issues(domain: str) -> str:
-    """Find gated beliefs — beliefs that are OUT because one or more antecedents are OUT.
+    """Find gated beliefs — beliefs that are OUT because an IN blocker appears in their unless-list.
 
-    These represent blocked conclusions: things the knowledge base would believe
-    if the missing dependencies were satisfied. Useful for identifying what
-    needs to be fixed or investigated.
+    Each blocker is an IN belief that gates one or more conclusions via an
+    unless relationship. The gated beliefs would come back IN if the blocker
+    were retracted. Useful for identifying active obstacles in the knowledge base.
 
     Args:
         domain: Domain name or UUID
