@@ -138,7 +138,7 @@ async def _verify_google_id_token(token: str) -> str | None:
         return None
 
 
-def _verify_mcp_access_token(token: str) -> str | None:
+async def _verify_mcp_access_token(token: str) -> str | None:
     """Check if the token is a valid MCP access token. Returns email or None."""
     import time
     from reasons_service.mcp import _provider
@@ -146,10 +146,10 @@ def _verify_mcp_access_token(token: str) -> str | None:
     if not _provider:
         return None
 
-    access = _provider._access_tokens.get(token)
+    access = await _provider.load_access_token(token)
     if not access:
         return None
-    if access.expires_at <= time.time():
+    if access.expires_at and access.expires_at <= time.time():
         return None
     return access.subject
 
@@ -179,7 +179,7 @@ async def verify_auth(
 
     # 2. MCP access token (issued by our MCP OAuth provider)
     if credentials:
-        email = _verify_mcp_access_token(credentials.credentials)
+        email = await _verify_mcp_access_token(credentials.credentials)
         if email:
             email = email.strip().lower()
             result = await session.execute(select(User).where(User.email == email))

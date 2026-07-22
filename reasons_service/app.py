@@ -34,6 +34,16 @@ _mcp_http_app = mcp_server.streamable_http_app()
 async def lifespan(app):
     """Create SQLite tables on startup (no-op for PostgreSQL)."""
     init_db()
+    # Purge expired MCP access tokens
+    import time
+    from sqlalchemy import delete
+    from reasons_service.db.models import McpAccessToken
+    from reasons_service.db.connection import async_session
+    async with async_session() as session:
+        await session.execute(
+            delete(McpAccessToken).where(McpAccessToken.expires_at <= int(time.time()))
+        )
+        await session.commit()
     async with mcp_server._session_manager.run():
         yield
 

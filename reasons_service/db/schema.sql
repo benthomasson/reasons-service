@@ -159,6 +159,36 @@ CREATE TABLE IF NOT EXISTS rms_network_meta (
     PRIMARY KEY (key, domain_id)
 );
 
+-- MCP OAuth token persistence
+CREATE TABLE IF NOT EXISTS mcp_clients (
+    client_id TEXT PRIMARY KEY,
+    client_data JSONB NOT NULL,
+    is_open BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS mcp_access_tokens (
+    token TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    scopes JSONB DEFAULT '[]',
+    expires_at INT,
+    resource TEXT,
+    subject TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_mcp_access_tokens_client_subject
+    ON mcp_access_tokens(client_id, subject);
+
+CREATE TABLE IF NOT EXISTS mcp_refresh_tokens (
+    token TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    scopes JSONB DEFAULT '[]',
+    expires_at INT,
+    subject TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Source document chunks for FTS RAG
 CREATE TABLE IF NOT EXISTS source_chunks (
     id SERIAL PRIMARY KEY,

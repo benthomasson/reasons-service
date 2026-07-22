@@ -164,6 +164,39 @@ class Topic(Base):
     domain = relationship("Domain", back_populates="topics")
 
 
+class McpClient(Base):
+    __tablename__ = "mcp_clients"
+
+    client_id = Column(String, primary_key=True)
+    client_data = Column(JSON, nullable=False)
+    is_open = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class McpAccessToken(Base):
+    __tablename__ = "mcp_access_tokens"
+    __table_args__ = (Index("ix_mcp_access_tokens_client_subject", "client_id", "subject"),)
+
+    token = Column(String, primary_key=True)
+    client_id = Column(String, nullable=False)
+    scopes = Column(JSON, default=list)
+    expires_at = Column(Integer)
+    resource = Column(String)
+    subject = Column(String)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class McpRefreshToken(Base):
+    __tablename__ = "mcp_refresh_tokens"
+
+    token = Column(String, primary_key=True)
+    client_id = Column(String, nullable=False)
+    scopes = Column(JSON, default=list)
+    expires_at = Column(Integer)
+    subject = Column(String)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 if _has_pgvector:
 
     class Embedding(Base):
