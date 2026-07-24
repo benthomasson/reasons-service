@@ -4,10 +4,13 @@ PostgreSQL: delegates to reasons_lib.pg.PgApi for row-level operations.
 SQLite: delegates to reasons_lib.api functions with per-domain db files.
 """
 
+import logging
 from pathlib import Path
 from uuid import UUID
 
 from reasons_service.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _is_sqlite() -> bool:
@@ -329,6 +332,7 @@ def import_network(domain_id: UUID, network) -> dict:
     """
     node_count = len(network.nodes)
     nogood_count = len(network.nogoods)
+    logger.info("import_network: %d nodes, %d nogoods for domain %s", node_count, nogood_count, domain_id)
 
     if _is_sqlite():
         from reasons_lib.storage import Storage
@@ -336,9 +340,10 @@ def import_network(domain_id: UUID, network) -> dict:
         store = Storage(db)
         store.save(network)
         store.close()
+        logger.info("import_network: saved to SQLite %s", db)
     else:
         with _api(domain_id) as api:
-            for node in network.nodes.values():
+            for i, node in enumerate(network.nodes.values(), 1):
                 api.add_node(
                     node.id, node.text,
                     source=node.source or "",
@@ -346,10 +351,9 @@ def import_network(domain_id: UUID, network) -> dict:
                 if node.truth_value == "OUT":
                     api.retract_node(node.id)
 
-                # Add non-trivial justifications (SL with antecedents)
                 for j in node.justifications:
                     if j.type == "SL" and not j.antecedents and not j.outlist:
-                        continue  # skip bare SL created by add_node
+                        continue
                     api.add_justification(
                         node.id,
                         sl=",".join(j.antecedents) if j.type == "SL" else "",
@@ -357,9 +361,13 @@ def import_network(domain_id: UUID, network) -> dict:
                         unless=",".join(j.outlist) if j.outlist else "",
                         label=j.label or "",
                     )
+                if i % 500 == 0:
+                    logger.info("import_network: %d/%d nodes processed", i, node_count)
 
             for nogood in network.nogoods:
                 api.add_nogood(nogood.nodes)
+
+        logger.info("import_network: complete for domain %s", domain_id)
 
     return {"node_count": node_count, "nogood_count": nogood_count}
 

@@ -1,9 +1,12 @@
 """Domain CRUD API routes."""
 
 import asyncio
+import logging
 import tempfile
 from pathlib import Path
 from uuid import UUID
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -199,14 +202,18 @@ async def upsert_reasons(
 
     content = await file.read()
     try:
+        logger.info("import-reasons: loading file %s (%d bytes) for domain %s",
+                     file.filename, len(content), domain_id)
         network = _load_network_from_upload(content, file.filename or "")
+        total = len(network.nodes)
+        logger.info("import-reasons: parsed %d nodes from %s", total, file.filename)
 
         added = 0
         updated = 0
 
         def _do_upsert():
             nonlocal added, updated
-            for node in network.nodes.values():
+            for i, node in enumerate(network.nodes.values(), 1):
                 meta = getattr(node, "metadata", {}) or {}
                 try:
                     rms_api.add_node(
@@ -227,18 +234,24 @@ async def upsert_reasons(
                     rms_api.retract_node(domain_id, node.id)
                 else:
                     rms_api.assert_node(domain_id, node.id)
+                if i % 500 == 0:
+                    logger.info("import-reasons: %d/%d nodes processed (%d added, %d updated)",
+                                i, total, added, updated)
 
         await asyncio.to_thread(_do_upsert)
 
+        logger.info("import-reasons: complete — %d added, %d updated, %d total",
+                     added, updated, total)
         return {
             "domain_id": str(domain_id),
             "added": added,
             "updated": updated,
-            "total_in_file": len(network.nodes),
+            "total_in_file": total,
         }
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
+        logger.exception("import-reasons: failed for domain %s", domain_id)
         raise HTTPException(status_code=400, detail=f"Invalid file: {e}")
 
 
@@ -259,20 +272,26 @@ async def import_reasons(
         tmp.write(content)
 
     try:
+        logger.info("import-reasons: loading %s (%d bytes) for new domain '%s'",
+                     file.filename, len(content), name)
         from reasons_lib.storage import Storage
         store = Storage(str(tmp_path))
         network = store.load()
         store.close()
+        logger.info("import-reasons: parsed %d nodes from %s", len(network.nodes), file.filename)
 
         domain_obj = Domain(name=name, description=description)
         session.add(domain_obj)
         await session.commit()
         await session.refresh(domain_obj)
+        logger.info("import-reasons: created domain '%s' (%s)", name, domain_obj.id)
 
         result = await asyncio.to_thread(
             rms_api.import_network, domain_obj.id, network
         )
 
+        logger.info("import-reasons: complete — %d beliefs, %d nogoods imported into '%s'",
+                     result["node_count"], result["nogood_count"], name)
         return {
             "domain_id": str(domain_obj.id),
             "name": domain_obj.name,
@@ -282,6 +301,7 @@ async def import_reasons(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
+        logger.exception("import-reasons: failed for new domain '%s'", name)
         raise HTTPException(status_code=400, detail=f"Invalid reasons.db: {e}")
     finally:
         tmp_path.unlink(missing_ok=True)
