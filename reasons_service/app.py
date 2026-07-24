@@ -485,7 +485,9 @@ async def entry_report(
 
 def main():
     """Entry point for the reasons-service command."""
-    uvicorn.run("reasons_service.app:app", host="0.0.0.0", port=8000, reload=True)
+    import os
+    reload = os.getenv("REASONS_RELOAD", "true").lower() in ("true", "1", "yes")
+    uvicorn.run("reasons_service.app:app", host="0.0.0.0", port=8000, reload=reload)
 
 
 if __name__ == "__main__":
