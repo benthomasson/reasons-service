@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from reasons_service.chunking import chunk_markdown
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, get_sync_session
-from reasons_service.db.models import Entry, Source, SourceChunk, Topic, entry_sources
+from reasons_service.db.models import Entry, Source, SourceChunk, Summary, Topic, entry_sources, summary_sources
 from reasons_service.db.search import fts_clause
 from reasons_service.rms import api as rms_api
 
@@ -118,6 +118,54 @@ async def get_entry(domain_id: UUID, entry_id: str, session: AsyncSession = Depe
         "sources": [
             {"slug": s.slug, "url": s.url, "word_count": s.word_count}
             for s in entry.sources
+        ],
+    }
+
+
+@router.get("/summaries")
+async def list_summaries(
+    domain_id: UUID,
+    topic: str | None = None,
+    session: AsyncSession = Depends(get_session),
+):
+    q = select(Summary).options(selectinload(Summary.sources)).where(
+        Summary.domain_id == domain_id
+    )
+    if topic:
+        q = q.where(Summary.topic == topic)
+    result = await session.execute(q.order_by(Summary.created_at.desc()))
+    summaries = result.scalars().all()
+    return [
+        {
+            "id": s.id,
+            "topic": s.topic,
+            "title": s.title,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "source_slugs": [src.slug for src in s.sources],
+        }
+        for s in summaries
+    ]
+
+
+@router.get("/summaries/{summary_id}")
+async def get_summary(domain_id: UUID, summary_id: str, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(
+        select(Summary)
+        .options(selectinload(Summary.sources))
+        .where(Summary.domain_id == domain_id, Summary.id == summary_id)
+    )
+    summary = result.scalar_one_or_none()
+    if not summary:
+        return {"error": "Summary not found"}
+    return {
+        "id": summary.id,
+        "topic": summary.topic,
+        "title": summary.title,
+        "content": summary.content,
+        "created_at": summary.created_at.isoformat(),
+        "sources": [
+            {"slug": s.slug, "url": s.url, "word_count": s.word_count}
+            for s in summary.sources
         ],
     }
 
@@ -299,6 +347,18 @@ class EntriesImportRequest(BaseModel):
     entries: list[EntryImport]
 
 
+class SummaryImport(BaseModel):
+    id: str
+    topic: str
+    title: str | None = None
+    content: str
+    path: str | None = None
+
+
+class SummariesImportRequest(BaseModel):
+    summaries: list[SummaryImport]
+
+
 class ClaimImport(BaseModel):
     id: str
     text: str
@@ -398,6 +458,56 @@ async def import_entries(
                     entry_id=e.id,
                     entry_domain_id=domain_id,
                     source_id=source_map[e.topic],
+                )
+            )
+            linked += 1
+
+    await session.commit()
+    return {"imported": imported, "skipped": skipped, "linked": linked}
+
+
+@router.post("/import/summaries", dependencies=[Depends(verify_auth)])
+async def import_summaries(
+    domain_id: UUID,
+    data: SummariesImportRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Bulk import summaries from a file-based expert repo."""
+    imported = 0
+    skipped = 0
+    linked = 0
+
+    source_result = await session.execute(
+        select(Source.slug, Source.id).where(Source.domain_id == domain_id)
+    )
+    source_map = {row.slug: row.id for row in source_result.all()}
+
+    for s in data.summaries:
+        existing = await session.execute(
+            select(Summary.id).where(Summary.domain_id == domain_id, Summary.id == s.id)
+        )
+        if existing.scalar_one_or_none() is not None:
+            skipped += 1
+            continue
+
+        summary = Summary(
+            id=s.id,
+            domain_id=domain_id,
+            topic=s.topic,
+            title=s.title,
+            content=s.content,
+            metadata_={"imported_from": s.path} if s.path else None,
+        )
+        session.add(summary)
+        imported += 1
+
+        if s.topic in source_map:
+            await session.flush()
+            await session.execute(
+                insert(summary_sources).values(
+                    summary_id=s.id,
+                    summary_domain_id=domain_id,
+                    source_id=source_map[s.topic],
                 )
             )
             linked += 1

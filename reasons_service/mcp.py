@@ -430,3 +430,82 @@ async def get_entry(entry_id: str, domain: str) -> str:
         )
         resp.raise_for_status()
         return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
+async def list_sources(domain: str) -> str:
+    """List source documents in a domain.
+
+    Args:
+        domain: Domain name or UUID
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BASE_URL}/api/domains/{pid}/sources",
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
+async def get_source(slug: str, domain: str) -> str:
+    """Read a source document's metadata and content.
+
+    Args:
+        slug: The source slug
+        domain: Domain name or UUID
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BASE_URL}/api/domains/{pid}/sources/{slug}",
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
+async def list_summaries(topic: str = "", domain: str = "") -> str:
+    """List summaries in a domain.
+
+    Args:
+        topic: Filter by topic slug, or empty for all summaries
+        domain: Domain name or UUID
+    """
+    pid = await _resolve(domain)
+    params = {}
+    if topic:
+        params["topic"] = topic
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BASE_URL}/api/domains/{pid}/summaries",
+            params=params,
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
+async def get_summary(summary_id: str, domain: str) -> str:
+    """Read the full content of a summary.
+
+    Args:
+        summary_id: The summary ID
+        domain: Domain name or UUID
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BASE_URL}/api/domains/{pid}/summaries/{summary_id}",
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
