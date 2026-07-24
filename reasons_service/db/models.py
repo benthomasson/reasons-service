@@ -56,6 +56,7 @@ class Domain(Base):
 
     sources = relationship("Source", back_populates="domain", cascade="all, delete-orphan")
     entries = relationship("Entry", back_populates="domain", cascade="all, delete-orphan")
+    summaries = relationship("Summary", back_populates="domain", cascade="all, delete-orphan")
     nogoods = relationship("Nogood", back_populates="domain", cascade="all, delete-orphan")
     assessments = relationship("Assessment", back_populates="domain", cascade="all, delete-orphan")
     topics = relationship("Topic", back_populates="domain", cascade="all, delete-orphan")
@@ -90,6 +91,7 @@ class Source(Base):
 
     domain = relationship("Domain", back_populates="sources")
     entries = relationship("Entry", secondary=entry_sources, back_populates="sources")
+    summaries = relationship("Summary", secondary="summary_sources", back_populates="sources")
 
 
 class Entry(Base):
@@ -106,6 +108,37 @@ class Entry(Base):
 
     domain = relationship("Domain", back_populates="entries")
     sources = relationship("Source", secondary=entry_sources, back_populates="entries")
+
+
+summary_sources = Table(
+    "summary_sources",
+    Base.metadata,
+    Column("summary_id", String, nullable=False),
+    Column("summary_domain_id", Uuid(as_uuid=True), nullable=False),
+    Column("source_id", Uuid(as_uuid=True), ForeignKey("sources.id", ondelete="CASCADE"), nullable=False),
+    ForeignKeyConstraint(
+        ["summary_id", "summary_domain_id"],
+        ["summaries.id", "summaries.domain_id"],
+        ondelete="CASCADE",
+    ),
+    UniqueConstraint("summary_id", "summary_domain_id", "source_id"),
+)
+
+
+class Summary(Base):
+    __tablename__ = "summaries"
+
+    id = Column(String, primary_key=True)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), primary_key=True)
+    topic = Column(String, nullable=False)
+    title = Column(String)
+    content = Column(Text, nullable=False)
+    source_id = Column(Uuid(as_uuid=True), ForeignKey("sources.id"))
+    metadata_ = Column("metadata", JSON)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    domain = relationship("Domain", back_populates="summaries")
+    sources = relationship("Source", secondary=summary_sources, back_populates="summaries")
 
 
 class Nogood(Base):

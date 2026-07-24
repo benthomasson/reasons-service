@@ -20,7 +20,7 @@ from reasons_service.auth import router as auth_router, security, verify_auth, v
 from fastapi.security import HTTPAuthorizationCredentials
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
-from reasons_service.db.models import Assessment, Entry, Domain, Source, entry_sources
+from reasons_service.db.models import Assessment, Entry, Domain, Source, Summary, entry_sources
 from reasons_service.rbac import UserInfo
 from reasons_service.mcp import mcp as mcp_server
 from reasons_service.rms import api as rms_api
@@ -278,6 +278,9 @@ if not settings.hub_mode:
             entry_count = await session.scalar(
                 select(func.count()).select_from(Entry).where(Entry.domain_id == d.id)
             )
+            summary_count = await session.scalar(
+                select(func.count()).select_from(Summary).where(Summary.domain_id == d.id)
+            )
             belief_count = await asyncio.to_thread(rms_api.count_beliefs, d.id, "IN")
             domains_with_stats.append({
                 "id": d.id,
@@ -285,6 +288,7 @@ if not settings.hub_mode:
                 "description": d.description,
                 "source_count": source_count or 0,
                 "entry_count": entry_count or 0,
+                "summary_count": summary_count or 0,
                 "belief_count": belief_count or 0,
             })
 
@@ -329,6 +333,9 @@ async def domain_detail(
         ) or 0,
         "entries": await session.scalar(
             select(func.count()).select_from(Entry).where(Entry.domain_id == domain_id)
+        ) or 0,
+        "summaries": await session.scalar(
+            select(func.count()).select_from(Summary).where(Summary.domain_id == domain_id)
         ) or 0,
         "beliefs": await asyncio.to_thread(rms_api.count_beliefs, domain_id, "IN"),
         "nogoods": await asyncio.to_thread(rms_api.count_nogoods, domain_id),

@@ -52,6 +52,26 @@ CREATE TABLE IF NOT EXISTS entry_sources (
     UNIQUE(entry_id, entry_domain_id, source_id)
 );
 
+CREATE TABLE IF NOT EXISTS summaries (
+    id TEXT NOT NULL,
+    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    topic TEXT NOT NULL,
+    title TEXT,
+    content TEXT NOT NULL,
+    source_id UUID REFERENCES sources(id),
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (id, domain_id)
+);
+
+CREATE TABLE IF NOT EXISTS summary_sources (
+    summary_id TEXT NOT NULL,
+    summary_domain_id UUID NOT NULL,
+    source_id UUID NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+    FOREIGN KEY (summary_id, summary_domain_id) REFERENCES summaries(id, domain_id) ON DELETE CASCADE,
+    UNIQUE(summary_id, summary_domain_id, source_id)
+);
+
 CREATE TABLE IF NOT EXISTS claims (
     id TEXT NOT NULL,
     domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
@@ -229,3 +249,7 @@ CREATE INDEX IF NOT EXISTS idx_pipeline_domain ON pipeline_runs(domain_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_domain ON embeddings(domain_id);
 CREATE INDEX IF NOT EXISTS idx_entry_sources_entry ON entry_sources(entry_id, entry_domain_id);
 CREATE INDEX IF NOT EXISTS idx_entry_sources_source ON entry_sources(source_id);
+CREATE INDEX IF NOT EXISTS idx_summaries_domain ON summaries(domain_id);
+CREATE INDEX IF NOT EXISTS idx_summaries_topic ON summaries(domain_id, topic);
+CREATE INDEX IF NOT EXISTS idx_summary_sources_summary ON summary_sources(summary_id, summary_domain_id);
+CREATE INDEX IF NOT EXISTS idx_summary_sources_source ON summary_sources(source_id);
