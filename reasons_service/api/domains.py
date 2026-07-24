@@ -205,48 +205,16 @@ async def upsert_reasons(
         logger.info("import-reasons: loading file %s (%d bytes) for domain %s",
                      file.filename, len(content), domain_id)
         network = _load_network_from_upload(content, file.filename or "")
-        total = len(network.nodes)
-        logger.info("import-reasons: parsed %d nodes from %s", total, file.filename)
 
-        added = 0
-        updated = 0
+        result = await asyncio.to_thread(
+            rms_api.upsert_network, domain_id, network
+        )
 
-        def _do_upsert():
-            nonlocal added, updated
-            for i, node in enumerate(network.nodes.values(), 1):
-                meta = getattr(node, "metadata", {}) or {}
-                try:
-                    rms_api.add_node(
-                        domain_id, node.id, node.text,
-                        source=node.source or "",
-                        example=meta.get("example"),
-                    )
-                    added += 1
-                except ValueError:
-                    rms_api.update_node(
-                        domain_id, node.id,
-                        text=node.text,
-                        source=node.source or "",
-                        example=meta.get("example"),
-                    )
-                    updated += 1
-                if node.truth_value == "OUT":
-                    rms_api.retract_node(domain_id, node.id)
-                else:
-                    rms_api.assert_node(domain_id, node.id)
-                if i % 500 == 0:
-                    logger.info("import-reasons: %d/%d nodes processed (%d added, %d updated)",
-                                i, total, added, updated)
-
-        await asyncio.to_thread(_do_upsert)
-
-        logger.info("import-reasons: complete — %d added, %d updated, %d total",
-                     added, updated, total)
         return {
             "domain_id": str(domain_id),
-            "added": added,
-            "updated": updated,
-            "total_in_file": total,
+            "added": result["added"],
+            "updated": result["updated"],
+            "total_in_file": result["total"],
         }
     except Exception as e:
         if isinstance(e, HTTPException):

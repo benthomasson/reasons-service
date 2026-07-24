@@ -322,6 +322,75 @@ def what_if_assert(domain_id: UUID, node_id: str) -> dict:
         return api.what_if_assert(node_id)
 
 
+def upsert_network(domain_id: UUID, network) -> dict:
+    """Upsert nodes from a network into an existing domain.
+
+    SQLite: loads once, merges in memory, saves once.
+    PostgreSQL: uses per-node add/update via PgApi.
+
+    Returns dict with added, updated, and total counts.
+    """
+    total = len(network.nodes)
+    added = 0
+    updated = 0
+    logger.info("upsert_network: %d nodes for domain %s", total, domain_id)
+
+    if _is_sqlite():
+        from reasons_lib.storage import Storage
+        db = _db_path(domain_id)
+        store = Storage(db)
+        existing = store.load()
+
+        for i, node in enumerate(network.nodes.values(), 1):
+            meta = getattr(node, "metadata", {}) or {}
+            if node.id in existing.nodes:
+                ex = existing.nodes[node.id]
+                ex.text = node.text
+                ex.source = node.source or ""
+                if meta.get("example"):
+                    if ex.metadata is None:
+                        ex.metadata = {}
+                    ex.metadata["example"] = meta["example"]
+                if node.truth_value != ex.truth_value:
+                    if node.truth_value == "OUT":
+                        existing.retract(node.id)
+                    else:
+                        existing.assert_node(node.id)
+                updated += 1
+            else:
+                existing.add_node(node.id, node.text, source=node.source or "")
+                if meta.get("example"):
+                    existing.nodes[node.id].metadata["example"] = meta["example"]
+                if node.truth_value == "OUT":
+                    existing.retract(node.id)
+                added += 1
+            if i % 500 == 0:
+                logger.info("upsert_network: %d/%d nodes merged (%d added, %d updated)",
+                            i, total, added, updated)
+
+        store.save(existing)
+        store.close()
+    else:
+        with _api(domain_id) as api:
+            for i, node in enumerate(network.nodes.values(), 1):
+                meta = getattr(node, "metadata", {}) or {}
+                try:
+                    api.add_node(node.id, node.text, source=node.source or "")
+                    added += 1
+                except ValueError:
+                    updated += 1
+                if node.truth_value == "OUT":
+                    api.retract_node(node.id)
+                else:
+                    api.assert_node(node.id)
+                if i % 500 == 0:
+                    logger.info("upsert_network: %d/%d nodes processed (%d added, %d updated)",
+                                i, total, added, updated)
+
+    logger.info("upsert_network: complete — %d added, %d updated, %d total", added, updated, total)
+    return {"added": added, "updated": updated, "total": total}
+
+
 def import_network(domain_id: UUID, network) -> dict:
     """Import a reasons_lib Network into a domain.
 
