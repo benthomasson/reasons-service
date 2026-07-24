@@ -1,6 +1,6 @@
 [project]
 name = "reasons-service"
-version = "0.6.4"
+version = "0.6.5"
 description = "Hosted Reasons knowledge base service — reasonsforge.com"
 readme = "README.md"
 requires-python = ">=3.12"
