@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Import entries and beliefs from a file-based expert repo into reasons-service.
+"""Import sources, entries, and summaries from a file-based expert repo into reasons-service.
+
+For beliefs, use scripts/upload_reasons_db.sh which does bulk upsert (much faster).
 
 Usage:
     python scripts/import_expert.py ~/git/aap-expert --name aap-expert --domain "Ansible Automation Platform 2.6"
@@ -17,60 +19,6 @@ import httpx
 
 DEFAULT_BASE_URL = "http://localhost:8000"
 
-
-def parse_beliefs(beliefs_path: Path) -> list[dict]:
-    """Parse beliefs.md into a list of claim dicts."""
-    text = beliefs_path.read_text()
-    claims = []
-
-    # Pattern: ### claim-id [STATUS]
-    # Claim text (one or more lines until next marker)
-    # - Source: path
-    # - Source hash: hash
-    # - Date: date
-    pattern = re.compile(
-        r"^### (\S+) \[(IN|OUT|STALE)\][^\n]*\n"
-        r"(.*?)"
-        r"(?=^### |\Z)",
-        re.MULTILINE | re.DOTALL,
-    )
-
-    for match in pattern.finditer(text):
-        claim_id = match.group(1)
-        status = match.group(2)
-        body = match.group(3).strip()
-
-        # Extract claim text (first non-empty line(s) before metadata)
-        lines = body.split("\n")
-        claim_text_lines = []
-        source = None
-        source_hash = None
-        date = None
-
-        for line in lines:
-            line_stripped = line.strip()
-            if line_stripped.startswith("- Source:") and "hash" not in line_stripped.lower():
-                source = line_stripped.replace("- Source:", "").strip()
-            elif line_stripped.startswith("- Source hash:"):
-                source_hash = line_stripped.replace("- Source hash:", "").strip()
-            elif line_stripped.startswith("- Date:"):
-                date = line_stripped.replace("- Date:", "").strip()
-            elif line_stripped and not line_stripped.startswith("- "):
-                claim_text_lines.append(line_stripped)
-
-        claim_text = " ".join(claim_text_lines)
-        if not claim_text:
-            continue
-
-        claims.append({
-            "id": claim_id,
-            "text": claim_text,
-            "status": status,
-            "source": source,
-            "source_hash": source_hash,
-        })
-
-    return claims
 
 
 def find_sources(sources_dir: Path) -> list[dict]:
@@ -134,13 +82,39 @@ def find_entries(entries_dir: Path) -> list[dict]:
     return entries
 
 
+def find_summaries(summaries_dir: Path) -> list[dict]:
+    """Find all summary markdown files and parse them."""
+    summaries = []
+
+    for md_file in sorted(summaries_dir.rglob("*.md")):
+        content = md_file.read_text()
+        rel_path = md_file.relative_to(summaries_dir)
+
+        title_match = re.search(r"^#+ (.+)$", content, re.MULTILINE)
+        title = title_match.group(1) if title_match else md_file.stem.replace("-", " ").title()
+
+        topic = md_file.stem
+
+        h = hashlib.sha256(f"{topic}:{content[:200]}".encode()).hexdigest()[:12]
+
+        summaries.append({
+            "id": h,
+            "topic": topic,
+            "title": title,
+            "content": content,
+            "path": str(rel_path),
+        })
+
+    return summaries
+
+
 def main():
     parser = argparse.ArgumentParser(description="Import expert repo into a reasons-service domain")
     parser.add_argument("repo_path", type=Path, help="Path to expert repo (e.g., ~/git/aap-expert)")
     parser.add_argument("--name", required=True, help="Domain name")
     parser.add_argument("--domain", required=True, help="Domain subject area")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Service base URL")
-    parser.add_argument("--api-key", default=os.environ.get("EXPERT_SERVICE_API_KEY", ""), help="API key for authentication")
+    parser.add_argument("--api-key", default=os.environ.get("REASONS_SERVICE_API_KEY", os.environ.get("EXPERT_SERVICE_API_KEY", "")), help="API key for authentication")
     parser.add_argument("--domain-id", help="Use existing domain ID instead of creating new")
     args = parser.parse_args()
 
@@ -210,37 +184,24 @@ def main():
     else:
         print(f"No entries directory at {entries_dir}")
 
-    # 4. Import beliefs (batched to avoid timeouts)
-    beliefs_path = repo / "beliefs.md"
-    if beliefs_path.is_file():
-        claims = parse_beliefs(beliefs_path)
-        print(f"\nImporting {len(claims)} beliefs...")
+    # 4. Import summaries
+    summaries_dir = repo / "summaries"
+    if summaries_dir.is_dir():
+        summaries = find_summaries(summaries_dir)
+        print(f"\nImporting {len(summaries)} summaries...")
 
-        batch_size = 200
-        total_imported = 0
-        total_skipped = 0
-        for i in range(0, len(claims), batch_size):
-            batch = claims[i:i + batch_size]
-            resp = client.post(
-                f"/api/domains/{domain_id}/import/beliefs",
-                json={"claims": batch},
-                timeout=300,
-            )
-            if resp.status_code == 200:
-                result = resp.json()
-                total_imported += result.get('imported', 0)
-                total_skipped += result.get('skipped', 0)
-                print(f"  Batch {i // batch_size + 1}: {result.get('imported', 0)} imported, {result.get('skipped', 0)} skipped")
-            else:
-                print(f"  Batch {i // batch_size + 1} error: {resp.status_code} {resp.text}")
-        print(f"  Total: {total_imported} imported, {total_skipped} skipped")
+        resp = client.post(
+            f"/api/domains/{domain_id}/import/summaries",
+            json={"summaries": summaries},
+            timeout=60,
+        )
+        if resp.status_code == 200:
+            result = resp.json()
+            print(f"  Imported: {result.get('imported', 0)}, Skipped: {result.get('skipped', 0)}, Linked: {result.get('linked', 0)}")
+        else:
+            print(f"  Error: {resp.status_code} {resp.text}")
     else:
-        print(f"No beliefs.md at {beliefs_path}")
-
-    # 5. Import nogoods
-    nogoods_path = repo / "nogoods.md"
-    if nogoods_path.is_file():
-        print(f"\nNogoods file found at {nogoods_path} (import not yet implemented)")
+        print(f"No summaries directory at {summaries_dir}")
 
     # Summary
     resp = client.get(f"/api/domains/{domain_id}")
@@ -249,6 +210,7 @@ def main():
         print(f"\nDomain: {p['name']}")
         print(f"  Sources: {p['source_count']}")
         print(f"  Entries: {p['entry_count']}")
+        print(f"  Summaries: {p.get('summary_count', 'N/A')}")
         print(f"  Beliefs: {p['belief_count']}")
 
 
