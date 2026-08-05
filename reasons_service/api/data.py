@@ -5,7 +5,7 @@ from uuid import UUID
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from reasons_service.auth import verify_auth, verify_auth_or_public
 from reasons_service.rbac import Action, UserInfo, require_action
 from pydantic import BaseModel
@@ -809,7 +809,11 @@ async def propose_belief(
 ):
     """Create a belief change proposal."""
     if data.proposal_type not in ("add", "retract", "nogood", "modify"):
-        return {"error": f"Invalid proposal_type: {data.proposal_type}"}
+        raise HTTPException(status_code=400, detail=f"Invalid proposal_type: {data.proposal_type}")
+    if data.proposal_type == "add" and not data.proposed_text:
+        raise HTTPException(status_code=400, detail="proposed_text is required for 'add' proposals")
+    if data.proposal_type in ("retract", "modify") and not data.target_node_id:
+        raise HTTPException(status_code=400, detail="target_node_id is required for 'retract'/'modify' proposals")
 
     user = request.state.user
     proposal = Proposal(
@@ -873,16 +877,16 @@ async def review_proposal(
 ):
     """Accept or reject a proposal (reviewer role only)."""
     if data.status not in ("approved", "rejected"):
-        return {"error": f"Invalid status: {data.status}. Must be 'approved' or 'rejected'."}
+        raise HTTPException(status_code=400, detail=f"Invalid status: {data.status}. Must be 'approved' or 'rejected'.")
 
     result = await session.execute(
         select(Proposal).where(Proposal.id == proposal_id, Proposal.domain_id == domain_id)
     )
     proposal = result.scalar_one_or_none()
     if not proposal:
-        return {"error": "Proposal not found"}
+        raise HTTPException(status_code=404, detail="Proposal not found")
     if proposal.status != "pending":
-        return {"error": f"Proposal already {proposal.status}"}
+        raise HTTPException(status_code=409, detail=f"Proposal already {proposal.status}")
 
     user = request.state.user
     proposal.status = data.status
