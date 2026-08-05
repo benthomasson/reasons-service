@@ -814,6 +814,8 @@ async def propose_belief(
         raise HTTPException(status_code=400, detail="proposed_text is required for 'add' proposals")
     if data.proposal_type in ("retract", "modify") and not data.target_node_id:
         raise HTTPException(status_code=400, detail="target_node_id is required for 'retract'/'modify' proposals")
+    if data.proposal_type == "modify" and not data.proposed_text:
+        raise HTTPException(status_code=400, detail="proposed_text is required for 'modify' proposals")
 
     user = request.state.user
     proposal = Proposal(

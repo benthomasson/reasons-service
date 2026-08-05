@@ -34,7 +34,7 @@ class UserInfo:
 
 ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
     Role.REVIEWER: frozenset({
-        Action.READ, Action.PROPOSE_BELIEFS, Action.REVIEW_PROPOSALS,
+        Action.READ, Action.CHAT, Action.PROPOSE_BELIEFS, Action.REVIEW_PROPOSALS,
     }),
     Role.EDITOR: frozenset({
         Action.READ, Action.CHAT, Action.EDIT_BELIEFS, Action.MANAGE_SOURCES, Action.PROPOSE_BELIEFS,
