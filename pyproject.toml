@@ -25,7 +25,7 @@ dependencies = [
     "itsdangerous>=2.1",
     "aiosqlite>=0.20",
     "alembic>=1.13",
-    "mcp[cli]>=1.0",
+    "mcp[cli]>=1.0,<2",
 ]
 
 [project.optional-dependencies]
