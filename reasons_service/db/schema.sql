@@ -106,6 +106,22 @@ CREATE TABLE IF NOT EXISTS assessments (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS proposals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    proposal_type TEXT NOT NULL CHECK (proposal_type IN ('add', 'retract', 'nogood', 'modify')),
+    target_node_id TEXT,
+    proposed_text TEXT,
+    rationale TEXT,
+    proposed_by TEXT NOT NULL,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    reviewed_by TEXT,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_proposals_domain ON proposals(domain_id);
+CREATE INDEX IF NOT EXISTS idx_proposals_status ON proposals(domain_id, status);
+
 CREATE TABLE IF NOT EXISTS pipeline_runs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,

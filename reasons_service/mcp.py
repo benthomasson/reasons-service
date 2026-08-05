@@ -492,6 +492,86 @@ async def list_summaries(topic: str = "", domain: str = "") -> str:
         return json.dumps(resp.json(), indent=2)
 
 
+# --- Tier 4: Proposals ---
+
+
+@mcp.tool()
+async def propose_belief(text: str, domain: str, rationale: str = "") -> str:
+    """Propose adding a new belief to the knowledge base.
+
+    The proposal is staged for review — it does not modify beliefs directly.
+
+    Args:
+        text: The belief text to propose
+        domain: Domain name or UUID
+        rationale: Why this belief should be added
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{BASE_URL}/api/domains/{pid}/beliefs/propose",
+            json={
+                "proposal_type": "add",
+                "proposed_text": text,
+                "rationale": rationale or None,
+            },
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
+async def propose_retraction(node_id: str, domain: str, rationale: str = "") -> str:
+    """Propose retracting an existing belief.
+
+    The proposal is staged for review — it does not modify beliefs directly.
+
+    Args:
+        node_id: The belief ID to propose retracting
+        domain: Domain name or UUID
+        rationale: Why this belief should be retracted
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{BASE_URL}/api/domains/{pid}/beliefs/propose",
+            json={
+                "proposal_type": "retract",
+                "target_node_id": node_id,
+                "rationale": rationale or None,
+            },
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
+async def list_proposals(domain: str, status: str = "pending") -> str:
+    """List belief change proposals.
+
+    Args:
+        domain: Domain name or UUID
+        status: Filter by status — "pending", "approved", "rejected", or empty for all
+    """
+    pid = await _resolve(domain)
+    params = {}
+    if status:
+        params["status"] = status
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BASE_URL}/api/domains/{pid}/beliefs/proposed",
+            params=params,
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
 @mcp.tool()
 async def get_summary(summary_id: str, domain: str) -> str:
     """Read the full content of a summary.

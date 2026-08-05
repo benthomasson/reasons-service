@@ -3,7 +3,9 @@
 import asyncio
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, Query, Request
 from reasons_service.auth import verify_auth, verify_auth_or_public
 from reasons_service.rbac import Action, UserInfo, require_action
 from pydantic import BaseModel
@@ -14,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from reasons_service.chunking import chunk_markdown
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, get_sync_session
-from reasons_service.db.models import Entry, Source, SourceChunk, Summary, Topic, entry_sources, summary_sources
+from reasons_service.db.models import Entry, Proposal, Source, SourceChunk, Summary, Topic, entry_sources, summary_sources
 from reasons_service.db.search import fts_clause
 from reasons_service.rms import api as rms_api
 
@@ -779,6 +781,120 @@ async def import_topics(
 
     await session.commit()
     return {"imported": imported, "updated": updated}
+
+
+# --- Proposal endpoints ---
+
+
+class ProposalCreate(BaseModel):
+    proposal_type: str
+    target_node_id: str | None = None
+    proposed_text: str | None = None
+    rationale: str | None = None
+
+
+class ProposalReview(BaseModel):
+    status: str
+
+
+@router.post(
+    "/beliefs/propose",
+    dependencies=[Depends(verify_auth), Depends(require_action(Action.PROPOSE_BELIEFS))],
+)
+async def propose_belief(
+    domain_id: UUID,
+    data: ProposalCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """Create a belief change proposal."""
+    if data.proposal_type not in ("add", "retract", "nogood", "modify"):
+        return {"error": f"Invalid proposal_type: {data.proposal_type}"}
+
+    user = request.state.user
+    proposal = Proposal(
+        domain_id=domain_id,
+        proposal_type=data.proposal_type,
+        target_node_id=data.target_node_id,
+        proposed_text=data.proposed_text,
+        rationale=data.rationale,
+        proposed_by=user.identity,
+    )
+    session.add(proposal)
+    await session.commit()
+    await session.refresh(proposal)
+    return {
+        "id": str(proposal.id),
+        "proposal_type": proposal.proposal_type,
+        "status": proposal.status,
+        "proposed_by": proposal.proposed_by,
+        "created_at": proposal.created_at.isoformat(),
+    }
+
+
+@router.get("/beliefs/proposed")
+async def list_proposals(
+    domain_id: UUID,
+    status: str | None = "pending",
+    session: AsyncSession = Depends(get_session),
+):
+    """List belief change proposals."""
+    q = select(Proposal).where(Proposal.domain_id == domain_id)
+    if status:
+        q = q.where(Proposal.status == status)
+    result = await session.execute(q.order_by(Proposal.created_at.desc()))
+    return [
+        {
+            "id": str(p.id),
+            "proposal_type": p.proposal_type,
+            "target_node_id": p.target_node_id,
+            "proposed_text": p.proposed_text,
+            "rationale": p.rationale,
+            "proposed_by": p.proposed_by,
+            "status": p.status,
+            "reviewed_by": p.reviewed_by,
+            "reviewed_at": p.reviewed_at.isoformat() if p.reviewed_at else None,
+            "created_at": p.created_at.isoformat(),
+        }
+        for p in result.scalars().all()
+    ]
+
+
+@router.put(
+    "/beliefs/proposed/{proposal_id}",
+    dependencies=[Depends(verify_auth), Depends(require_action(Action.REVIEW_PROPOSALS))],
+)
+async def review_proposal(
+    domain_id: UUID,
+    proposal_id: UUID,
+    data: ProposalReview,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """Accept or reject a proposal (reviewer role only)."""
+    if data.status not in ("approved", "rejected"):
+        return {"error": f"Invalid status: {data.status}. Must be 'approved' or 'rejected'."}
+
+    result = await session.execute(
+        select(Proposal).where(Proposal.id == proposal_id, Proposal.domain_id == domain_id)
+    )
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        return {"error": "Proposal not found"}
+    if proposal.status != "pending":
+        return {"error": f"Proposal already {proposal.status}"}
+
+    user = request.state.user
+    proposal.status = data.status
+    proposal.reviewed_by = user.identity
+    proposal.reviewed_at = datetime.now(timezone.utc)
+    await session.commit()
+    return {
+        "id": str(proposal.id),
+        "status": proposal.status,
+        "reviewed_by": proposal.reviewed_by,
+        "reviewed_at": proposal.reviewed_at.isoformat(),
+    }
 
 
 # --- Access tag management ---

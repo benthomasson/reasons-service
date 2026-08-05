@@ -60,6 +60,7 @@ class Domain(Base):
     nogoods = relationship("Nogood", back_populates="domain", cascade="all, delete-orphan")
     assessments = relationship("Assessment", back_populates="domain", cascade="all, delete-orphan")
     topics = relationship("Topic", back_populates="domain", cascade="all, delete-orphan")
+    proposals = relationship("Proposal", back_populates="domain", cascade="all, delete-orphan")
 
 
 entry_sources = Table(
@@ -167,6 +168,24 @@ class Assessment(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     domain = relationship("Domain", back_populates="assessments")
+
+
+class Proposal(Base):
+    __tablename__ = "proposals"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
+    proposal_type = Column(String, nullable=False)
+    target_node_id = Column(String)
+    proposed_text = Column(Text)
+    rationale = Column(Text)
+    proposed_by = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    reviewed_by = Column(String)
+    reviewed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    domain = relationship("Domain", back_populates="proposals")
 
 
 class SourceChunk(Base):

@@ -12,11 +12,14 @@ class Action(StrEnum):
     EDIT_BELIEFS = "edit_beliefs"
     MANAGE_SOURCES = "manage_sources"
     MANAGE_DOMAINS = "manage_domains"
+    PROPOSE_BELIEFS = "propose_beliefs"
+    REVIEW_PROPOSALS = "review_proposals"
     ADMIN = "admin"
 
 
 class Role(StrEnum):
     ADMIN = "admin"
+    REVIEWER = "reviewer"
     EDITOR = "editor"
     READER = "reader"
 
@@ -30,11 +33,14 @@ class UserInfo:
 
 
 ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
+    Role.REVIEWER: frozenset({
+        Action.READ, Action.PROPOSE_BELIEFS, Action.REVIEW_PROPOSALS,
+    }),
     Role.EDITOR: frozenset({
-        Action.READ, Action.CHAT, Action.EDIT_BELIEFS, Action.MANAGE_SOURCES,
+        Action.READ, Action.CHAT, Action.EDIT_BELIEFS, Action.MANAGE_SOURCES, Action.PROPOSE_BELIEFS,
     }),
     Role.READER: frozenset({
-        Action.READ, Action.CHAT,
+        Action.READ, Action.CHAT, Action.PROPOSE_BELIEFS,
     }),
 }
 
