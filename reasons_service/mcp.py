@@ -629,7 +629,7 @@ async def reject_proposal(proposal_id: str, domain: str, reason: str = "") -> st
     async with httpx.AsyncClient() as client:
         resp = await client.put(
             f"{BASE_URL}/api/domains/{pid}/beliefs/proposed/{proposal_id}",
-            json={"status": "rejected"},
+            json={"status": "rejected", "review_notes": reason or None},
             headers=_headers(),
             timeout=TIMEOUT,
         )

@@ -181,6 +181,7 @@ class Proposal(Base):
     rationale = Column(Text)
     proposed_by = Column(String, nullable=False)
     status = Column(String, nullable=False, default="pending")
+    review_notes = Column(Text)
     reviewed_by = Column(String)
     reviewed_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

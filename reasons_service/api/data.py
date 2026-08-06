@@ -211,6 +211,7 @@ class ProposalCreate(BaseModel):
 
 class ProposalReview(BaseModel):
     status: str
+    review_notes: str | None = None
 
 
 @router.post(
@@ -274,6 +275,7 @@ async def list_proposals(
             "rationale": p.rationale,
             "proposed_by": p.proposed_by,
             "status": p.status,
+            "review_notes": p.review_notes,
             "reviewed_by": p.reviewed_by,
             "reviewed_at": p.reviewed_at.isoformat() if p.reviewed_at else None,
             "created_at": p.created_at.isoformat(),
@@ -308,12 +310,14 @@ async def review_proposal(
 
     user = request.state.user
     proposal.status = data.status
+    proposal.review_notes = data.review_notes
     proposal.reviewed_by = user.identity
     proposal.reviewed_at = datetime.now(timezone.utc)
     await session.commit()
     return {
         "id": str(proposal.id),
         "status": proposal.status,
+        "review_notes": proposal.review_notes,
         "reviewed_by": proposal.reviewed_by,
         "reviewed_at": proposal.reviewed_at.isoformat(),
     }

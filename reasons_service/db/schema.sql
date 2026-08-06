@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS proposals (
     rationale TEXT,
     proposed_by TEXT NOT NULL,
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    review_notes TEXT,
     reviewed_by TEXT,
     reviewed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now()
