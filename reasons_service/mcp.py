@@ -573,6 +573,71 @@ async def list_proposals(domain: str, status: str = "pending") -> str:
 
 
 @mcp.tool()
+async def get_proposal(proposal_id: str, domain: str) -> str:
+    """Get full details of a specific proposal.
+
+    Args:
+        proposal_id: The proposal UUID
+        domain: Domain name or UUID
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{BASE_URL}/api/domains/{pid}/beliefs/proposed",
+            params={"status": ""},
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        proposals = resp.json()
+        for p in proposals:
+            if p["id"] == proposal_id:
+                return json.dumps(p, indent=2)
+        return json.dumps({"error": "Proposal not found", "id": proposal_id})
+
+
+@mcp.tool()
+async def accept_proposal(proposal_id: str, domain: str) -> str:
+    """Accept a pending proposal. Requires reviewer or admin role.
+
+    Args:
+        proposal_id: The proposal UUID to accept
+        domain: Domain name or UUID
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(
+            f"{BASE_URL}/api/domains/{pid}/beliefs/proposed/{proposal_id}",
+            json={"status": "approved"},
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
+async def reject_proposal(proposal_id: str, domain: str, reason: str = "") -> str:
+    """Reject a pending proposal. Requires reviewer or admin role.
+
+    Args:
+        proposal_id: The proposal UUID to reject
+        domain: Domain name or UUID
+        reason: Why the proposal is being rejected
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.put(
+            f"{BASE_URL}/api/domains/{pid}/beliefs/proposed/{proposal_id}",
+            json={"status": "rejected"},
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
 async def get_summary(summary_id: str, domain: str) -> str:
     """Read the full content of a summary.
 
