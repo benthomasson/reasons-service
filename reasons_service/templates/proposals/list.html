@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Proposals — {{ domain.name }} — Reasons Service{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>Proposals</h1>
+    <p><a href="/domains/{{ domain.id }}">{{ domain.name }}</a></p>
+</hgroup>
+
+<nav>
+    <ul>
+        <li><a href="?status=pending" {% if status_filter == 'pending' %}aria-current="page"{% endif %}>Pending ({{ counts.pending }})</a></li>
+        <li><a href="?status=approved" {% if status_filter == 'approved' %}aria-current="page"{% endif %}>Approved ({{ counts.approved }})</a></li>
+        <li><a href="?status=rejected" {% if status_filter == 'rejected' %}aria-current="page"{% endif %}>Rejected ({{ counts.rejected }})</a></li>
+        <li><a href="?status=" {% if not status_filter %}aria-current="page"{% endif %}>All ({{ counts.total }})</a></li>
+    </ul>
+</nav>
+
+{% if proposals %}
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Type</th>
+                <th>Text</th>
+                <th>Proposed by</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in proposals %}
+            <tr>
+                <td>
+                    {% if p.status == 'pending' %}<mark>pending</mark>
+                    {% elif p.status == 'approved' %}<ins>approved</ins>
+                    {% else %}<del>rejected</del>{% endif %}
+                </td>
+                <td>{{ p.proposal_type }}</td>
+                <td><a href="/domains/{{ domain.id }}/proposals/{{ p.id }}">{{ (p.proposed_text or p.target_node_id or '')[:80] }}{% if (p.proposed_text or p.target_node_id or '')|length > 80 %}...{% endif %}</a></td>
+                <td>{{ p.proposed_by }}</td>
+                <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</figure>
+{% else %}
+<p>No {{ status_filter or '' }} proposals.</p>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Proposal — {{ domain.name }} — Reasons Service{% endblock %}
+{% block content %}
+<hgroup>
+    <h1>Proposal</h1>
+    <p><a href="/domains/{{ domain.id }}">{{ domain.name }}</a> / <a href="/domains/{{ domain.id }}/proposals">Proposals</a></p>
+</hgroup>
+
+<article>
+    <header>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value" style="font-size: var(--sl-text-lg);">{{ proposal.proposal_type }}</div>
+                <div class="label">Type</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: var(--sl-text-lg);">
+                    {% if proposal.status == 'pending' %}<mark>pending</mark>
+                    {% elif proposal.status == 'approved' %}<ins>approved</ins>
+                    {% else %}<del>rejected</del>{% endif %}
+                </div>
+                <div class="label">Status</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: var(--sl-text-lg);">{{ proposal.proposed_by }}</div>
+                <div class="label">Proposed by</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: var(--sl-text-lg);">{{ proposal.created_at.strftime('%Y-%m-%d %H:%M') if proposal.created_at else '' }}</div>
+                <div class="label">Created</div>
+            </div>
+        </div>
+    </header>
+
+    {% if proposal.proposed_text %}
+    <h3>Proposed text</h3>
+    <blockquote>{{ proposal.proposed_text }}</blockquote>
+    {% endif %}
+
+    {% if proposal.target_node_id %}
+    <h3>Target belief</h3>
+    <p><code>{{ proposal.target_node_id }}</code></p>
+    {% endif %}
+
+    {% if proposal.rationale %}
+    <h3>Rationale</h3>
+    <p>{{ proposal.rationale }}</p>
+    {% endif %}
+
+    {% if proposal.status != 'pending' %}
+    <h3>Review</h3>
+    <dl>
+        <dt>Reviewed by</dt>
+        <dd>{{ proposal.reviewed_by or 'N/A' }}</dd>
+        <dt>Reviewed at</dt>
+        <dd>{{ proposal.reviewed_at.strftime('%Y-%m-%d %H:%M') if proposal.reviewed_at else 'N/A' }}</dd>
+        {% if proposal.review_notes %}
+        <dt>Notes</dt>
+        <dd>{{ proposal.review_notes }}</dd>
+        {% endif %}
+    </dl>
+    {% endif %}
+
+    {% if proposal.status == 'pending' and request.state.user and request.state.user.role in ('admin', 'reviewer') %}
+    <footer>
+        <h3>Review this proposal</h3>
+        <form id="review-form">
+            <label for="review_notes">Notes (optional)</label>
+            <textarea id="review_notes" name="review_notes" rows="3"></textarea>
+            <div class="action-grid">
+                <button type="button" class="outline" onclick="submitReview('approved')">Accept</button>
+                <button type="button" class="secondary outline" onclick="submitReview('rejected')">Reject</button>
+            </div>
+        </form>
+        <script>
+        async function submitReview(status) {
+            const notes = document.getElementById('review_notes').value;
+            const resp = await fetch('/api/domains/{{ domain.id }}/beliefs/proposed/{{ proposal.id }}', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({status: status, review_notes: notes || null})
+            });
+            if (resp.ok) {
+                window.location.href = '/domains/{{ domain.id }}/proposals';
+            } else {
+                const err = await resp.json();
+                alert(err.detail || 'Review failed');
+            }
+        }
+        </script>
+    </footer>
+    {% endif %}
+</article>
+
+{% endblock %}

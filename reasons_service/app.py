@@ -20,7 +20,7 @@ from reasons_service.auth import router as auth_router, security, verify_auth, v
 from fastapi.security import HTTPAuthorizationCredentials
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
-from reasons_service.db.models import Assessment, Entry, Domain, Source, Summary, entry_sources
+from reasons_service.db.models import Assessment, Entry, Domain, Proposal, Source, Summary, entry_sources
 from reasons_service.rbac import UserInfo
 from reasons_service.mcp import mcp as mcp_server
 from reasons_service.rms import api as rms_api
@@ -342,6 +342,11 @@ async def domain_detail(
         "assessments": await session.scalar(
             select(func.count()).select_from(Assessment).where(Assessment.domain_id == domain_id)
         ) or 0,
+        "proposals": await session.scalar(
+            select(func.count()).select_from(Proposal).where(
+                Proposal.domain_id == domain_id, Proposal.status == "pending"
+            )
+        ) or 0,
     }
 
     entry_result = await session.execute(
@@ -358,6 +363,76 @@ async def domain_detail(
         "domain": {"id": domain_id, "name": domain_obj.name, "description": domain_obj.description},
         "stats": stats,
         "entries": entries,
+    })
+
+
+@app.get("/domains/{domain_id}/proposals", response_class=HTMLResponse)
+async def proposals_list(
+    request: Request,
+    domain_id: UUID,
+    status: str = "pending",
+    _user: UserInfo = Depends(verify_auth_web),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain_obj = result.scalar_one_or_none()
+    if not domain_obj:
+        return HTMLResponse("Domain not found", status_code=404)
+
+    q = select(Proposal).where(Proposal.domain_id == domain_id)
+    if status:
+        q = q.where(Proposal.status == status)
+    result = await session.execute(q.order_by(Proposal.created_at.desc()))
+    proposals = result.scalars().all()
+
+    counts = {
+        "pending": await session.scalar(
+            select(func.count()).select_from(Proposal).where(
+                Proposal.domain_id == domain_id, Proposal.status == "pending"
+            )
+        ) or 0,
+        "approved": await session.scalar(
+            select(func.count()).select_from(Proposal).where(
+                Proposal.domain_id == domain_id, Proposal.status == "approved"
+            )
+        ) or 0,
+        "rejected": await session.scalar(
+            select(func.count()).select_from(Proposal).where(
+                Proposal.domain_id == domain_id, Proposal.status == "rejected"
+            )
+        ) or 0,
+    }
+    counts["total"] = counts["pending"] + counts["approved"] + counts["rejected"]
+
+    return templates.TemplateResponse(request, "proposals/list.html", {
+        "domain": {"id": domain_id, "name": domain_obj.name},
+        "proposals": proposals,
+        "status_filter": status,
+        "counts": counts,
+    })
+
+
+@app.get("/domains/{domain_id}/proposals/{proposal_id}", response_class=HTMLResponse)
+async def proposal_detail(
+    request: Request,
+    domain_id: UUID,
+    proposal_id: UUID,
+    _user: UserInfo = Depends(verify_auth_web),
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(Proposal).where(Proposal.id == proposal_id, Proposal.domain_id == domain_id)
+    )
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        return HTMLResponse("Proposal not found", status_code=404)
+
+    domain_result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain_obj = domain_result.scalar_one_or_none()
+
+    return templates.TemplateResponse(request, "proposals/detail.html", {
+        "domain": {"id": domain_id, "name": domain_obj.name},
+        "proposal": proposal,
     })
 
 
