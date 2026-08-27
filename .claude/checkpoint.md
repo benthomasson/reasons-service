@@ -1,68 +1,68 @@
 # Checkpoint
 
-**Saved:** 2026-05-14 10:30
-**Project:** /Users/ben/git/expert-service
+**Saved:** 2026-08-06
+**Project:** /Users/ben/git/reasons-service
 
 ## Task
 
-Production hardening of expert-service: FD exhaustion fix, context window overflow fix, error handling, architecture documentation, and sd-architect diagram.
+Multiple features added: RBAC reviewer role, belief proposals system, MCP review tools, proposal review web UI. Also fixed import_expert.py, manage_users.py SQLite support, pinned mcp<2.
 
 ## Status
 
-### Completed this session
-- [x] Diagnosed FD exhaustion — macOS default 256 soft limit was the bottleneck, not rate limiting or DNS
-- [x] Added `ulimit -n 10240` to `scripts/start.local.sh`
-- [x] Added `pool_size=5, max_overflow=5` to both async and sync engines in `db/connection.py`
-- [x] Added `/health` endpoint FD monitoring: `_open_fds()` returns `{open, limit_soft, limit_hard}`
-- [x] Added try/except on `/ask` endpoint — returns 502 JSON instead of 500 traceback
-- [x] Diagnosed context window overflow — 211K tokens > 200K limit from unbounded beliefs + tool history
-- [x] Added context budgets: `MAX_BELIEF_CONTEXT_CHARS=30000`, `MAX_TOOL_RESULT_CHARS=10000` (constants moved to top of loop.py)
-- [x] Confirmed FD fix working under load: 366 FDs at peak with 4 concurrent users (was crashing at 256)
-- [x] Filed benthomasson/expert#1 — Plugin system for expert CLI
-- [x] Filed benthomasson/expert#2 — Rename package to ftl-expert for PyPI
-- [x] Written entries: FD exhaustion fix, context window overflow, architecture overview
-- [x] Created `architecture.json` for sd-architect visualization
-- [ ] Context budget changes not yet deployed (need restart)
+### Completed (prior sessions)
+- [x] Updated import_expert.py: removed beliefs import, added summaries support
+- [x] Fixed manage_users.py to work with SQLite (`--db` flag)
+- [x] Added RBAC reviewer role and belief proposals system (Issue #41)
+- [x] Fixed proposal endpoints: proper HTTP errors and input validation
+- [x] Added modify proposal validation and CHAT to reviewer role
+- [x] Pinned mcp[cli]<2 to avoid breaking import changes
+- [x] Added MCP review tools: accept_proposal, reject_proposal, get_proposal (Issue #42)
+- [x] Added review_notes field to proposals
+- [x] Fixed proposal route ordering: `/beliefs/propose` and `/beliefs/proposed` before `/beliefs/{node_id}`
+- [x] Added proposal review web UI: list page, detail page, domain stats (Issue #43)
+
+### Not yet done
+- [ ] Bump version (currently 0.6.9, needs bump for deploy)
+- [ ] Build wheel (`uv build`)
+- [ ] Update deploy script WHEEL path
+- [ ] Deploy to server
 
 ## Key Files
 
-- `expert_service/db/connection.py` — Added pool_size/max_overflow caps on both engines
-- `expert_service/chat/loop.py` — Added MAX_BELIEF_CONTEXT_CHARS, MAX_TOOL_RESULT_CHARS at top; belief search now budget-capped; tool history results truncated at 10K chars
-- `expert_service/api/chat.py` — Added try/except returning 502 JSON on LLM failures
-- `expert_service/app.py` — Added `_open_fds()` helper and FD info to `/health` endpoint
-- `scripts/start.local.sh` — Added `ulimit -n 10240`
-- `architecture.json` — sd-architect diagram (13 components, 12 connections)
-- `entries/2026/05/13/file-descriptor-exhaustion-fix-*.md` — FD fix writeup
-- `entries/2026/05/13/context-window-overflow-*.md` — Context overflow writeup
-- `entries/2026/05/14/expert-service-architecture-*.md` — Full architecture doc
+- `reasons_service/rbac.py` — REVIEWER role, PROPOSE_BELIEFS and REVIEW_PROPOSALS actions
+- `reasons_service/db/models.py` — Proposal model with review_notes
+- `reasons_service/db/schema.sql` — proposals table DDL
+- `reasons_service/api/data.py` — Proposal REST endpoints (must be before `{node_id}` routes)
+- `reasons_service/mcp.py` — 6 proposal MCP tools (Tier 4)
+- `reasons_service/app.py` — Web routes for proposals list/detail, proposals count in domain stats
+- `reasons_service/templates/proposals/list.html` — Proposals list with status filter tabs
+- `reasons_service/templates/proposals/detail.html` — Proposal detail with accept/reject form
 
 ## Commands
 
 ```bash
-# Check FD usage on running service
-curl localhost:8000/health | jq .fds
+# Build wheel
+cd /Users/ben/git/reasons-service && uv build
 
-# Start with FD fix
-./scripts/start.local.sh
+# Deploy
+cd /Users/ben/git/ftl2-deployments/reasons-service && source ../.env-reasonsforge.com && ./deploy.py redeploy
 
-# Visualize architecture
-python ~/git/sd-architect/demos/sd_demo.py architecture.json
-
-# Gemma3 single-pass mode via API
-curl -X POST localhost:8000/api/projects/{id}/ask \
-  -H 'Content-Type: application/json' \
-  -d '{"question":"test","model":"ollama:gemma3:27b","mode":"single"}'
+# Manual install on server
+ssh admin@34.162.111.227 "sudo su - reasons -c '/home/reasons/.local/bin/uv pip install --no-cache --reinstall-package reasons-service --python /home/reasons/.venv/bin/python /home/reasons/reasons_service-<VERSION>-py3-none-any.whl'"
+ssh admin@34.162.111.227 "sudo systemctl restart reasons-service"
 ```
 
 ## Next Step
 
-Restart expert-service to deploy the context budget changes (MAX_BELIEF_CONTEXT_CHARS, MAX_TOOL_RESULT_CHARS). Then verify 211K token errors stop occurring. The code is ready, just needs a process restart.
+Bump version, commit, push, build wheel, and deploy. The deploy script at `ftl2-deployments/reasons-service/deploy.py` needs the WHEEL path updated to match the new version.
 
 ## Context
 
-- **FD root cause confirmed**: 4 concurrent users peaked at 366 FDs; old 256 limit would crash. ~50 FDs per concurrent user.
-- **Context overflow**: Beliefs had no char budget (source chunks had 30K). Tool history (especially Snowflake results) accumulated unbounded across 3 iterative rounds. Fixed with per-source budgets.
-- **502 error handler working**: Saw `502 Bad Gateway` in logs instead of 500 traceback — confirms api/chat.py fix is live.
-- **Architecture decisions discussed**: Read-only stateless deployment on OpenShift, SQLite KB baked into container images, no chat logs needed (stateless is a feature).
-- **4000-question eval runs** are the stress test that exposed both FD and context issues.
-- **Pending from previous session**: Attribution prompt improvement (missing inline citations), auto-detect single mode for ollama models, fix langfuse in agents-python.
+- Version is 0.6.9, all features committed but wheel not rebuilt since version bump
+- Latest commit: `0090e65` (proposal review UI)
+- Route ordering is critical: proposal endpoints must be registered before `{node_id}` routes in `data.py`
+- Proposals are staging-only — reasons-service stores them but doesn't apply them to live beliefs
+- mcp pinned to <2 because mcp 2.0 has breaking import path changes
+- **DO NOT rename** `google_cloud_project` / `GOOGLE_CLOUD_PROJECT` — GCP/Vertex AI references
+- **Server**: 34.162.111.227, user `admin`, service user `reasons`, SQLite at `/home/reasons/data/reasons.db`
+- **Deploy script**: `~/git/ftl2-deployments/reasons-service/deploy.py`

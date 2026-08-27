@@ -63,6 +63,8 @@ async def auth_callback(request: Request, session: AsyncSession = Depends(get_se
     user = result.scalar_one_or_none()
 
     if not user:
+        user = await _auto_register(email, userinfo.get("name", email), session)
+    if not user:
         return HTMLResponse(
             "<html><body style='font-family:sans-serif;display:flex;justify-content:center;"
             "align-items:center;height:100vh;'><div style='text-align:center'>"
@@ -154,6 +156,18 @@ async def _verify_mcp_access_token(token: str) -> str | None:
     return access.subject
 
 
+async def _auto_register(email: str, display_name: str, session: AsyncSession) -> User | None:
+    """Auto-create a reader account if public registration is enabled."""
+    if not settings.public_registration:
+        return None
+    user = User(email=email, role=Role.READER, display_name=display_name)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    logger.info("Auto-registered public user: %s", email)
+    return user
+
+
 def _resolve_visible_tags(db_user: User) -> list[str] | None:
     """Return the user's visible_tags, or None if admin (unrestricted)."""
     if db_user.role == Role.ADMIN:
@@ -184,6 +198,8 @@ async def verify_auth(
             email = email.strip().lower()
             result = await session.execute(select(User).where(User.email == email))
             db_user = result.scalar_one_or_none()
+            if not db_user:
+                db_user = await _auto_register(email, email, session)
             if db_user:
                 user = UserInfo(
                     identity=email,
@@ -203,6 +219,8 @@ async def verify_auth(
             email = email.strip().lower()
             result = await session.execute(select(User).where(User.email == email))
             db_user = result.scalar_one_or_none()
+            if not db_user:
+                db_user = await _auto_register(email, email, session)
             if db_user:
                 user = UserInfo(
                     identity=email,
@@ -220,6 +238,8 @@ async def verify_auth(
     if email:
         result = await session.execute(select(User).where(User.email == email))
         db_user = result.scalar_one_or_none()
+        if not db_user:
+            db_user = await _auto_register(email, request.session.get("user_name", email), session)
         if not db_user:
             raise HTTPException(status_code=403, detail="User not registered")
         user = UserInfo(

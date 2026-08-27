@@ -63,6 +63,7 @@ class Settings(BaseModel):
     api_key: str = os.getenv("REASONS_SERVICE_API_KEY", os.getenv("EXPERT_SERVICE_API_KEY", ""))
     mcp_issuer_url: str = os.getenv("MCP_ISSUER_URL", "https://reasons.reasonsforge.com/mcp")
     mcp_base_url: str = os.getenv("MCP_BASE_URL", "http://localhost:8000")
+    public_registration: bool = os.getenv("REASONS_PUBLIC_REGISTRATION", "false").lower() in ("true", "1", "yes")
 
     @property
     def llm_enabled(self) -> bool:

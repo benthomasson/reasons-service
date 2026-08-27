@@ -104,15 +104,18 @@ if _provider:
         if not email or not claims.get("email_verified", False):
             return HTMLResponse("Email not verified by Google", status_code=403)
 
-        # Verify user exists in database
+        # Verify user exists in database (auto-register as reader if enabled)
         from sqlalchemy import select
 
         from reasons_service.db.connection import async_session
         from reasons_service.db.models import User
+        from reasons_service.auth import _auto_register
 
         async with async_session() as session:
             result = await session.execute(select(User).where(User.email == email))
             user = result.scalar_one_or_none()
+            if not user:
+                user = await _auto_register(email, email, session)
 
         if not user:
             return HTMLResponse(
