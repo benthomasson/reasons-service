@@ -213,7 +213,9 @@ async def _validate_tags(
         return
     result = await session.execute(select(Domain.allowed_tags).where(Domain.id == domain_id))
     row = result.first()
-    allowed = (row.allowed_tags or []) if row else []
+    if not row:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    allowed = row.allowed_tags or []
     if allowed:
         invalid = set(tags) - set(allowed)
         if invalid:
@@ -1074,7 +1076,7 @@ class SetBeliefTagsRequest(BaseModel):
     access_tags: list[str]
 
 
-@router.put("/beliefs/{node_id}/tags", dependencies=[Depends(require_action(Action.ADMIN))])
+@router.put("/beliefs/{node_id}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
 async def set_belief_tags(
     domain_id: UUID,
     node_id: str,
