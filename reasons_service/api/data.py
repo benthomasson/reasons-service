@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from reasons_service.auth import verify_auth, verify_auth_or_public
-from reasons_service.rbac import Action, UserInfo, require_action
+from reasons_service.rbac import Action, Role, UserInfo, require_action
 from pydantic import BaseModel
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -211,8 +211,6 @@ async def _validate_tags(
     """Validate proposed tags against domain allowlist and user writable_tags."""
     if not tags:
         return
-    if user.role == "admin":
-        return
     result = await session.execute(select(Domain.allowed_tags).where(Domain.id == domain_id))
     row = result.first()
     allowed = (row.allowed_tags or []) if row else []
@@ -220,7 +218,7 @@ async def _validate_tags(
         invalid = set(tags) - set(allowed)
         if invalid:
             raise HTTPException(status_code=400, detail=f"Tags not in domain allowlist: {sorted(invalid)}")
-    if user.writable_tags is not None:
+    if user.role != Role.ADMIN and user.writable_tags is not None:
         forbidden = set(tags) - set(user.writable_tags)
         if forbidden:
             raise HTTPException(status_code=403, detail=f"You lack writable_tags for: {sorted(forbidden)}")
@@ -1076,22 +1074,17 @@ class SetBeliefTagsRequest(BaseModel):
     access_tags: list[str]
 
 
-@router.put("/beliefs/{node_id}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
+@router.put("/beliefs/{node_id}/tags", dependencies=[Depends(require_action(Action.ADMIN))])
 async def set_belief_tags(
     domain_id: UUID,
     node_id: str,
     data: SetBeliefTagsRequest,
+    user: UserInfo = Depends(verify_auth),
     session: AsyncSession = Depends(get_session),
 ):
     """Set access_tags on a belief (admin only). Validates against domain allowlist."""
     tags = sorted(set(data.access_tags))
-    result_row = await session.execute(select(Domain.allowed_tags).where(Domain.id == domain_id))
-    row = result_row.first()
-    allowed = (row.allowed_tags or []) if row else []
-    if allowed:
-        invalid = set(tags) - set(allowed)
-        if invalid:
-            raise HTTPException(status_code=400, detail=f"Tags not in domain allowlist: {sorted(invalid)}")
+    await _validate_tags(tags, domain_id, user, session)
     try:
         result = await asyncio.to_thread(rms_api.set_access_tags, domain_id, node_id, tags)
     except KeyError:
