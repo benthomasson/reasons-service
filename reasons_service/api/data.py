@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from reasons_service.auth import verify_auth, verify_auth_or_public
-from reasons_service.rbac import Action, UserInfo, require_action
+from reasons_service.rbac import Action, Role, UserInfo, require_action
 from pydantic import BaseModel
 from sqlalchemy import func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from reasons_service.chunking import chunk_markdown
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, get_sync_session
-from reasons_service.db.models import Entry, Proposal, Source, SourceChunk, Summary, Topic, entry_sources, summary_sources
+from reasons_service.db.models import Domain, Entry, Proposal, Source, SourceChunk, Summary, Topic, User, entry_sources, summary_sources
 from reasons_service.db.search import fts_clause
 from reasons_service.rms import api as rms_api
 
@@ -202,10 +202,35 @@ async def find_issues(domain_id: UUID, user: UserInfo = Depends(verify_auth_or_p
 # --- Proposal endpoints (must be before /beliefs/{node_id} to avoid path capture) ---
 
 
+async def _validate_tags(
+    tags: list[str],
+    domain_id: UUID,
+    user: UserInfo,
+    session: AsyncSession,
+) -> None:
+    """Validate proposed tags against domain allowlist and user writable_tags."""
+    if not tags:
+        return
+    result = await session.execute(select(Domain.allowed_tags).where(Domain.id == domain_id))
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    allowed = row.allowed_tags or []
+    if allowed:
+        invalid = set(tags) - set(allowed)
+        if invalid:
+            raise HTTPException(status_code=400, detail=f"Tags not in domain allowlist: {sorted(invalid)}")
+    if user.role != Role.ADMIN and user.writable_tags is not None:
+        forbidden = set(tags) - set(user.writable_tags)
+        if forbidden:
+            raise HTTPException(status_code=403, detail=f"You lack writable_tags for: {sorted(forbidden)}")
+
+
 class ProposalCreate(BaseModel):
     proposal_type: str
     target_node_id: str | None = None
     proposed_text: str | None = None
+    proposed_tags: list[str] | None = None
     rationale: str | None = None
 
 
@@ -235,11 +260,15 @@ async def propose_belief(
         raise HTTPException(status_code=400, detail="proposed_text is required for 'modify' proposals")
 
     user = request.state.user
+    tags = sorted(set(data.proposed_tags)) if data.proposed_tags else []
+    if tags:
+        await _validate_tags(tags, domain_id, user, session)
     proposal = Proposal(
         domain_id=domain_id,
         proposal_type=data.proposal_type,
         target_node_id=data.target_node_id,
         proposed_text=data.proposed_text,
+        proposed_tags=tags,
         rationale=data.rationale,
         proposed_by=user.identity,
     )
@@ -272,6 +301,7 @@ async def list_proposals(
             "proposal_type": p.proposal_type,
             "target_node_id": p.target_node_id,
             "proposed_text": p.proposed_text,
+            "proposed_tags": p.proposed_tags or [],
             "rationale": p.rationale,
             "proposed_by": p.proposed_by,
             "status": p.status,
@@ -915,30 +945,131 @@ tag_router = APIRouter(prefix="/api", tags=["access-control"])
 
 @tag_router.get("/users/{email}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
 async def get_user_tags(email: str, session: AsyncSession = Depends(get_session)):
-    """View a user's visible_tags."""
-    from reasons_service.db.models import User
+    """View a user's visible_tags and writable_tags."""
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user:
-        return {"error": "User not found"}
-    return {"email": user.email, "visible_tags": user.visible_tags or []}
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "email": user.email,
+        "visible_tags": user.visible_tags or [],
+        "writable_tags": user.writable_tags or [],
+    }
 
 
 class SetTagsRequest(BaseModel):
     visible_tags: list[str]
 
 
+class SetWritableTagsRequest(BaseModel):
+    writable_tags: list[str]
+
+
 @tag_router.put("/users/{email}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
 async def set_user_tags(email: str, data: SetTagsRequest, session: AsyncSession = Depends(get_session)):
     """Set a user's visible_tags (admin only)."""
-    from reasons_service.db.models import User
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user:
-        return {"error": "User not found"}
+        raise HTTPException(status_code=404, detail="User not found")
     user.visible_tags = sorted(set(data.visible_tags))
     await session.commit()
     return {"email": user.email, "visible_tags": user.visible_tags}
+
+
+@tag_router.put("/users/{email}/writable-tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
+async def set_user_writable_tags(email: str, data: SetWritableTagsRequest, session: AsyncSession = Depends(get_session)):
+    """Set a user's writable_tags (admin only)."""
+    result = await session.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.writable_tags = sorted(set(data.writable_tags))
+    await session.commit()
+    return {"email": user.email, "writable_tags": user.writable_tags}
+
+
+# --- Domain allowed-tags management ---
+
+
+class SetAllowedTagsRequest(BaseModel):
+    allowed_tags: list[str]
+
+
+@tag_router.get(
+    "/domains/{domain_id}/allowed-tags",
+    dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))],
+)
+async def get_allowed_tags(domain_id: UUID, session: AsyncSession = Depends(get_session)):
+    """List valid tags for a domain."""
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain = result.scalar_one_or_none()
+    if not domain:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    return {"domain_id": str(domain_id), "allowed_tags": domain.allowed_tags or []}
+
+
+@tag_router.put(
+    "/domains/{domain_id}/allowed-tags",
+    dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))],
+)
+async def set_allowed_tags(domain_id: UUID, data: SetAllowedTagsRequest, session: AsyncSession = Depends(get_session)):
+    """Set the tag allowlist for a domain (admin only)."""
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain = result.scalar_one_or_none()
+    if not domain:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    domain.allowed_tags = sorted(set(data.allowed_tags))
+    await session.commit()
+    return {"domain_id": str(domain_id), "allowed_tags": domain.allowed_tags}
+
+
+@tag_router.get(
+    "/domains/{domain_id}/tags/audit",
+    dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))],
+)
+async def audit_tags(domain_id: UUID, session: AsyncSession = Depends(get_session)):
+    """Audit tag usage: find orphans, mismatches, and misconfigured users."""
+    result = await session.execute(select(Domain).where(Domain.id == domain_id))
+    domain = result.scalar_one_or_none()
+    if not domain:
+        raise HTTPException(status_code=404, detail="Domain not found")
+
+    allowed = set(domain.allowed_tags or [])
+
+    # Tags on beliefs
+    all_nodes = await asyncio.to_thread(rms_api.list_nodes, domain_id)
+    belief_tags: set[str] = set()
+    for node in all_nodes.get("nodes", []):
+        belief_tags.update(node.get("metadata", {}).get("access_tags", []))
+
+    # Tags on users
+    users_result = await session.execute(select(User))
+    all_users = users_result.scalars().all()
+    user_visible_tags: set[str] = set()
+    user_writable_tags: set[str] = set()
+    writable_exceeds_visible = []
+    for u in all_users:
+        vt = set(u.visible_tags or [])
+        wt = set(u.writable_tags or [])
+        user_visible_tags.update(vt)
+        user_writable_tags.update(wt)
+        excess = wt - vt
+        if excess:
+            writable_exceeds_visible.append({"email": u.email, "excess_tags": sorted(excess)})
+
+    return {
+        "domain_id": str(domain_id),
+        "allowed_tags": sorted(allowed),
+        "belief_tags_not_in_allowlist": sorted(belief_tags - allowed) if allowed else [],
+        "user_visible_tags_not_in_allowlist": sorted(user_visible_tags - allowed) if allowed else [],
+        "user_writable_tags_not_in_allowlist": sorted(user_writable_tags - allowed) if allowed else [],
+        "allowed_tags_unused": sorted(allowed - belief_tags - user_visible_tags - user_writable_tags),
+        "users_writable_exceeds_visible": writable_exceeds_visible,
+        "belief_tags_in_use": sorted(belief_tags),
+        "user_visible_tags_in_use": sorted(user_visible_tags),
+        "user_writable_tags_in_use": sorted(user_writable_tags),
+    }
 
 
 class SetBeliefTagsRequest(BaseModel):
@@ -946,12 +1077,20 @@ class SetBeliefTagsRequest(BaseModel):
 
 
 @router.put("/beliefs/{node_id}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
-async def set_belief_tags(domain_id: UUID, node_id: str, data: SetBeliefTagsRequest):
-    """Set access_tags on a belief (admin only)."""
+async def set_belief_tags(
+    domain_id: UUID,
+    node_id: str,
+    data: SetBeliefTagsRequest,
+    user: UserInfo = Depends(verify_auth),
+    session: AsyncSession = Depends(get_session),
+):
+    """Set access_tags on a belief (admin only). Validates against domain allowlist."""
+    tags = sorted(set(data.access_tags))
+    await _validate_tags(tags, domain_id, user, session)
     try:
-        result = await asyncio.to_thread(rms_api.set_access_tags, domain_id, node_id, data.access_tags)
+        result = await asyncio.to_thread(rms_api.set_access_tags, domain_id, node_id, tags)
     except KeyError:
-        return {"error": "Belief not found", "id": node_id}
+        raise HTTPException(status_code=404, detail=f"Belief not found: {node_id}")
     return result
 
 

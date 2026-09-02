@@ -26,6 +26,7 @@ class DomainCreate(BaseModel):
     description: str
     config: dict = {}
     public: bool = False
+    allowed_tags: list[str] = []
 
 
 class DomainResponse(BaseModel):
@@ -34,6 +35,7 @@ class DomainResponse(BaseModel):
     description: str
     config: dict
     public: bool = False
+    allowed_tags: list[str] = []
     created_at: str
     source_count: int = 0
     entry_count: int = 0
@@ -44,7 +46,10 @@ class DomainResponse(BaseModel):
 
 @router.post("", response_model=DomainResponse)
 async def create_domain(data: DomainCreate, session: AsyncSession = Depends(get_session)):
-    domain_obj = Domain(name=data.name, description=data.description, config=data.config, public=data.public)
+    domain_obj = Domain(
+        name=data.name, description=data.description, config=data.config,
+        public=data.public, allowed_tags=sorted(set(data.allowed_tags)),
+    )
     session.add(domain_obj)
     await session.commit()
     await session.refresh(domain_obj)
@@ -54,6 +59,7 @@ async def create_domain(data: DomainCreate, session: AsyncSession = Depends(get_
         description=domain_obj.description,
         config=domain_obj.config or {},
         public=domain_obj.public,
+        allowed_tags=domain_obj.allowed_tags or [],
         created_at=domain_obj.created_at.isoformat(),
     )
 
@@ -79,6 +85,7 @@ async def list_domains(session: AsyncSession = Depends(get_session)):
             description=d.description,
             config=d.config or {},
             public=d.public,
+            allowed_tags=d.allowed_tags or [],
             created_at=d.created_at.isoformat(),
             source_count=sc,
             entry_count=ec,
@@ -100,6 +107,7 @@ async def get_domain(domain_id: UUID, session: AsyncSession = Depends(get_sessio
         description=domain_obj.description,
         config=domain_obj.config or {},
         public=domain_obj.public,
+        allowed_tags=domain_obj.allowed_tags or [],
         created_at=domain_obj.created_at.isoformat(),
         source_count=sc,
         entry_count=ec,
@@ -125,14 +133,14 @@ async def update_domain(domain_id: UUID, data: DomainUpdate, session: AsyncSessi
         setattr(domain_obj, field, value)
     await session.commit()
     await session.refresh(domain_obj)
-    if "name" in update_fields or "description" in update_fields:
-        sc, ec, cc = await _domain_counts(session, domain_obj.id)
+    sc, ec, cc = await _domain_counts(session, domain_obj.id)
     return DomainResponse(
         id=domain_obj.id,
         name=domain_obj.name,
         description=domain_obj.description,
         config=domain_obj.config or {},
         public=domain_obj.public,
+        allowed_tags=domain_obj.allowed_tags or [],
         created_at=domain_obj.created_at.isoformat(),
         source_count=sc,
         entry_count=ec,

@@ -175,6 +175,23 @@ def _resolve_visible_tags(db_user: User) -> list[str] | None:
     return db_user.visible_tags or []
 
 
+def _resolve_writable_tags(db_user: User) -> list[str] | None:
+    """Return the user's writable_tags, or None if admin (unrestricted)."""
+    if db_user.role == Role.ADMIN:
+        return None
+    return db_user.writable_tags or []
+
+
+def _user_info(db_user: User) -> UserInfo:
+    return UserInfo(
+        identity=db_user.email,
+        role=db_user.role,
+        display_name=db_user.display_name,
+        visible_tags=_resolve_visible_tags(db_user),
+        writable_tags=_resolve_writable_tags(db_user),
+    )
+
+
 # --- Dual auth dependency ---
 
 
@@ -201,12 +218,7 @@ async def verify_auth(
             if not db_user:
                 db_user = await _auto_register(email, email, session)
             if db_user:
-                user = UserInfo(
-                    identity=email,
-                    role=db_user.role,
-                    display_name=db_user.display_name,
-                    visible_tags=_resolve_visible_tags(db_user),
-                )
+                user = _user_info(db_user)
                 request.state.user = user
                 return user
             else:
@@ -222,12 +234,7 @@ async def verify_auth(
             if not db_user:
                 db_user = await _auto_register(email, email, session)
             if db_user:
-                user = UserInfo(
-                    identity=email,
-                    role=db_user.role,
-                    display_name=db_user.display_name,
-                    visible_tags=_resolve_visible_tags(db_user),
-                )
+                user = _user_info(db_user)
                 request.state.user = user
                 return user
             else:
@@ -242,12 +249,7 @@ async def verify_auth(
             db_user = await _auto_register(email, request.session.get("user_name", email), session)
         if not db_user:
             raise HTTPException(status_code=403, detail="User not registered")
-        user = UserInfo(
-            identity=email,
-            role=db_user.role,
-            display_name=db_user.display_name,
-            visible_tags=_resolve_visible_tags(db_user),
-        )
+        user = _user_info(db_user)
         request.state.user = user
         return user
 
