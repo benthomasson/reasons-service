@@ -5,8 +5,10 @@ CREATE EXTENSION IF NOT EXISTS "vector";
 
 CREATE TABLE IF NOT EXISTS users (
     email TEXT PRIMARY KEY,
-    role TEXT NOT NULL DEFAULT 'reader' CHECK (role IN ('admin', 'editor', 'reader')),
+    role TEXT NOT NULL DEFAULT 'reader' CHECK (role IN ('admin', 'reviewer', 'editor', 'reader')),
     display_name TEXT,
+    visible_tags JSONB DEFAULT '[]',
+    writable_tags JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -17,6 +19,7 @@ CREATE TABLE IF NOT EXISTS domains (
     description TEXT NOT NULL,
     config JSONB DEFAULT '{}',
     public BOOLEAN NOT NULL DEFAULT FALSE,
+    allowed_tags JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -112,6 +115,7 @@ CREATE TABLE IF NOT EXISTS proposals (
     proposal_type TEXT NOT NULL CHECK (proposal_type IN ('add', 'retract', 'nogood', 'modify')),
     target_node_id TEXT,
     proposed_text TEXT,
+    proposed_tags JSONB DEFAULT '[]',
     rationale TEXT,
     proposed_by TEXT NOT NULL,
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),

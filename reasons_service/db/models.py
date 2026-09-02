@@ -39,6 +39,7 @@ class User(Base):
     role = Column(String, nullable=False, default="reader")
     display_name = Column(String)
     visible_tags = Column(JSON, default=list)
+    writable_tags = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
@@ -51,6 +52,7 @@ class Domain(Base):
     description = Column(String, nullable=False)
     config = Column(JSON, default=dict)
     public = Column(Boolean, nullable=False, default=False, server_default="false")
+    allowed_tags = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
@@ -178,6 +180,7 @@ class Proposal(Base):
     proposal_type = Column(String, nullable=False)
     target_node_id = Column(String)
     proposed_text = Column(Text)
+    proposed_tags = Column(JSON, default=list)
     rationale = Column(Text)
     proposed_by = Column(String, nullable=False)
     status = Column(String, nullable=False, default="pending")
