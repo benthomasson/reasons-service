@@ -234,14 +234,12 @@ async def list_beliefs(
 ):
     limit, offset = _clamp_pagination(limit, offset)
     result = await asyncio.to_thread(
-        rms_api.list_nodes, domain_id, status=status, visible_to=user.visible_tags
+        rms_api.list_nodes, domain_id, status=status, visible_to=user.visible_tags,
+        limit=limit, offset=offset,
     )
-    nodes = result.get("nodes", [])
-    total = len(nodes)
-    page = nodes[offset:offset + limit]
     return {
-        "items": page,
-        "total": total,
+        "items": result.get("nodes", []),
+        "total": result.get("count", 0),
         "limit": limit,
         "offset": offset,
     }
