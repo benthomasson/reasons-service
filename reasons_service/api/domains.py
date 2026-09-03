@@ -78,6 +78,7 @@ async def list_domains(
     offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
+    limit, offset = max(1, min(limit, 1000)), max(0, offset)
     total_result = await session.execute(select(func.count()).select_from(Domain))
     total = total_result.scalar() or 0
     result = await session.execute(

@@ -609,7 +609,7 @@ async def get_proposal(proposal_id: str, domain: str) -> str:
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{BASE_URL}/api/domains/{pid}/beliefs/proposed",
-            params={"status": ""},
+            params={"status": "", "limit": 10000, "offset": 0},
             headers=_headers(),
             timeout=TIMEOUT,
         )

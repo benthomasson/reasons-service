@@ -22,6 +22,12 @@ from reasons_service.rms import api as rms_api
 
 router = APIRouter(prefix="/api/domains/{domain_id}", tags=["data"])
 
+MAX_PAGE_LIMIT = 1000
+
+
+def _clamp_pagination(limit: int, offset: int) -> tuple[int, int]:
+    return max(1, min(limit, MAX_PAGE_LIMIT)), max(0, offset)
+
 
 @router.get("/sources")
 async def list_sources(
@@ -30,6 +36,7 @@ async def list_sources(
     offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
+    limit, offset = _clamp_pagination(limit, offset)
     base = select(Source).where(Source.domain_id == domain_id)
     total_result = await session.execute(select(func.count()).select_from(base.subquery()))
     total = total_result.scalar() or 0
@@ -73,22 +80,34 @@ async def get_source(domain_id: UUID, slug: str, session: AsyncSession = Depends
 
 @router.get("/sources/{slug}/entries")
 async def list_source_entries(
-    domain_id: UUID, slug: str, session: AsyncSession = Depends(get_session)
+    domain_id: UUID,
+    slug: str,
+    limit: int = 50,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
 ):
     """List all entries linked to a source."""
+    limit, offset = _clamp_pagination(limit, offset)
     source = await session.execute(
         select(Source.id).where(Source.domain_id == domain_id, Source.slug == slug)
     )
     source_id = source.scalar_one_or_none()
     if source_id is None:
         return {"error": "Source not found"}
-    result = await session.execute(
+    base = (
         select(Entry.id, Entry.topic, Entry.title, Entry.created_at)
         .join(entry_sources, (entry_sources.c.entry_id == Entry.id) & (entry_sources.c.entry_domain_id == Entry.domain_id))
         .where(entry_sources.c.source_id == source_id)
-        .order_by(Entry.created_at.desc())
     )
-    return [dict(r._mapping) for r in result.all()]
+    total_result = await session.execute(select(func.count()).select_from(base.subquery()))
+    total = total_result.scalar() or 0
+    result = await session.execute(base.order_by(Entry.created_at.desc()).limit(limit).offset(offset))
+    return {
+        "items": [dict(r._mapping) for r in result.all()],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/entries")
@@ -99,6 +118,7 @@ async def list_entries(
     offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
+    limit, offset = _clamp_pagination(limit, offset)
     base = select(Entry).where(Entry.domain_id == domain_id)
     if topic:
         base = base.where(Entry.topic == topic)
@@ -155,6 +175,7 @@ async def list_summaries(
     offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
+    limit, offset = _clamp_pagination(limit, offset)
     base = select(Summary).where(Summary.domain_id == domain_id)
     if topic:
         base = base.where(Summary.topic == topic)
@@ -211,6 +232,7 @@ async def list_beliefs(
     offset: int = 0,
     user: UserInfo = Depends(verify_auth_or_public),
 ):
+    limit, offset = _clamp_pagination(limit, offset)
     result = await asyncio.to_thread(
         rms_api.list_nodes, domain_id, status=status, visible_to=user.visible_tags
     )
@@ -334,6 +356,7 @@ async def list_proposals(
     session: AsyncSession = Depends(get_session),
 ):
     """List belief change proposals."""
+    limit, offset = _clamp_pagination(limit, offset)
     base = select(Proposal).where(Proposal.domain_id == domain_id)
     if status:
         base = base.where(Proposal.status == status)
@@ -876,6 +899,7 @@ async def list_topics(
     session: AsyncSession = Depends(get_session),
 ):
     """List stored topics for a domain."""
+    limit, offset = _clamp_pagination(limit, offset)
     base = select(Topic).where(Topic.domain_id == domain_id)
     total_result = await session.execute(select(func.count()).select_from(base.subquery()))
     total = total_result.scalar() or 0
