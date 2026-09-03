@@ -318,15 +318,17 @@ async def find_issues(domain: str) -> str:
 
 
 @mcp.tool()
-async def list_beliefs(status: str = "", domain: str = "") -> str:
-    """List beliefs in the knowledge base.
+async def list_beliefs(status: str = "", domain: str = "", limit: int = 50, offset: int = 0) -> str:
+    """List beliefs in the knowledge base with pagination.
 
     Args:
         status: Filter by truth value -- "IN", "OUT", or empty for all
         domain: Domain name or UUID
+        limit: Maximum number of results to return (default 50)
+        offset: Number of results to skip (default 0)
     """
     pid = await _resolve(domain)
-    params = {}
+    params: dict = {"limit": limit, "offset": offset}
     if status:
         params["status"] = status
     async with httpx.AsyncClient() as client:
@@ -344,11 +346,17 @@ async def list_beliefs(status: str = "", domain: str = "") -> str:
 
 
 @mcp.tool()
-async def list_domains() -> str:
-    """List all available knowledge bases with belief, entry, and source counts."""
+async def list_domains(limit: int = 50, offset: int = 0) -> str:
+    """List all available knowledge bases with belief, entry, and source counts.
+
+    Args:
+        limit: Maximum number of results to return (default 50)
+        offset: Number of results to skip (default 0)
+    """
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{BASE_URL}/api/domains",
+            params={"limit": limit, "offset": offset},
             headers=_headers(),
             timeout=TIMEOUT,
         )
@@ -357,7 +365,7 @@ async def list_domains() -> str:
 
 
 @mcp.tool()
-async def list_topics(domain: str) -> str:
+async def list_topics(domain: str, limit: int = 50, offset: int = 0) -> str:
     """List the main topics covered by a domain's knowledge base.
 
     Returns topic areas with belief counts, giving a quick overview
@@ -366,17 +374,21 @@ async def list_topics(domain: str) -> str:
 
     Args:
         domain: Domain name or UUID
+        limit: Maximum number of results to return (default 50)
+        offset: Number of results to skip (default 0)
     """
     pid = await _resolve(domain)
+    params: dict = {"limit": limit, "offset": offset}
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{BASE_URL}/api/domains/{pid}/topics",
+            params=params,
             headers=_headers(),
             timeout=TIMEOUT,
         )
         resp.raise_for_status()
-        topics = resp.json()
-        if not topics:
+        data = resp.json()
+        if not data.get("items"):
             gen = await client.post(
                 f"{BASE_URL}/api/domains/{pid}/topics/generate",
                 headers=_headers(),
@@ -385,24 +397,27 @@ async def list_topics(domain: str) -> str:
             gen.raise_for_status()
             resp = await client.get(
                 f"{BASE_URL}/api/domains/{pid}/topics",
+                params=params,
                 headers=_headers(),
                 timeout=TIMEOUT,
             )
             resp.raise_for_status()
-            topics = resp.json()
-        return json.dumps(topics, indent=2)
+            data = resp.json()
+        return json.dumps(data, indent=2)
 
 
 @mcp.tool()
-async def list_entries(topic: str = "", domain: str = "") -> str:
+async def list_entries(topic: str = "", domain: str = "", limit: int = 50, offset: int = 0) -> str:
     """List analysis entries (reports, findings, assessments).
 
     Args:
         topic: Filter by topic slug, or empty for all entries
         domain: Domain name or UUID
+        limit: Maximum number of results to return (default 50)
+        offset: Number of results to skip (default 0)
     """
     pid = await _resolve(domain)
-    params = {}
+    params: dict = {"limit": limit, "offset": offset}
     if topic:
         params["topic"] = topic
     async with httpx.AsyncClient() as client:
@@ -436,16 +451,19 @@ async def get_entry(entry_id: str, domain: str) -> str:
 
 
 @mcp.tool()
-async def list_sources(domain: str) -> str:
+async def list_sources(domain: str, limit: int = 50, offset: int = 0) -> str:
     """List source documents in a domain.
 
     Args:
         domain: Domain name or UUID
+        limit: Maximum number of results to return (default 50)
+        offset: Number of results to skip (default 0)
     """
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{BASE_URL}/api/domains/{pid}/sources",
+            params={"limit": limit, "offset": offset},
             headers=_headers(),
             timeout=TIMEOUT,
         )
@@ -473,15 +491,17 @@ async def get_source(slug: str, domain: str) -> str:
 
 
 @mcp.tool()
-async def list_summaries(topic: str = "", domain: str = "") -> str:
+async def list_summaries(topic: str = "", domain: str = "", limit: int = 50, offset: int = 0) -> str:
     """List summaries in a domain.
 
     Args:
         topic: Filter by topic slug, or empty for all summaries
         domain: Domain name or UUID
+        limit: Maximum number of results to return (default 50)
+        offset: Number of results to skip (default 0)
     """
     pid = await _resolve(domain)
-    params = {}
+    params: dict = {"limit": limit, "offset": offset}
     if topic:
         params["topic"] = topic
     async with httpx.AsyncClient() as client:
@@ -553,15 +573,17 @@ async def propose_retraction(node_id: str, domain: str, rationale: str = "") -> 
 
 
 @mcp.tool()
-async def list_proposals(domain: str, status: str = "pending") -> str:
+async def list_proposals(domain: str, status: str = "pending", limit: int = 50, offset: int = 0) -> str:
     """List belief change proposals.
 
     Args:
         domain: Domain name or UUID
         status: Filter by status — "pending", "approved", "rejected", or empty for all
+        limit: Maximum number of results to return (default 50)
+        offset: Number of results to skip (default 0)
     """
     pid = await _resolve(domain)
-    params = {}
+    params: dict = {"limit": limit, "offset": offset}
     if status:
         params["status"] = status
     async with httpx.AsyncClient() as client:
@@ -592,8 +614,8 @@ async def get_proposal(proposal_id: str, domain: str) -> str:
             timeout=TIMEOUT,
         )
         resp.raise_for_status()
-        proposals = resp.json()
-        for p in proposals:
+        data = resp.json()
+        for p in data.get("items", []):
             if p["id"] == proposal_id:
                 return json.dumps(p, indent=2)
         return json.dumps({"error": "Proposal not found", "id": proposal_id})

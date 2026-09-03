@@ -73,8 +73,16 @@ async def _domain_counts(session: AsyncSession, domain_id):
 
 
 @router.get("")
-async def list_domains(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Domain).order_by(Domain.created_at.desc()))
+async def list_domains(
+    limit: int = 50,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+):
+    total_result = await session.execute(select(func.count()).select_from(Domain))
+    total = total_result.scalar() or 0
+    result = await session.execute(
+        select(Domain).order_by(Domain.created_at.desc()).limit(limit).offset(offset)
+    )
     domains = result.scalars().all()
     responses = []
     for d in domains:
@@ -91,7 +99,7 @@ async def list_domains(session: AsyncSession = Depends(get_session)):
             entry_count=ec,
             belief_count=cc,
         ))
-    return responses
+    return {"items": responses, "total": total, "limit": limit, "offset": offset}
 
 
 @router.get("/{domain_id}")

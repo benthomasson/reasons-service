@@ -24,13 +24,28 @@ router = APIRouter(prefix="/api/domains/{domain_id}", tags=["data"])
 
 
 @router.get("/sources")
-async def list_sources(domain_id: UUID, session: AsyncSession = Depends(get_session)):
+async def list_sources(
+    domain_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+):
+    base = select(Source).where(Source.domain_id == domain_id)
+    total_result = await session.execute(select(func.count()).select_from(base.subquery()))
+    total = total_result.scalar() or 0
     result = await session.execute(
         select(Source.id, Source.slug, Source.url, Source.word_count, Source.fetched_at)
         .where(Source.domain_id == domain_id)
         .order_by(Source.fetched_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
-    return [dict(r._mapping) for r in result.all()]
+    return {
+        "items": [dict(r._mapping) for r in result.all()],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/sources/{slug}")
@@ -80,25 +95,33 @@ async def list_source_entries(
 async def list_entries(
     domain_id: UUID,
     topic: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
-    q = select(Entry).options(selectinload(Entry.sources)).where(
-        Entry.domain_id == domain_id
-    )
+    base = select(Entry).where(Entry.domain_id == domain_id)
     if topic:
-        q = q.where(Entry.topic == topic)
-    result = await session.execute(q.order_by(Entry.created_at.desc()))
+        base = base.where(Entry.topic == topic)
+    total_result = await session.execute(select(func.count()).select_from(base.subquery()))
+    total = total_result.scalar() or 0
+    q = base.options(selectinload(Entry.sources)).order_by(Entry.created_at.desc()).limit(limit).offset(offset)
+    result = await session.execute(q)
     entries = result.scalars().all()
-    return [
-        {
-            "id": e.id,
-            "topic": e.topic,
-            "title": e.title,
-            "created_at": e.created_at.isoformat() if e.created_at else None,
-            "source_slugs": [s.slug for s in e.sources],
-        }
-        for e in entries
-    ]
+    return {
+        "items": [
+            {
+                "id": e.id,
+                "topic": e.topic,
+                "title": e.title,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+                "source_slugs": [s.slug for s in e.sources],
+            }
+            for e in entries
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/entries/{entry_id}")
@@ -128,25 +151,33 @@ async def get_entry(domain_id: UUID, entry_id: str, session: AsyncSession = Depe
 async def list_summaries(
     domain_id: UUID,
     topic: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
-    q = select(Summary).options(selectinload(Summary.sources)).where(
-        Summary.domain_id == domain_id
-    )
+    base = select(Summary).where(Summary.domain_id == domain_id)
     if topic:
-        q = q.where(Summary.topic == topic)
-    result = await session.execute(q.order_by(Summary.created_at.desc()))
+        base = base.where(Summary.topic == topic)
+    total_result = await session.execute(select(func.count()).select_from(base.subquery()))
+    total = total_result.scalar() or 0
+    q = base.options(selectinload(Summary.sources)).order_by(Summary.created_at.desc()).limit(limit).offset(offset)
+    result = await session.execute(q)
     summaries = result.scalars().all()
-    return [
-        {
-            "id": s.id,
-            "topic": s.topic,
-            "title": s.title,
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-            "source_slugs": [src.slug for src in s.sources],
-        }
-        for s in summaries
-    ]
+    return {
+        "items": [
+            {
+                "id": s.id,
+                "topic": s.topic,
+                "title": s.title,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "source_slugs": [src.slug for src in s.sources],
+            }
+            for s in summaries
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/summaries/{summary_id}")
@@ -176,12 +207,22 @@ async def get_summary(domain_id: UUID, summary_id: str, session: AsyncSession = 
 async def list_beliefs(
     domain_id: UUID,
     status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
     user: UserInfo = Depends(verify_auth_or_public),
 ):
     result = await asyncio.to_thread(
         rms_api.list_nodes, domain_id, status=status, visible_to=user.visible_tags
     )
-    return result
+    nodes = result.get("nodes", [])
+    total = len(nodes)
+    page = nodes[offset:offset + limit]
+    return {
+        "items": page,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/beliefs/status")
@@ -288,30 +329,39 @@ async def propose_belief(
 async def list_proposals(
     domain_id: UUID,
     status: str | None = "pending",
+    limit: int = 50,
+    offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
     """List belief change proposals."""
-    q = select(Proposal).where(Proposal.domain_id == domain_id)
+    base = select(Proposal).where(Proposal.domain_id == domain_id)
     if status:
-        q = q.where(Proposal.status == status)
-    result = await session.execute(q.order_by(Proposal.created_at.desc()))
-    return [
-        {
-            "id": str(p.id),
-            "proposal_type": p.proposal_type,
-            "target_node_id": p.target_node_id,
-            "proposed_text": p.proposed_text,
-            "proposed_tags": p.proposed_tags or [],
-            "rationale": p.rationale,
-            "proposed_by": p.proposed_by,
-            "status": p.status,
-            "review_notes": p.review_notes,
-            "reviewed_by": p.reviewed_by,
-            "reviewed_at": p.reviewed_at.isoformat() if p.reviewed_at else None,
-            "created_at": p.created_at.isoformat(),
-        }
-        for p in result.scalars().all()
-    ]
+        base = base.where(Proposal.status == status)
+    total_result = await session.execute(select(func.count()).select_from(base.subquery()))
+    total = total_result.scalar() or 0
+    result = await session.execute(base.order_by(Proposal.created_at.desc()).limit(limit).offset(offset))
+    return {
+        "items": [
+            {
+                "id": str(p.id),
+                "proposal_type": p.proposal_type,
+                "target_node_id": p.target_node_id,
+                "proposed_text": p.proposed_text,
+                "proposed_tags": p.proposed_tags or [],
+                "rationale": p.rationale,
+                "proposed_by": p.proposed_by,
+                "status": p.status,
+                "review_notes": p.review_notes,
+                "reviewed_by": p.reviewed_by,
+                "reviewed_at": p.reviewed_at.isoformat() if p.reviewed_at else None,
+                "created_at": p.created_at.isoformat(),
+            }
+            for p in result.scalars().all()
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.put(
@@ -821,24 +871,32 @@ async def chunk_sources(
 @router.get("/topics")
 async def list_topics(
     domain_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ):
     """List stored topics for a domain."""
+    base = select(Topic).where(Topic.domain_id == domain_id)
+    total_result = await session.execute(select(func.count()).select_from(base.subquery()))
+    total = total_result.scalar() or 0
     result = await session.execute(
-        select(Topic)
-        .where(Topic.domain_id == domain_id)
-        .order_by(Topic.belief_count.desc())
+        base.order_by(Topic.belief_count.desc()).limit(limit).offset(offset)
     )
-    return [
-        {
-            "name": t.name,
-            "label": t.label,
-            "description": t.description,
-            "belief_count": t.belief_count,
-            "curated": t.curated,
-        }
-        for t in result.scalars().all()
-    ]
+    return {
+        "items": [
+            {
+                "name": t.name,
+                "label": t.label,
+                "description": t.description,
+                "belief_count": t.belief_count,
+                "curated": t.curated,
+            }
+            for t in result.scalars().all()
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.post("/topics/generate", dependencies=[Depends(verify_auth)])
