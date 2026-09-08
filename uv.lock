@@ -482,8 +482,8 @@ wheels = [
 
 [[package]]
 name = "ftl-reasons"
-version = "0.20.0"
-source = { git = "https://github.com/benthomasson/ftl-reasons.git?rev=main#6583ce36654b2f9b1f942ae829e05955edc03e51" }
+version = "0.56.0"
+source = { git = "https://github.com/benthomasson/ftl-reasons.git?rev=main#1524c9babf3eec180b0b32bef71608b193b0ec1d" }
 
 [[package]]
 name = "google-api-core"
@@ -2530,7 +2530,7 @@ wheels = [
 
 [[package]]
 name = "reasons-service"
-version = "0.6.7"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
