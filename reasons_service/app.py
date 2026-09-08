@@ -21,7 +21,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
 from reasons_service.db.models import Assessment, Entry, Domain, Proposal, Source, Summary, entry_sources
-from reasons_service.rbac import UserInfo
+from reasons_service.rbac import Role, UserInfo
 from reasons_service.mcp import mcp as mcp_server
 from reasons_service.rms import api as rms_api
 
@@ -147,7 +147,7 @@ async def resolve_domain_name(
         return {"id": str(row.id), "name": name, "public": True}
     # Private domain — require auth
     user = await verify_auth(request, credentials, session)
-    if row.members_only and user.role != "admin" and user.identity not in ("api", "dev"):
+    if row.members_only and user.role != Role.ADMIN and user.identity not in ("api", "dev"):
         from reasons_service.db.models import DomainMember
         member = await session.execute(
             select(DomainMember).where(
@@ -283,7 +283,7 @@ if not settings.hub_mode:
 
         domains_with_stats = []
         for d in all_domains:
-            if d.members_only and _user.role != "admin" and _user.identity not in ("api", "dev"):
+            if d.members_only and _user.role != Role.ADMIN and _user.identity not in ("api", "dev"):
                 member = await session.execute(
                     select(DomainMember).where(
                         DomainMember.domain_id == d.id,
