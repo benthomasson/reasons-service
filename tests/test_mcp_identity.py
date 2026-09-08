@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from mcp.server.auth.middleware.auth_context import auth_context_var
 from mcp.server.auth.provider import AccessToken
 
 from reasons_service.mcp import _headers
@@ -14,18 +15,13 @@ def test_headers_uses_mcp_access_token_when_present():
         scopes=[],
         subject="alice@example.com",
     )
-    with patch(
-        "reasons_service.mcp.get_access_token", return_value=token, create=True
-    ):
-        from mcp.server.auth.middleware.auth_context import auth_context_var
-
-        user = MagicMock()
-        user.access_token = token
-        tok = auth_context_var.set(user)
-        try:
-            result = _headers()
-        finally:
-            auth_context_var.reset(tok)
+    user = MagicMock()
+    user.access_token = token
+    ctx_token = auth_context_var.set(user)
+    try:
+        result = _headers()
+    finally:
+        auth_context_var.reset(ctx_token)
 
     assert result == {"Authorization": "Bearer mcp-user-token-abc"}
 
