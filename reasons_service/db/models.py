@@ -52,6 +52,7 @@ class Domain(Base):
     description = Column(String, nullable=False)
     config = Column(JSON, default=dict)
     public = Column(Boolean, nullable=False, default=False, server_default="false")
+    members_only = Column(Boolean, nullable=False, default=False, server_default="false")
     allowed_tags = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -63,6 +64,24 @@ class Domain(Base):
     assessments = relationship("Assessment", back_populates="domain", cascade="all, delete-orphan")
     topics = relationship("Topic", back_populates="domain", cascade="all, delete-orphan")
     proposals = relationship("Proposal", back_populates="domain", cascade="all, delete-orphan")
+    members = relationship("DomainMember", back_populates="domain", cascade="all, delete-orphan")
+
+
+class DomainMember(Base):
+    __tablename__ = "domain_members"
+    __table_args__ = (UniqueConstraint("domain_id", "user_email"),)
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
+    user_email = Column(String, ForeignKey("users.email", ondelete="CASCADE"), nullable=False)
+    role = Column(String, nullable=False, default="reader")
+    visible_tags = Column(JSON, default=list)
+    writable_tags = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    domain = relationship("Domain", back_populates="members")
+    user = relationship("User")
 
 
 entry_sources = Table(

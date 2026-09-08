@@ -31,6 +31,7 @@ class UserInfo:
     display_name: str | None = None
     visible_tags: list[str] | None = None
     writable_tags: list[str] | None = None
+    domain_id: str | None = None
 
 
 ROLE_ACTIONS: dict[Role, frozenset[Action]] = {

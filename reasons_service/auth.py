@@ -192,6 +192,76 @@ def _user_info(db_user: User) -> UserInfo:
     )
 
 
+def _resolve_member_visible_tags(member) -> list[str] | None:
+    if member.role == Role.ADMIN:
+        return None
+    return member.visible_tags or []
+
+
+def _resolve_member_writable_tags(member) -> list[str] | None:
+    if member.role == Role.ADMIN:
+        return None
+    return member.writable_tags or []
+
+
+async def resolve_domain_role(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> UserInfo:
+    """Resolve the user's effective role for the current domain.
+
+    Runs after verify_auth. On members_only domains, requires domain
+    membership and uses domain-scoped role/tags. On open domains,
+    passes through the global role unchanged.
+    """
+    user: UserInfo = request.state.user
+    domain_id = request.path_params.get("domain_id")
+
+    if not domain_id:
+        return user
+
+    if user.role == Role.ADMIN or user.identity in ("api", "dev", "public"):
+        return user
+
+    from reasons_service.db.models import Domain, DomainMember
+    from uuid import UUID
+
+    result = await session.execute(
+        select(Domain.members_only).where(Domain.id == UUID(str(domain_id)))
+    )
+    row = result.first()
+    if not row:
+        return user
+
+    if not row.members_only:
+        return user
+
+    member_result = await session.execute(
+        select(DomainMember).where(
+            DomainMember.domain_id == UUID(str(domain_id)),
+            DomainMember.user_email == user.identity,
+        )
+    )
+    member = member_result.scalar_one_or_none()
+
+    if not member:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of this domain",
+        )
+
+    effective = UserInfo(
+        identity=user.identity,
+        role=member.role,
+        display_name=user.display_name,
+        visible_tags=_resolve_member_visible_tags(member),
+        writable_tags=_resolve_member_writable_tags(member),
+        domain_id=str(domain_id),
+    )
+    request.state.user = effective
+    return effective
+
+
 # --- Dual auth dependency ---
 
 
