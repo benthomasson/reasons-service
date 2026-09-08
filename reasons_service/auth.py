@@ -220,6 +220,10 @@ async def resolve_domain_role(
     if not domain_id:
         return user
 
+    # Let users check their own membership without being a member
+    if request.url.path.endswith("/members/me"):
+        return user
+
     if user.role == Role.ADMIN or user.identity in ("api", "dev", "public"):
         return user
 
@@ -227,7 +231,7 @@ async def resolve_domain_role(
     from uuid import UUID
 
     result = await session.execute(
-        select(Domain.members_only).where(Domain.id == UUID(str(domain_id)))
+        select(Domain.members_only, Domain.public).where(Domain.id == UUID(str(domain_id)))
     )
     row = result.first()
     if not row:
@@ -245,6 +249,8 @@ async def resolve_domain_role(
     member = member_result.scalar_one_or_none()
 
     if not member:
+        if row.public:
+            return user
         raise HTTPException(
             status_code=403,
             detail="You are not a member of this domain",

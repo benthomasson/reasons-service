@@ -374,23 +374,24 @@ async def add_member(
 ):
     if data.role not in _VALID_ROLES:
         raise HTTPException(status_code=400, detail=f"Invalid role: {data.role}")
-    user = await session.execute(select(User).where(User.email == data.email))
+    email = data.email.strip().lower()
+    user = await session.execute(select(User).where(User.email == email))
     if not user.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail=f"User not found: {data.email}")
+        raise HTTPException(status_code=404, detail=f"User not found: {email}")
     domain = await session.execute(select(Domain).where(Domain.id == domain_id))
     if not domain.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Domain not found")
     existing = await session.execute(
         select(DomainMember).where(
             DomainMember.domain_id == domain_id,
-            DomainMember.user_email == data.email,
+            DomainMember.user_email == email,
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail=f"User {data.email} is already a member")
+        raise HTTPException(status_code=409, detail=f"User {email} is already a member")
     member = DomainMember(
         domain_id=domain_id,
-        user_email=data.email,
+        user_email=email,
         role=data.role,
         visible_tags=sorted(set(data.visible_tags)),
         writable_tags=sorted(set(data.writable_tags)),
@@ -408,6 +409,7 @@ async def update_member(
     data: MemberUpdate,
     session: AsyncSession = Depends(get_session),
 ):
+    email = email.strip().lower()
     result = await session.execute(
         select(DomainMember).where(
             DomainMember.domain_id == domain_id,
@@ -437,6 +439,7 @@ async def remove_member(
     email: str,
     session: AsyncSession = Depends(get_session),
 ):
+    email = email.strip().lower()
     result = await session.execute(
         select(DomainMember).where(
             DomainMember.domain_id == domain_id,
