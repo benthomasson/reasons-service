@@ -154,6 +154,11 @@ if _provider:
 
 
 def _headers() -> dict[str, str]:
+    from mcp.server.auth.middleware.auth_context import get_access_token
+
+    access_token = get_access_token()
+    if access_token:
+        return {"Authorization": f"Bearer {access_token.token}"}
     if settings.api_key:
         return {"Authorization": f"Bearer {settings.api_key}"}
     return {}
