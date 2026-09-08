@@ -19,10 +19,26 @@ CREATE TABLE IF NOT EXISTS domains (
     description TEXT NOT NULL,
     config JSONB DEFAULT '{}',
     public BOOLEAN NOT NULL DEFAULT FALSE,
+    members_only BOOLEAN NOT NULL DEFAULT FALSE,
     allowed_tags JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS domain_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    user_email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'reader' CHECK (role IN ('admin', 'reviewer', 'editor', 'reader')),
+    visible_tags JSONB DEFAULT '[]',
+    writable_tags JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(domain_id, user_email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_domain_members_domain ON domain_members(domain_id);
+CREATE INDEX IF NOT EXISTS idx_domain_members_user ON domain_members(user_email);
 
 CREATE TABLE IF NOT EXISTS sources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

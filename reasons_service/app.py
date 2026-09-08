@@ -16,12 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.sessions import SessionMiddleware
 
 from reasons_service.api import domains, data, ask, public
-from reasons_service.auth import router as auth_router, security, verify_auth, verify_auth_or_public, verify_auth_web, _LoginRedirect
+from reasons_service.auth import router as auth_router, security, verify_auth, verify_auth_or_public, verify_auth_web, resolve_domain_role, _LoginRedirect
 from fastapi.security import HTTPAuthorizationCredentials
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
 from reasons_service.db.models import Assessment, Entry, Domain, Proposal, Source, Summary, entry_sources
-from reasons_service.rbac import UserInfo
+from reasons_service.rbac import Role, UserInfo
 from reasons_service.mcp import mcp as mcp_server
 from reasons_service.rms import api as rms_api
 
@@ -138,7 +138,7 @@ async def resolve_domain_name(
 ):
     """Resolve a domain name to its ID. No auth needed for public domains."""
     result = await session.execute(
-        select(Domain.id, Domain.public).where(Domain.name == name)
+        select(Domain.id, Domain.public, Domain.members_only).where(Domain.name == name)
     )
     row = result.first()
     if not row:
@@ -146,7 +146,17 @@ async def resolve_domain_name(
     if row.public:
         return {"id": str(row.id), "name": name, "public": True}
     # Private domain — require auth
-    await verify_auth(request, credentials, session)
+    user = await verify_auth(request, credentials, session)
+    if row.members_only and user.role != Role.ADMIN and user.identity not in ("api", "dev"):
+        from reasons_service.db.models import DomainMember
+        member = await session.execute(
+            select(DomainMember).where(
+                DomainMember.domain_id == row.id,
+                DomainMember.user_email == user.identity,
+            )
+        )
+        if not member.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="You are not a member of this domain")
     return {"id": str(row.id), "name": name, "public": False}
 
 # Public domain views (no auth — gated by domain.public flag)
@@ -154,11 +164,11 @@ app.include_router(public.landing_router)
 app.include_router(public.router)
 
 # API routes (protected by auth)
-app.include_router(domains.router, dependencies=[Depends(verify_auth)])
-app.include_router(data.router, dependencies=[Depends(verify_auth_or_public)])
+app.include_router(domains.router, dependencies=[Depends(verify_auth), Depends(resolve_domain_role)])
+app.include_router(data.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role)])
 app.include_router(data.tag_router, dependencies=[Depends(verify_auth)])
 
-app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public)])
+app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role)])
 
 # MCP OAuth discovery routes (RFC 9728 + RFC 8414)
 # Must be on the parent app — MCP clients look for these at the domain root,
@@ -267,11 +277,21 @@ if not settings.hub_mode:
     @app.get("/domains", response_class=HTMLResponse)
     async def domains_list(request: Request, _user: UserInfo = Depends(verify_auth_web), session: AsyncSession = Depends(get_session)):
         """Authenticated domains list page."""
+        from reasons_service.db.models import DomainMember
         result = await session.execute(select(Domain).order_by(Domain.created_at.desc()))
         all_domains = result.scalars().all()
 
         domains_with_stats = []
         for d in all_domains:
+            if d.members_only and _user.role != Role.ADMIN and _user.identity not in ("api", "dev"):
+                member = await session.execute(
+                    select(DomainMember).where(
+                        DomainMember.domain_id == d.id,
+                        DomainMember.user_email == _user.identity,
+                    )
+                )
+                if not member.scalar_one_or_none():
+                    continue
             source_count = await session.scalar(
                 select(func.count()).select_from(Source).where(Source.domain_id == d.id)
             )
@@ -308,8 +328,16 @@ if not settings.hub_mode:
         _user: UserInfo = Depends(verify_auth_web),
         session: AsyncSession = Depends(get_session),
     ):
+        from reasons_service.db.models import DomainMember
         domain_obj = Domain(name=name, description=description)
         session.add(domain_obj)
+        await session.flush()
+        if _user.identity not in ("api", "dev", "public"):
+            session.add(DomainMember(
+                domain_id=domain_obj.id,
+                user_email=_user.identity,
+                role="admin",
+            ))
         await session.commit()
         await session.refresh(domain_obj)
         return RedirectResponse(f"/domains/{domain_obj.id}", status_code=303)

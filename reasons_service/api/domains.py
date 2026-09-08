@@ -8,14 +8,18 @@ from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from reasons_service.auth import verify_auth
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import Entry, Domain, Source
+from reasons_service.db.models import Entry, Domain, DomainMember, Source, User
+from reasons_service.rbac import Action, Role, require_action
 from reasons_service.rms import api as rms_api
 
 router = APIRouter(prefix="/api/domains", tags=["domains"])
@@ -26,6 +30,7 @@ class DomainCreate(BaseModel):
     description: str
     config: dict = {}
     public: bool = False
+    members_only: bool = False
     allowed_tags: list[str] = []
 
 
@@ -35,6 +40,7 @@ class DomainResponse(BaseModel):
     description: str
     config: dict
     public: bool = False
+    members_only: bool = False
     allowed_tags: list[str] = []
     created_at: str
     source_count: int = 0
@@ -45,12 +51,21 @@ class DomainResponse(BaseModel):
 
 
 @router.post("", response_model=DomainResponse)
-async def create_domain(data: DomainCreate, session: AsyncSession = Depends(get_session)):
+async def create_domain(data: DomainCreate, request: Request, session: AsyncSession = Depends(get_session)):
     domain_obj = Domain(
         name=data.name, description=data.description, config=data.config,
-        public=data.public, allowed_tags=sorted(set(data.allowed_tags)),
+        public=data.public, members_only=data.members_only,
+        allowed_tags=sorted(set(data.allowed_tags)),
     )
     session.add(domain_obj)
+    await session.flush()
+    user = request.state.user
+    if user.identity not in ("api", "dev", "public"):
+        session.add(DomainMember(
+            domain_id=domain_obj.id,
+            user_email=user.identity,
+            role="admin",
+        ))
     await session.commit()
     await session.refresh(domain_obj)
     return DomainResponse(
@@ -59,6 +74,7 @@ async def create_domain(data: DomainCreate, session: AsyncSession = Depends(get_
         description=domain_obj.description,
         config=domain_obj.config or {},
         public=domain_obj.public,
+        members_only=domain_obj.members_only,
         allowed_tags=domain_obj.allowed_tags or [],
         created_at=domain_obj.created_at.isoformat(),
     )
@@ -74,6 +90,7 @@ async def _domain_counts(session: AsyncSession, domain_id):
 
 @router.get("")
 async def list_domains(
+    request: Request,
     limit: int = 50,
     offset: int = 0,
     session: AsyncSession = Depends(get_session),
@@ -85,8 +102,18 @@ async def list_domains(
         select(Domain).order_by(Domain.created_at.desc()).limit(limit).offset(offset)
     )
     domains = result.scalars().all()
+    user = request.state.user
     responses = []
     for d in domains:
+        if d.members_only and user.role != Role.ADMIN and user.identity not in ("api", "dev"):
+            member = await session.execute(
+                select(DomainMember).where(
+                    DomainMember.domain_id == d.id,
+                    DomainMember.user_email == user.identity,
+                )
+            )
+            if not member.scalar_one_or_none():
+                continue
         sc, ec, cc = await _domain_counts(session, d.id)
         responses.append(DomainResponse(
             id=d.id,
@@ -94,6 +121,7 @@ async def list_domains(
             description=d.description,
             config=d.config or {},
             public=d.public,
+            members_only=d.members_only,
             allowed_tags=d.allowed_tags or [],
             created_at=d.created_at.isoformat(),
             source_count=sc,
@@ -116,6 +144,7 @@ async def get_domain(domain_id: UUID, session: AsyncSession = Depends(get_sessio
         description=domain_obj.description,
         config=domain_obj.config or {},
         public=domain_obj.public,
+        members_only=domain_obj.members_only,
         allowed_tags=domain_obj.allowed_tags or [],
         created_at=domain_obj.created_at.isoformat(),
         source_count=sc,
@@ -129,9 +158,11 @@ class DomainUpdate(BaseModel):
     description: str | None = None
     config: dict | None = None
     public: bool | None = None
+    members_only: bool | None = None
 
 
-@router.patch("/{domain_id}", response_model=DomainResponse)
+@router.patch("/{domain_id}", response_model=DomainResponse,
+              dependencies=[Depends(require_action(Action.MANAGE_DOMAINS))])
 async def update_domain(domain_id: UUID, data: DomainUpdate, session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Domain).where(Domain.id == domain_id))
     domain_obj = result.scalar_one_or_none()
@@ -149,6 +180,7 @@ async def update_domain(domain_id: UUID, data: DomainUpdate, session: AsyncSessi
         description=domain_obj.description,
         config=domain_obj.config or {},
         public=domain_obj.public,
+        members_only=domain_obj.members_only,
         allowed_tags=domain_obj.allowed_tags or [],
         created_at=domain_obj.created_at.isoformat(),
         source_count=sc,
@@ -157,7 +189,8 @@ async def update_domain(domain_id: UUID, data: DomainUpdate, session: AsyncSessi
     )
 
 
-@router.delete("/{domain_id}")
+@router.delete("/{domain_id}",
+               dependencies=[Depends(require_action(Action.MANAGE_DOMAINS))])
 async def delete_domain(domain_id: UUID, session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Domain).where(Domain.id == domain_id))
     domain_obj = result.scalar_one_or_none()
@@ -290,3 +323,164 @@ async def import_reasons(
         raise HTTPException(status_code=400, detail=f"Invalid reasons.db: {e}")
     finally:
         tmp_path.unlink(missing_ok=True)
+
+
+# --- Domain membership management ---
+
+
+class MemberCreate(BaseModel):
+    email: str
+    role: str = "reader"
+    visible_tags: list[str] = []
+    writable_tags: list[str] = []
+
+
+class MemberUpdate(BaseModel):
+    role: str | None = None
+    visible_tags: list[str] | None = None
+    writable_tags: list[str] | None = None
+
+
+class MemberResponse(BaseModel):
+    email: str
+    role: str
+    display_name: str | None = None
+    visible_tags: list[str] = []
+    writable_tags: list[str] = []
+    created_at: str
+
+
+_VALID_ROLES = {"admin", "reviewer", "editor", "reader"}
+
+
+@router.get("/{domain_id}/members",
+            dependencies=[Depends(require_action(Action.MANAGE_DOMAINS))])
+async def list_members(domain_id: UUID, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(
+        select(DomainMember, User.display_name)
+        .join(User, DomainMember.user_email == User.email)
+        .where(DomainMember.domain_id == domain_id)
+        .order_by(DomainMember.created_at)
+    )
+    return [
+        MemberResponse(
+            email=row.DomainMember.user_email,
+            role=row.DomainMember.role,
+            display_name=row.display_name,
+            visible_tags=row.DomainMember.visible_tags or [],
+            writable_tags=row.DomainMember.writable_tags or [],
+            created_at=row.DomainMember.created_at.isoformat(),
+        )
+        for row in result.all()
+    ]
+
+
+@router.post("/{domain_id}/members",
+             dependencies=[Depends(require_action(Action.MANAGE_DOMAINS))])
+async def add_member(
+    domain_id: UUID,
+    data: MemberCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    if data.role not in _VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"Invalid role: {data.role}")
+    email = data.email.strip().lower()
+    user = await session.execute(select(User).where(User.email == email))
+    if not user.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail=f"User not found: {email}")
+    domain = await session.execute(select(Domain).where(Domain.id == domain_id))
+    if not domain.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Domain not found")
+    existing = await session.execute(
+        select(DomainMember).where(
+            DomainMember.domain_id == domain_id,
+            DomainMember.user_email == email,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"User {email} is already a member")
+    member = DomainMember(
+        domain_id=domain_id,
+        user_email=email,
+        role=data.role,
+        visible_tags=sorted(set(data.visible_tags)),
+        writable_tags=sorted(set(data.writable_tags)),
+    )
+    session.add(member)
+    await session.commit()
+    return {"email": data.email, "role": data.role, "domain_id": str(domain_id)}
+
+
+@router.patch("/{domain_id}/members/{email}",
+              dependencies=[Depends(require_action(Action.MANAGE_DOMAINS))])
+async def update_member(
+    domain_id: UUID,
+    email: str,
+    data: MemberUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    email = email.strip().lower()
+    result = await session.execute(
+        select(DomainMember).where(
+            DomainMember.domain_id == domain_id,
+            DomainMember.user_email == email,
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    if data.role is not None:
+        if data.role not in _VALID_ROLES:
+            raise HTTPException(status_code=400, detail=f"Invalid role: {data.role}")
+        member.role = data.role
+    if data.visible_tags is not None:
+        member.visible_tags = sorted(set(data.visible_tags))
+    if data.writable_tags is not None:
+        member.writable_tags = sorted(set(data.writable_tags))
+    member.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+    return {"email": email, "role": member.role, "domain_id": str(domain_id)}
+
+
+@router.delete("/{domain_id}/members/{email}",
+               dependencies=[Depends(require_action(Action.MANAGE_DOMAINS))])
+async def remove_member(
+    domain_id: UUID,
+    email: str,
+    session: AsyncSession = Depends(get_session),
+):
+    email = email.strip().lower()
+    result = await session.execute(
+        select(DomainMember).where(
+            DomainMember.domain_id == domain_id,
+            DomainMember.user_email == email,
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    await session.delete(member)
+    await session.commit()
+    return {"status": "removed", "email": email}
+
+
+@router.get("/{domain_id}/members/me")
+async def get_my_membership(
+    domain_id: UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    user = request.state.user
+    result = await session.execute(
+        select(DomainMember).where(
+            DomainMember.domain_id == domain_id,
+            DomainMember.user_email == user.identity,
+        )
+    )
+    member = result.scalar_one_or_none()
+    return {
+        "email": user.identity,
+        "effective_role": user.role,
+        "is_member": member is not None,
+        "domain_role": member.role if member else None,
+    }
