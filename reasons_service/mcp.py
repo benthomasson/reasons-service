@@ -613,17 +613,14 @@ async def get_proposal(proposal_id: str, domain: str) -> str:
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"{BASE_URL}/api/domains/{pid}/beliefs/proposed",
-            params={"status": "", "limit": 10000, "offset": 0},
+            f"{BASE_URL}/api/domains/{pid}/beliefs/proposed/{proposal_id}",
             headers=_headers(),
             timeout=TIMEOUT,
         )
+        if resp.status_code == 404:
+            return json.dumps({"error": "Proposal not found", "id": proposal_id})
         resp.raise_for_status()
-        data = resp.json()
-        for p in data.get("items", []):
-            if p["id"] == proposal_id:
-                return json.dumps(p, indent=2)
-        return json.dumps({"error": "Proposal not found", "id": proposal_id})
+        return json.dumps(resp.json(), indent=2)
 
 
 @mcp.tool()
