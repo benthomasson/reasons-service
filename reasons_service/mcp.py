@@ -625,7 +625,11 @@ async def get_proposal(proposal_id: str, domain: str) -> str:
 
 @mcp.tool()
 async def accept_proposal(proposal_id: str, domain: str) -> str:
-    """Accept a pending proposal. Requires reviewer or admin role.
+    """Accept a pending proposal and apply the mutation. Requires reviewer or admin role.
+
+    The proposed change (add/retract/modify/nogood) is applied to the belief
+    network after drift re-validation. If the target has drifted since the
+    proposal was created, it is marked stale instead of applied.
 
     Args:
         proposal_id: The proposal UUID to accept

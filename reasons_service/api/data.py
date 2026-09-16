@@ -324,6 +324,18 @@ async def propose_belief(
     tags = sorted(set(data.proposed_tags)) if data.proposed_tags else []
     if tags:
         await _validate_tags(tags, domain_id, user, session)
+
+    snapshot = None
+    if data.target_node_id and data.proposal_type in ("retract", "modify"):
+        try:
+            node_info = await asyncio.to_thread(rms_api.show_node, domain_id, data.target_node_id)
+            snapshot = {
+                "truth_value": node_info.get("truth_value"),
+                "text": node_info.get("text"),
+            }
+        except (KeyError, Exception):
+            pass
+
     proposal = Proposal(
         domain_id=domain_id,
         proposal_type=data.proposal_type,
@@ -332,6 +344,7 @@ async def propose_belief(
         proposed_tags=tags,
         rationale=data.rationale,
         proposed_by=user.identity,
+        snapshot_json=snapshot,
     )
     staled_ids = []
     if data.target_node_id:
@@ -392,6 +405,7 @@ async def list_proposals(
                 "rationale": p.rationale,
                 "proposed_by": p.proposed_by,
                 "status": p.status,
+                "result_json": p.result_json,
                 "review_notes": p.review_notes,
                 "reviewed_by": p.reviewed_by,
                 "reviewed_at": p.reviewed_at.isoformat() if p.reviewed_at else None,
@@ -430,11 +444,72 @@ async def get_proposal(
         "rationale": proposal.rationale,
         "proposed_by": proposal.proposed_by,
         "status": proposal.status,
+        "snapshot_json": proposal.snapshot_json,
+        "result_json": proposal.result_json,
         "review_notes": proposal.review_notes,
         "reviewed_by": proposal.reviewed_by,
         "reviewed_at": proposal.reviewed_at.isoformat() if proposal.reviewed_at else None,
         "created_at": proposal.created_at.isoformat(),
     }
+
+
+def _check_drift(domain_id: UUID, proposal: Proposal) -> str | None:
+    """Check if the target node has drifted since the proposal was created.
+
+    Returns a drift reason string if drifted, None if OK to apply.
+    """
+    snapshot = proposal.snapshot_json or {}
+    target = proposal.target_node_id
+
+    if proposal.proposal_type == "add":
+        try:
+            rms_api.show_node(domain_id, target)
+            return f"Node '{target}' already exists"
+        except (KeyError, PermissionError):
+            return None
+
+    if proposal.proposal_type in ("retract", "modify"):
+        try:
+            node_info = rms_api.show_node(domain_id, target)
+        except KeyError:
+            return f"Node '{target}' no longer exists"
+        except PermissionError:
+            return f"Node '{target}' is not accessible"
+
+        if proposal.proposal_type == "retract" and node_info.get("truth_value") == "OUT":
+            return f"Node '{target}' is already OUT"
+
+        if snapshot.get("truth_value") and node_info.get("truth_value") != snapshot["truth_value"]:
+            return (
+                f"Truth value drifted: was {snapshot['truth_value']}, "
+                f"now {node_info.get('truth_value')}"
+            )
+
+        if snapshot.get("text") and node_info.get("text") != snapshot["text"]:
+            return "Node text changed since proposal"
+
+    return None
+
+
+def _apply_mutation(domain_id: UUID, proposal: Proposal) -> dict:
+    """Apply the proposed mutation to the belief network. Returns the result."""
+    if proposal.proposal_type == "retract":
+        return rms_api.retract_node(domain_id, proposal.target_node_id)
+
+    if proposal.proposal_type == "add":
+        node_id = proposal.target_node_id or proposal.proposed_text.split()[0].lower()
+        return rms_api.add_node(domain_id, node_id, proposal.proposed_text or "")
+
+    if proposal.proposal_type == "modify":
+        return rms_api.update_node(domain_id, proposal.target_node_id, text=proposal.proposed_text)
+
+    if proposal.proposal_type == "nogood":
+        node_ids = (proposal.snapshot_json or {}).get("node_ids", [])
+        if not node_ids and proposal.target_node_id:
+            node_ids = [n.strip() for n in proposal.target_node_id.split(",")]
+        return rms_api.add_nogood(domain_id, node_ids)
+
+    raise ValueError(f"Unknown proposal_type: {proposal.proposal_type}")
 
 
 @router.put(
@@ -448,7 +523,12 @@ async def review_proposal(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    """Accept or reject a proposal (reviewer role only)."""
+    """Accept or reject a proposal (reviewer role only).
+
+    On accept, the proposed mutation is applied to the belief network after
+    drift re-validation. If the target has drifted, the proposal is marked
+    stale instead.
+    """
     if data.status not in ("approved", "rejected"):
         raise HTTPException(status_code=400, detail=f"Invalid status: {data.status}. Must be 'approved' or 'rejected'.")
 
@@ -462,14 +542,55 @@ async def review_proposal(
         raise HTTPException(status_code=409, detail=f"Proposal already {proposal.status}")
 
     user = request.state.user
-    proposal.status = data.status
+    now = datetime.now(timezone.utc)
+
+    if data.status == "rejected":
+        proposal.status = "rejected"
+        proposal.review_notes = data.review_notes
+        proposal.reviewed_by = user.identity
+        proposal.reviewed_at = now
+        await session.commit()
+        return {
+            "id": str(proposal.id),
+            "status": proposal.status,
+            "review_notes": proposal.review_notes,
+            "reviewed_by": proposal.reviewed_by,
+            "reviewed_at": proposal.reviewed_at.isoformat(),
+        }
+
+    drift_reason = await asyncio.to_thread(_check_drift, domain_id, proposal)
+    if drift_reason:
+        proposal.status = "stale"
+        proposal.review_notes = data.review_notes
+        proposal.reviewed_by = user.identity
+        proposal.reviewed_at = now
+        proposal.result_json = {"drift": drift_reason}
+        await session.commit()
+        return {
+            "id": str(proposal.id),
+            "status": "stale",
+            "applied": False,
+            "drift": drift_reason,
+            "reviewed_by": proposal.reviewed_by,
+            "reviewed_at": proposal.reviewed_at.isoformat(),
+        }
+
+    try:
+        mutation_result = await asyncio.to_thread(_apply_mutation, domain_id, proposal)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Mutation failed: {e}")
+
+    proposal.status = "approved"
     proposal.review_notes = data.review_notes
     proposal.reviewed_by = user.identity
-    proposal.reviewed_at = datetime.now(timezone.utc)
+    proposal.reviewed_at = now
+    proposal.result_json = mutation_result
     await session.commit()
     return {
         "id": str(proposal.id),
         "status": proposal.status,
+        "applied": True,
+        "result": mutation_result,
         "review_notes": proposal.review_notes,
         "reviewed_by": proposal.reviewed_by,
         "reviewed_at": proposal.reviewed_at.isoformat(),
