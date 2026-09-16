@@ -583,7 +583,7 @@ async def list_proposals(domain: str, status: str = "pending", limit: int = 50, 
 
     Args:
         domain: Domain name or UUID
-        status: Filter by status — "pending", "approved", "rejected", or empty for all
+        status: Filter by status — "pending", "approved", "rejected", "withdrawn", "stale", or empty for all
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
@@ -657,6 +657,25 @@ async def reject_proposal(proposal_id: str, domain: str, reason: str = "") -> st
         resp = await client.put(
             f"{BASE_URL}/api/domains/{pid}/beliefs/proposed/{proposal_id}",
             json={"status": "rejected", "review_notes": reason or None},
+            headers=_headers(),
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        return json.dumps(resp.json(), indent=2)
+
+
+@mcp.tool()
+async def withdraw_proposal(proposal_id: str, domain: str) -> str:
+    """Withdraw a pending proposal you created. Only the original proposer can withdraw.
+
+    Args:
+        proposal_id: The proposal UUID to withdraw
+        domain: Domain name or UUID
+    """
+    pid = await _resolve(domain)
+    async with httpx.AsyncClient() as client:
+        resp = await client.delete(
+            f"{BASE_URL}/api/domains/{pid}/beliefs/proposed/{proposal_id}",
             headers=_headers(),
             timeout=TIMEOUT,
         )

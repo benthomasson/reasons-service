@@ -333,16 +333,35 @@ async def propose_belief(
         rationale=data.rationale,
         proposed_by=user.identity,
     )
+    staled_ids = []
+    if data.target_node_id:
+        stale_result = await session.execute(
+            select(Proposal).where(
+                Proposal.domain_id == domain_id,
+                Proposal.target_node_id == data.target_node_id,
+                Proposal.proposal_type == data.proposal_type,
+                Proposal.status == "pending",
+            )
+        )
+        now = datetime.now(timezone.utc)
+        for old in stale_result.scalars().all():
+            old.status = "stale"
+            old.reviewed_at = now
+            staled_ids.append(str(old.id))
+
     session.add(proposal)
     await session.commit()
     await session.refresh(proposal)
-    return {
+    result = {
         "id": str(proposal.id),
         "proposal_type": proposal.proposal_type,
         "status": proposal.status,
         "proposed_by": proposal.proposed_by,
         "created_at": proposal.created_at.isoformat(),
     }
+    if staled_ids:
+        result["staled"] = staled_ids
+    return result
 
 
 @router.get("/beliefs/proposed")
@@ -453,6 +472,39 @@ async def review_proposal(
         "review_notes": proposal.review_notes,
         "reviewed_by": proposal.reviewed_by,
         "reviewed_at": proposal.reviewed_at.isoformat(),
+    }
+
+
+@router.delete(
+    "/beliefs/proposed/{proposal_id}",
+    dependencies=[Depends(verify_auth), Depends(require_action(Action.PROPOSE_BELIEFS))],
+)
+async def withdraw_proposal(
+    domain_id: UUID,
+    proposal_id: UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """Withdraw a pending proposal (proposer action)."""
+    result = await session.execute(
+        select(Proposal).where(Proposal.id == proposal_id, Proposal.domain_id == domain_id)
+    )
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if proposal.status != "pending":
+        raise HTTPException(status_code=409, detail=f"Proposal already {proposal.status}")
+
+    user = request.state.user
+    if proposal.proposed_by != user.identity:
+        raise HTTPException(status_code=403, detail="Only the proposer can withdraw")
+
+    proposal.status = "withdrawn"
+    proposal.reviewed_at = datetime.now(timezone.utc)
+    await session.commit()
+    return {
+        "id": str(proposal.id),
+        "status": proposal.status,
     }
 
 
