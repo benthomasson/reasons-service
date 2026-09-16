@@ -326,6 +326,7 @@ async def propose_belief(
         await _validate_tags(tags, domain_id, user, session)
 
     snapshot = None
+    impact = None
     if data.target_node_id and data.proposal_type in ("retract", "modify"):
         try:
             node_info = await asyncio.to_thread(rms_api.show_node, domain_id, data.target_node_id)
@@ -333,6 +334,10 @@ async def propose_belief(
                 "truth_value": node_info.get("truth_value"),
                 "text": node_info.get("text"),
             }
+        except (KeyError, PermissionError):
+            pass
+        try:
+            impact = await asyncio.to_thread(rms_api.what_if_retract, domain_id, data.target_node_id)
         except (KeyError, PermissionError):
             pass
 
@@ -345,6 +350,7 @@ async def propose_belief(
         rationale=data.rationale,
         proposed_by=user.identity,
         snapshot_json=snapshot,
+        impact_json=impact,
     )
     staled_ids = []
     if data.target_node_id:
@@ -373,6 +379,8 @@ async def propose_belief(
         "proposed_by": proposal.proposed_by,
         "created_at": proposal.created_at.isoformat(),
     }
+    if impact:
+        result["impact"] = impact
     if staled_ids:
         result["staled"] = staled_ids
     return result
@@ -405,6 +413,7 @@ async def list_proposals(
                 "rationale": p.rationale,
                 "proposed_by": p.proposed_by,
                 "status": p.status,
+                "impact_json": p.impact_json,
                 "result_json": p.result_json,
                 "review_notes": p.review_notes,
                 "reviewed_by": p.reviewed_by,
@@ -445,6 +454,7 @@ async def get_proposal(
         "proposed_by": proposal.proposed_by,
         "status": proposal.status,
         "snapshot_json": proposal.snapshot_json,
+        "impact_json": proposal.impact_json,
         "result_json": proposal.result_json,
         "review_notes": proposal.review_notes,
         "reviewed_by": proposal.reviewed_by,
