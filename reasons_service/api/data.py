@@ -333,7 +333,7 @@ async def propose_belief(
                 "truth_value": node_info.get("truth_value"),
                 "text": node_info.get("text"),
             }
-        except KeyError:
+        except (KeyError, PermissionError):
             pass
 
     proposal = Proposal(
@@ -511,8 +511,9 @@ def _apply_mutation(domain_id: UUID, proposal: Proposal) -> dict:
         return rms_api.retract_node(domain_id, proposal.target_node_id)
 
     if proposal.proposal_type == "add":
-        node_id = proposal.target_node_id or proposal.proposed_text.split()[0].lower()
-        return rms_api.add_node(domain_id, node_id, proposal.proposed_text or "")
+        if not proposal.target_node_id:
+            raise ValueError("add proposal requires target_node_id as the new node ID")
+        return rms_api.add_node(domain_id, proposal.target_node_id, proposal.proposed_text or "")
 
     if proposal.proposal_type == "modify":
         return rms_api.update_node(domain_id, proposal.target_node_id, text=proposal.proposed_text)
