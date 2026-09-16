@@ -380,7 +380,7 @@ async def propose_belief(
         "created_at": proposal.created_at.isoformat(),
     }
     if impact:
-        result["impact"] = impact
+        result["impact_json"] = impact
     if staled_ids:
         result["staled"] = staled_ids
     return result
