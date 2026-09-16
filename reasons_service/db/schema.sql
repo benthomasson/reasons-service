@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS proposals (
     proposed_by TEXT NOT NULL,
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'withdrawn', 'stale')),
     snapshot_json JSONB,
+    impact_json JSONB,
     result_json JSONB,
     review_notes TEXT,
     reviewed_by TEXT,

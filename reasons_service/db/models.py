@@ -204,6 +204,7 @@ class Proposal(Base):
     proposed_by = Column(String, nullable=False)
     status = Column(String, nullable=False, default="pending")
     snapshot_json = Column(JSON)
+    impact_json = Column(JSON)
     result_json = Column(JSON)
     review_notes = Column(Text)
     reviewed_by = Column(String)
