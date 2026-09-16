@@ -385,6 +385,38 @@ async def list_proposals(
     }
 
 
+@router.get(
+    "/beliefs/proposed/{proposal_id}",
+    dependencies=[Depends(verify_auth)],
+)
+async def get_proposal(
+    domain_id: UUID,
+    proposal_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """Get a single proposal by ID."""
+    result = await session.execute(
+        select(Proposal).where(Proposal.id == proposal_id, Proposal.domain_id == domain_id)
+    )
+    proposal = result.scalar_one_or_none()
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return {
+        "id": str(proposal.id),
+        "proposal_type": proposal.proposal_type,
+        "target_node_id": proposal.target_node_id,
+        "proposed_text": proposal.proposed_text,
+        "proposed_tags": proposal.proposed_tags or [],
+        "rationale": proposal.rationale,
+        "proposed_by": proposal.proposed_by,
+        "status": proposal.status,
+        "review_notes": proposal.review_notes,
+        "reviewed_by": proposal.reviewed_by,
+        "reviewed_at": proposal.reviewed_at.isoformat() if proposal.reviewed_at else None,
+        "created_at": proposal.created_at.isoformat(),
+    }
+
+
 @router.put(
     "/beliefs/proposed/{proposal_id}",
     dependencies=[Depends(verify_auth), Depends(require_action(Action.REVIEW_PROPOSALS))],
