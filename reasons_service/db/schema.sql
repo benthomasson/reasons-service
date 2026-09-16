@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS proposals (
     proposed_tags JSONB DEFAULT '[]',
     rationale TEXT,
     proposed_by TEXT NOT NULL,
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'withdrawn', 'stale')),
     review_notes TEXT,
     reviewed_by TEXT,
     reviewed_at TIMESTAMPTZ,

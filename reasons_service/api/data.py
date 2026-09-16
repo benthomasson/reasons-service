@@ -346,6 +346,7 @@ async def propose_belief(
         now = datetime.now(timezone.utc)
         for old in stale_result.scalars().all():
             old.status = "stale"
+            old.reviewed_by = "system:auto-stale"
             old.reviewed_at = now
             staled_ids.append(str(old.id))
 
@@ -500,6 +501,7 @@ async def withdraw_proposal(
         raise HTTPException(status_code=403, detail="Only the proposer can withdraw")
 
     proposal.status = "withdrawn"
+    proposal.reviewed_by = user.identity
     proposal.reviewed_at = datetime.now(timezone.utc)
     await session.commit()
     return {
