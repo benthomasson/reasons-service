@@ -333,7 +333,7 @@ async def propose_belief(
                 "truth_value": node_info.get("truth_value"),
                 "text": node_info.get("text"),
             }
-        except (KeyError, Exception):
+        except KeyError:
             pass
 
     proposal = Proposal(
@@ -462,6 +462,8 @@ def _check_drift(domain_id: UUID, proposal: Proposal) -> str | None:
     target = proposal.target_node_id
 
     if proposal.proposal_type == "add":
+        if not target:
+            return None
         try:
             rms_api.show_node(domain_id, target)
             return f"Node '{target}' already exists"
@@ -487,6 +489,18 @@ def _check_drift(domain_id: UUID, proposal: Proposal) -> str | None:
 
         if snapshot.get("text") and node_info.get("text") != snapshot["text"]:
             return "Node text changed since proposal"
+
+    if proposal.proposal_type == "nogood":
+        node_ids = snapshot.get("node_ids", [])
+        if not node_ids and target:
+            node_ids = [n.strip() for n in target.split(",")]
+        for nid in node_ids:
+            try:
+                rms_api.show_node(domain_id, nid)
+            except KeyError:
+                return f"Node '{nid}' no longer exists"
+            except PermissionError:
+                return f"Node '{nid}' is not accessible"
 
     return None
 
@@ -578,7 +592,10 @@ async def review_proposal(
     try:
         mutation_result = await asyncio.to_thread(_apply_mutation, domain_id, proposal)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Mutation failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Mutation failed (proposal remains pending for retry): {e}",
+        )
 
     proposal.status = "approved"
     proposal.review_notes = data.review_notes
