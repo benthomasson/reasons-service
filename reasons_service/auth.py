@@ -210,9 +210,9 @@ async def resolve_domain_role(
 ) -> UserInfo:
     """Resolve the user's effective role for the current domain.
 
-    Runs after verify_auth. On members_only domains, requires domain
-    membership and uses domain-scoped role/tags. On open domains,
-    passes through the global role unchanged.
+    Runs after verify_auth. Always checks domain membership — if a
+    DomainMember record exists, uses the domain-scoped role/tags.
+    Falls back to global role for non-members on open domains.
     """
     user: UserInfo = request.state.user
     domain_id = request.path_params.get("domain_id")
