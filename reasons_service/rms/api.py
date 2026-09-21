@@ -286,7 +286,8 @@ def list_nodes(
                                db_path=_db_path(domain_id))
     with _api(domain_id) as api:
         return api.list_nodes(status=status, premises_only=premises_only,
-                              visible_to=visible_to)
+                              visible_to=visible_to,
+                              limit=limit, offset=offset)
 
 
 def compact(domain_id: UUID, budget: int = 500, visible_to: list[str] | None = None) -> str:

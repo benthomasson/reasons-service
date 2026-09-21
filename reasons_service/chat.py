@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from reasons_service.auth import verify_auth_or_public
+from reasons_service.auth import verify_auth_or_public, _resolve_member_visible_tags
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
 from reasons_service.db.models import Domain, DomainMember
@@ -190,27 +190,35 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
     yield f"data: {json.dumps({'type': 'error', 'content': 'Max tool turns reached'})}\n\n"
 
 
-async def _verify_domain_access(domain_id: UUID, user: UserInfo, session: AsyncSession) -> None:
-    """Check that the user has access to the requested domain."""
+async def _resolve_chat_user(domain_id: UUID, user: UserInfo, session: AsyncSession) -> UserInfo:
+    """Verify domain access and resolve domain-scoped tags."""
     if user.role == Role.ADMIN or user.identity in ("api", "dev"):
-        return
+        return user
     result = await session.execute(
         select(Domain.public, Domain.members_only).where(Domain.id == domain_id)
     )
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Domain not found")
-    if row.public:
-        return
     if row.members_only:
-        member = await session.execute(
+        member_result = await session.execute(
             select(DomainMember).where(
                 DomainMember.domain_id == domain_id,
                 DomainMember.user_email == user.identity,
             )
         )
-        if not member.scalar_one_or_none():
+        member = member_result.scalar_one_or_none()
+        if member:
+            return UserInfo(
+                identity=user.identity,
+                role=member.role,
+                display_name=user.display_name,
+                visible_tags=_resolve_member_visible_tags(member),
+                domain_id=str(domain_id),
+            )
+        if not row.public:
             raise HTTPException(status_code=403, detail="Not a member of this domain")
+    return user
 
 
 @router.post("/chat")
@@ -220,9 +228,9 @@ async def chat(
     session: AsyncSession = Depends(get_session),
 ):
     domain_id = UUID(req.domain_id)
-    await _verify_domain_access(domain_id, user, session)
+    effective_user = await _resolve_chat_user(domain_id, user, session)
     return StreamingResponse(
-        _chat_stream(req, user),
+        _chat_stream(req, effective_user),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
