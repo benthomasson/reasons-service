@@ -181,7 +181,7 @@ def _require_scope(*scopes: str) -> None:
     if not access_token.scopes:
         return
     if not any(s in access_token.scopes for s in scopes):
-        raise McpError(INVALID_PARAMS, f"Missing required scope: {scopes[0]}")
+        raise McpError(INVALID_PARAMS, f"Missing required scope: {' or '.join(scopes)}")
 
 
 async def _resolve(domain: str) -> str:
