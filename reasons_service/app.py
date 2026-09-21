@@ -521,7 +521,7 @@ async def source_content_view(
         return HTMLResponse(f"Source not found: {slug}", status_code=404)
     return templates.TemplateResponse(request, "entries/view.html", {
         "domain": {"id": domain_id, "name": domain_obj.name},
-        "entry": {"id": slug, "title": slug, "topic": slug},
+        "entry": {"id": slug, "title": source.title or slug, "topic": slug},
         "content_json": json.dumps(source.content),
         "linked_sources": [],
     })
@@ -559,7 +559,7 @@ async def source_view(
         "domain": {"id": domain_id, "name": domain_obj.name},
         "entry": {"id": entry.id, "title": entry.title, "topic": entry.topic},
         "content_json": json.dumps(entry.content),
-        "linked_sources": [{"slug": s.slug} for s in entry.sources],
+        "linked_sources": [{"slug": s.slug, "title": s.title} for s in entry.sources],
     })
 
 
@@ -590,7 +590,7 @@ async def entry_view(
         "domain": {"id": domain_id, "name": domain_obj.name},
         "entry": {"id": entry.id, "title": entry.title, "topic": entry.topic},
         "content_json": json.dumps(entry.content),
-        "linked_sources": [{"slug": s.slug} for s in entry.sources],
+        "linked_sources": [{"slug": s.slug, "title": s.title} for s in entry.sources],
     })
 
 
