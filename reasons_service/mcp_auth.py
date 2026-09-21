@@ -14,6 +14,7 @@ from mcp.server.auth.provider import (
     AuthorizationParams,
     OAuthAuthorizationServerProvider,
     RefreshToken,
+    TokenError,
     construct_redirect_uri,
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
@@ -22,6 +23,8 @@ from sqlalchemy import delete, select
 
 from reasons_service.db.connection import async_session
 from reasons_service.db.models import McpAccessToken, McpClient, McpRefreshToken
+
+VALID_SCOPES = frozenset({"reasons:read", "reasons:propose", "reasons:review"})
 
 
 class _OpenClient(OAuthClientInformationFull):
@@ -132,11 +135,21 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
             return code
         return None
 
+    @staticmethod
+    def _validate_scopes(scopes: list[str]) -> list[str]:
+        if not scopes:
+            return []
+        invalid = set(scopes) - VALID_SCOPES
+        if invalid:
+            raise TokenError(error="invalid_scope", error_description=f"Invalid scopes: {', '.join(sorted(invalid))}")
+        return sorted(set(scopes))
+
     async def exchange_authorization_code(
         self, client: OAuthClientInformationFull, authorization_code: AuthorizationCode
     ) -> OAuthToken:
         self._auth_codes.pop(authorization_code.code, None)
 
+        scopes = self._validate_scopes(authorization_code.scopes)
         access = secrets.token_urlsafe(32)
         refresh = secrets.token_urlsafe(32)
         expires_at = int(time.time()) + 86400
@@ -145,7 +158,7 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
             session.add(McpAccessToken(
                 token=access,
                 client_id=client.client_id,
-                scopes=authorization_code.scopes,
+                scopes=scopes,
                 expires_at=expires_at,
                 resource=authorization_code.resource,
                 subject=authorization_code.subject,
@@ -153,7 +166,7 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
             session.add(McpRefreshToken(
                 token=refresh,
                 client_id=client.client_id,
-                scopes=authorization_code.scopes,
+                scopes=scopes,
                 subject=authorization_code.subject,
             ))
             await session.commit()
@@ -184,6 +197,12 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
     async def exchange_refresh_token(
         self, client: OAuthClientInformationFull, refresh_token: RefreshToken, scopes: list[str]
     ) -> OAuthToken:
+        if scopes:
+            escalated = set(scopes) - set(refresh_token.scopes)
+            if escalated:
+                raise TokenError(error="invalid_scope", error_description=f"Cannot escalate scopes on refresh: {', '.join(sorted(escalated))}")
+        effective = scopes or refresh_token.scopes
+        validated_scopes = self._validate_scopes(effective)
         access = secrets.token_urlsafe(32)
         new_refresh = secrets.token_urlsafe(32)
         expires_at = int(time.time()) + 86400
@@ -204,14 +223,14 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
             session.add(McpAccessToken(
                 token=access,
                 client_id=client.client_id,
-                scopes=scopes or refresh_token.scopes,
+                scopes=validated_scopes,
                 expires_at=expires_at,
                 subject=refresh_token.subject,
             ))
             session.add(McpRefreshToken(
                 token=new_refresh,
                 client_id=client.client_id,
-                scopes=scopes or refresh_token.scopes,
+                scopes=validated_scopes,
                 subject=refresh_token.subject,
             ))
             await session.commit()
