@@ -85,10 +85,12 @@ def _get_limit(tier: str, user) -> int:
 
     setting = _TIER_SETTINGS.get(tier, "rate_limit_default")
 
-    if not user or user.identity == "public":
-        return settings.rate_limit_public
+    tier_limit = getattr(settings, setting)
 
-    return getattr(settings, setting)
+    if not user or user.identity == "public":
+        return min(settings.rate_limit_public, tier_limit)
+
+    return tier_limit
 
 
 async def check_rate_limit(request: Request, tier: str = "default"):
