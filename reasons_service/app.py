@@ -183,7 +183,7 @@ app.include_router(data.router, dependencies=[Depends(verify_auth_or_public), De
 app.include_router(data.tag_router, dependencies=[Depends(verify_auth), Depends(require_rate_limit("default"))])
 
 app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role), Depends(require_rate_limit("search"))])
-app.include_router(audit_api.router)
+app.include_router(audit_api.router, dependencies=[Depends(require_rate_limit("default"))])
 app.include_router(chat_router)
 
 # MCP OAuth discovery routes (RFC 9728 + RFC 8414)
