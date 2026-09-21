@@ -6,6 +6,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from reasons_service.audit import audit_log, fire_audit
 from reasons_service.auth import verify_auth, verify_auth_or_public
 from reasons_service.rbac import Action, Role, UserInfo, require_action
 from pydantic import BaseModel
@@ -372,6 +373,14 @@ async def propose_belief(
     session.add(proposal)
     await session.commit()
     await session.refresh(proposal)
+    fire_audit(audit_log(
+        actor=user.identity,
+        action="proposal.create",
+        resource_type="proposal",
+        resource_id=str(proposal.id),
+        domain_id=domain_id,
+        after_state={"proposal_type": data.proposal_type, "target_node_id": data.target_node_id, "proposed_text": data.proposed_text},
+    ))
     result = {
         "id": str(proposal.id),
         "proposal_type": proposal.proposal_type,
@@ -575,6 +584,15 @@ async def review_proposal(
         proposal.reviewed_by = user.identity
         proposal.reviewed_at = now
         await session.commit()
+        fire_audit(audit_log(
+            actor=user.identity,
+            action="proposal.reject",
+            resource_type="proposal",
+            resource_id=str(proposal.id),
+            domain_id=domain_id,
+            before_state={"status": "pending"},
+            after_state={"status": "rejected", "review_notes": data.review_notes},
+        ))
         return {
             "id": str(proposal.id),
             "status": proposal.status,
@@ -591,6 +609,15 @@ async def review_proposal(
         proposal.reviewed_at = now
         proposal.result_json = {"drift": drift_reason}
         await session.commit()
+        fire_audit(audit_log(
+            actor=user.identity,
+            action="proposal.stale",
+            resource_type="proposal",
+            resource_id=str(proposal.id),
+            domain_id=domain_id,
+            before_state={"status": "pending"},
+            after_state={"status": "stale", "drift": drift_reason},
+        ))
         return {
             "id": str(proposal.id),
             "status": "stale",
@@ -614,6 +641,15 @@ async def review_proposal(
     proposal.reviewed_at = now
     proposal.result_json = mutation_result
     await session.commit()
+    fire_audit(audit_log(
+        actor=user.identity,
+        action="proposal.approve",
+        resource_type="proposal",
+        resource_id=str(proposal.id),
+        domain_id=domain_id,
+        before_state={"status": "pending"},
+        after_state={"status": "approved"},
+    ))
     return {
         "id": str(proposal.id),
         "status": proposal.status,
@@ -653,6 +689,15 @@ async def withdraw_proposal(
     proposal.reviewed_by = user.identity
     proposal.reviewed_at = datetime.now(timezone.utc)
     await session.commit()
+    fire_audit(audit_log(
+        actor=user.identity,
+        action="proposal.withdraw",
+        resource_type="proposal",
+        resource_id=str(proposal.id),
+        domain_id=domain_id,
+        before_state={"status": "pending"},
+        after_state={"status": "withdrawn"},
+    ))
     return {
         "id": str(proposal.id),
         "status": proposal.status,
@@ -837,6 +882,7 @@ class ClaimsImportRequest(BaseModel):
 async def import_sources(
     domain_id: UUID,
     data: SourcesImportRequest,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Bulk import sources from a file-based expert repo."""
@@ -872,6 +918,13 @@ async def import_sources(
         imported += 1
 
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="import.sources",
+        resource_type="import",
+        domain_id=domain_id,
+        metadata={"imported": imported, "skipped": skipped},
+    ))
     return {"imported": imported, "skipped": skipped}
 
 
@@ -879,6 +932,7 @@ async def import_sources(
 async def import_entries(
     domain_id: UUID,
     data: EntriesImportRequest,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Bulk import entries from a file-based expert repo."""
@@ -925,6 +979,13 @@ async def import_entries(
             linked += 1
 
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="import.entries",
+        resource_type="import",
+        domain_id=domain_id,
+        metadata={"imported": imported, "skipped": skipped, "linked": linked},
+    ))
     return {"imported": imported, "skipped": skipped, "linked": linked}
 
 
@@ -932,6 +993,7 @@ async def import_entries(
 async def import_summaries(
     domain_id: UUID,
     data: SummariesImportRequest,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Bulk import summaries from a file-based expert repo."""
@@ -975,6 +1037,13 @@ async def import_summaries(
             linked += 1
 
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="import.summaries",
+        resource_type="import",
+        domain_id=domain_id,
+        metadata={"imported": imported, "skipped": skipped, "linked": linked},
+    ))
     return {"imported": imported, "skipped": skipped, "linked": linked}
 
 
@@ -982,6 +1051,7 @@ async def import_summaries(
 async def import_beliefs(
     domain_id: UUID,
     data: ClaimsImportRequest,
+    request: Request,
 ):
     """Bulk import beliefs into RMS from a file-based expert repo."""
 
@@ -1013,12 +1083,21 @@ async def import_beliefs(
 
         return {"imported": imported, "skipped": skipped}
 
-    return await asyncio.to_thread(_do_import)
+    result = await asyncio.to_thread(_do_import)
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="import.beliefs",
+        resource_type="import",
+        domain_id=domain_id,
+        metadata=result,
+    ))
+    return result
 
 
 @router.post("/link-entries-sources", dependencies=[Depends(verify_auth)])
 async def link_entries_sources(
     domain_id: UUID,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Backfill entry-source links by matching entry.topic to source.slug.
@@ -1086,12 +1165,20 @@ async def link_entries_sources(
         linked += 1
 
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="import.link_entries",
+        resource_type="import",
+        domain_id=domain_id,
+        metadata={"linked": linked, "migrated": migrated, "already_linked": already_linked},
+    ))
     return {"linked": linked, "migrated": migrated, "already_linked": already_linked}
 
 
 @router.post("/chunk-sources", dependencies=[Depends(verify_auth)])
 async def chunk_sources(
     domain_id: UUID,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Backfill source_chunks for all sources that haven't been chunked yet."""
@@ -1118,6 +1205,13 @@ async def chunk_sources(
         chunked += 1
         total_chunks += len(chunks)
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="import.chunk_sources",
+        resource_type="import",
+        domain_id=domain_id,
+        metadata={"sources_chunked": chunked, "total_chunks": total_chunks},
+    ))
     return {"sources_chunked": chunked, "total_chunks": total_chunks}
 
 
@@ -1159,6 +1253,7 @@ async def list_topics(
 @router.post("/topics/generate", dependencies=[Depends(verify_auth)])
 async def generate_topics(
     domain_id: UUID,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Generate topics from belief node IDs (word frequency) and store them.
@@ -1200,6 +1295,13 @@ async def generate_topics(
             await session.delete(t)
 
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="topic.generate",
+        resource_type="topic",
+        domain_id=domain_id,
+        metadata={"generated": generated, "kept_curated": kept_curated},
+    ))
     return {"generated": generated, "kept_curated": kept_curated, "total_nodes": raw.get("total_nodes", 0)}
 
 
@@ -1218,6 +1320,7 @@ class TopicsImportRequest(BaseModel):
 async def import_topics(
     domain_id: UUID,
     data: TopicsImportRequest,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Bulk import pre-curated topics."""
@@ -1249,6 +1352,13 @@ async def import_topics(
             imported += 1
 
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="import.topics",
+        resource_type="import",
+        domain_id=domain_id,
+        metadata={"imported": imported, "updated": updated},
+    ))
     return {"imported": imported, "updated": updated}
 
 
@@ -1281,26 +1391,44 @@ class SetWritableTagsRequest(BaseModel):
 
 
 @tag_router.put("/users/{email}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
-async def set_user_tags(email: str, data: SetTagsRequest, session: AsyncSession = Depends(get_session)):
+async def set_user_tags(email: str, data: SetTagsRequest, request: Request, session: AsyncSession = Depends(get_session)):
     """Set a user's visible_tags (admin only)."""
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    before = {"visible_tags": user.visible_tags or []}
     user.visible_tags = sorted(set(data.visible_tags))
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="user.set_visible_tags",
+        resource_type="user",
+        resource_id=email,
+        before_state=before,
+        after_state={"visible_tags": data.visible_tags},
+    ))
     return {"email": user.email, "visible_tags": user.visible_tags}
 
 
 @tag_router.put("/users/{email}/writable-tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
-async def set_user_writable_tags(email: str, data: SetWritableTagsRequest, session: AsyncSession = Depends(get_session)):
+async def set_user_writable_tags(email: str, data: SetWritableTagsRequest, request: Request, session: AsyncSession = Depends(get_session)):
     """Set a user's writable_tags (admin only)."""
     result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    before = {"writable_tags": user.writable_tags or []}
     user.writable_tags = sorted(set(data.writable_tags))
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="user.set_writable_tags",
+        resource_type="user",
+        resource_id=email,
+        before_state=before,
+        after_state={"writable_tags": data.writable_tags},
+    ))
     return {"email": user.email, "writable_tags": user.writable_tags}
 
 
@@ -1328,14 +1456,24 @@ async def get_allowed_tags(domain_id: UUID, session: AsyncSession = Depends(get_
     "/domains/{domain_id}/allowed-tags",
     dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))],
 )
-async def set_allowed_tags(domain_id: UUID, data: SetAllowedTagsRequest, session: AsyncSession = Depends(get_session)):
+async def set_allowed_tags(domain_id: UUID, data: SetAllowedTagsRequest, request: Request, session: AsyncSession = Depends(get_session)):
     """Set the tag allowlist for a domain (admin only)."""
     result = await session.execute(select(Domain).where(Domain.id == domain_id))
     domain = result.scalar_one_or_none()
     if not domain:
         raise HTTPException(status_code=404, detail="Domain not found")
+    before = {"allowed_tags": domain.allowed_tags or []}
     domain.allowed_tags = sorted(set(data.allowed_tags))
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="domain.set_allowed_tags",
+        resource_type="domain",
+        resource_id=str(domain_id),
+        domain_id=domain_id,
+        before_state=before,
+        after_state={"allowed_tags": data.allowed_tags},
+    ))
     return {"domain_id": str(domain_id), "allowed_tags": domain.allowed_tags}
 
 
@@ -1406,6 +1544,14 @@ async def set_belief_tags(
         result = await asyncio.to_thread(rms_api.set_access_tags, domain_id, node_id, tags)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Belief not found: {node_id}")
+    fire_audit(audit_log(
+        actor=user.identity,
+        action="belief.set_tags",
+        resource_type="belief",
+        resource_id=node_id,
+        domain_id=domain_id,
+        after_state={"access_tags": tags},
+    ))
     return result
 
 

@@ -15,7 +15,7 @@ from sqlalchemy import func, select, text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.sessions import SessionMiddleware
 
-from reasons_service.api import domains, data, ask, public
+from reasons_service.api import audit as audit_api, domains, data, ask, public
 from reasons_service.chat import router as chat_router
 from reasons_service.auth import router as auth_router, security, verify_auth, verify_auth_or_public, verify_auth_web, resolve_domain_role, _LoginRedirect
 from fastapi.security import HTTPAuthorizationCredentials
@@ -23,6 +23,7 @@ from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
 from reasons_service.db.models import Assessment, Entry, Domain, Proposal, Source, Summary, entry_sources
 from reasons_service.rbac import Role, UserInfo
+from reasons_service.audit import audit_log, fire_audit
 from reasons_service.mcp import mcp as mcp_server
 from reasons_service.rms import api as rms_api
 
@@ -170,6 +171,7 @@ app.include_router(data.router, dependencies=[Depends(verify_auth_or_public), De
 app.include_router(data.tag_router, dependencies=[Depends(verify_auth)])
 
 app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role)])
+app.include_router(audit_api.router)
 app.include_router(chat_router)
 
 # MCP OAuth discovery routes (RFC 9728 + RFC 8414)
@@ -354,6 +356,14 @@ if not settings.hub_mode:
             ))
         await session.commit()
         await session.refresh(domain_obj)
+        fire_audit(audit_log(
+            actor=_user.identity,
+            action="domain.create",
+            resource_type="domain",
+            resource_id=str(domain_obj.id),
+            domain_id=domain_obj.id,
+            after_state={"name": name, "description": description},
+        ))
         return RedirectResponse(f"/domains/{domain_obj.id}", status_code=303)
 
 

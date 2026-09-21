@@ -20,6 +20,7 @@ from reasons_service.config import settings
 from reasons_service.db.connection import get_session
 from reasons_service.db.models import Entry, Domain, DomainMember, Source, User
 from reasons_service.rbac import Action, Role, require_action
+from reasons_service.audit import audit_log, fire_audit
 from reasons_service.rms import api as rms_api
 
 router = APIRouter(prefix="/api/domains", tags=["domains"])
@@ -68,6 +69,14 @@ async def create_domain(data: DomainCreate, request: Request, session: AsyncSess
         ))
     await session.commit()
     await session.refresh(domain_obj)
+    fire_audit(audit_log(
+        actor=user.identity,
+        action="domain.create",
+        resource_type="domain",
+        resource_id=str(domain_obj.id),
+        domain_id=domain_obj.id,
+        after_state={"name": data.name, "description": data.description, "public": data.public, "members_only": data.members_only},
+    ))
     return DomainResponse(
         id=domain_obj.id,
         name=domain_obj.name,
@@ -163,16 +172,26 @@ class DomainUpdate(BaseModel):
 
 @router.patch("/{domain_id}", response_model=DomainResponse,
               dependencies=[Depends(require_action(Action.MANAGE_DOMAINS))])
-async def update_domain(domain_id: UUID, data: DomainUpdate, session: AsyncSession = Depends(get_session)):
+async def update_domain(domain_id: UUID, data: DomainUpdate, request: Request, session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Domain).where(Domain.id == domain_id))
     domain_obj = result.scalar_one_or_none()
     if not domain_obj:
         raise HTTPException(status_code=404, detail="Domain not found")
     update_fields = data.model_dump(exclude_unset=True)
+    before = {f: getattr(domain_obj, f) for f in update_fields}
     for field, value in update_fields.items():
         setattr(domain_obj, field, value)
     await session.commit()
     await session.refresh(domain_obj)
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="domain.update",
+        resource_type="domain",
+        resource_id=str(domain_id),
+        domain_id=domain_id,
+        before_state=before,
+        after_state=update_fields,
+    ))
     sc, ec, cc = await _domain_counts(session, domain_obj.id)
     return DomainResponse(
         id=domain_obj.id,
@@ -191,13 +210,22 @@ async def update_domain(domain_id: UUID, data: DomainUpdate, session: AsyncSessi
 
 @router.delete("/{domain_id}",
                dependencies=[Depends(require_action(Action.MANAGE_DOMAINS))])
-async def delete_domain(domain_id: UUID, session: AsyncSession = Depends(get_session)):
+async def delete_domain(domain_id: UUID, request: Request, session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Domain).where(Domain.id == domain_id))
     domain_obj = result.scalar_one_or_none()
     if not domain_obj:
         raise HTTPException(status_code=404, detail="Domain not found")
+    domain_name = domain_obj.name
     await session.delete(domain_obj)
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="domain.delete",
+        resource_type="domain",
+        resource_id=str(domain_id),
+        domain_id=domain_id,
+        before_state={"name": domain_name},
+    ))
     return {"status": "deleted"}
 
 
@@ -237,6 +265,7 @@ def _load_network_from_upload(content: bytes, filename: str):
 @router.post("/{domain_id}/import-reasons")
 async def upsert_reasons(
     domain_id: UUID,
+    request: Request,
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
 ):
@@ -260,6 +289,14 @@ async def upsert_reasons(
             rms_api.upsert_network, domain_id, network
         )
 
+        fire_audit(audit_log(
+            actor=request.state.user.identity,
+            action="import.upsert_reasons",
+            resource_type="import",
+            resource_id=str(domain_id),
+            domain_id=domain_id,
+            metadata={"added": result["added"], "updated": result["updated"], "total_in_file": result["total"]},
+        ))
         return {
             "domain_id": str(domain_id),
             "added": result["added"],
@@ -275,6 +312,7 @@ async def upsert_reasons(
 
 @router.post("/import-reasons")
 async def import_reasons(
+    request: Request,
     name: str = Form(...),
     description: str = Form(""),
     file: UploadFile = File(...),
@@ -310,6 +348,14 @@ async def import_reasons(
 
         logger.info("import-reasons: complete — %d beliefs, %d nogoods imported into '%s'",
                      result["node_count"], result["nogood_count"], name)
+        fire_audit(audit_log(
+            actor=request.state.user.identity,
+            action="import.create_with_reasons",
+            resource_type="import",
+            resource_id=str(domain_obj.id),
+            domain_id=domain_obj.id,
+            metadata={"name": domain_obj.name, "beliefs": result["node_count"], "nogoods": result["nogood_count"]},
+        ))
         return {
             "domain_id": str(domain_obj.id),
             "name": domain_obj.name,
@@ -380,6 +426,7 @@ async def list_members(domain_id: UUID, session: AsyncSession = Depends(get_sess
 async def add_member(
     domain_id: UUID,
     data: MemberCreate,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     if data.role not in _VALID_ROLES:
@@ -408,6 +455,14 @@ async def add_member(
     )
     session.add(member)
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="member.add",
+        resource_type="member",
+        resource_id=email,
+        domain_id=domain_id,
+        after_state={"email": email, "role": data.role},
+    ))
     return {"email": data.email, "role": data.role, "domain_id": str(domain_id)}
 
 
@@ -417,6 +472,7 @@ async def update_member(
     domain_id: UUID,
     email: str,
     data: MemberUpdate,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     email = email.strip().lower()
@@ -429,6 +485,7 @@ async def update_member(
     member = result.scalar_one_or_none()
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
+    before = {"role": member.role, "visible_tags": member.visible_tags, "writable_tags": member.writable_tags}
     if data.role is not None:
         if data.role not in _VALID_ROLES:
             raise HTTPException(status_code=400, detail=f"Invalid role: {data.role}")
@@ -439,6 +496,15 @@ async def update_member(
         member.writable_tags = sorted(set(data.writable_tags))
     member.updated_at = datetime.now(timezone.utc)
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="member.update",
+        resource_type="member",
+        resource_id=email,
+        domain_id=domain_id,
+        before_state=before,
+        after_state=data.model_dump(exclude_unset=True),
+    ))
     return {"email": email, "role": member.role, "domain_id": str(domain_id)}
 
 
@@ -447,6 +513,7 @@ async def update_member(
 async def remove_member(
     domain_id: UUID,
     email: str,
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     email = email.strip().lower()
@@ -459,8 +526,17 @@ async def remove_member(
     member = result.scalar_one_or_none()
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
+    member_role = member.role
     await session.delete(member)
     await session.commit()
+    fire_audit(audit_log(
+        actor=request.state.user.identity,
+        action="member.remove",
+        resource_type="member",
+        resource_id=email,
+        domain_id=domain_id,
+        before_state={"email": email, "role": member_role},
+    ))
     return {"status": "removed", "email": email}
 
 
