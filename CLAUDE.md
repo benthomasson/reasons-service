@@ -54,5 +54,5 @@ curl -s http://localhost:8000/api/domains | python3 -m json.tool
 
 - **Dual DB drivers**: asyncpg for FastAPI endpoints, psycopg3 for sync operations. Sync URL uses `postgresql+psycopg://` dialect.
 - **Docker postgres port**: Mapped to 5433 (not 5432) to avoid conflicts.
-- **Schema-first**: No Alembic — tables created via `schema.sql` mounted at `/docker-entrypoint-initdb.d/`.
+- **Schema management**: `schema.sql` defines the full schema (mounted at `/docker-entrypoint-initdb.d/` for fresh DBs). Alembic migrations in `alembic/versions/` handle incremental changes to existing deployments. Keep both in sync.
 - **pgvector SQL**: Use `CAST(:param AS vector)` not `::vector` to avoid SQLAlchemy parameter binding conflicts.
