@@ -276,6 +276,14 @@
     return div.innerHTML;
   }
 
+  function safeUrl(url) {
+    try {
+      var parsed = new URL(url, window.location.origin);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+    } catch(e) {}
+    return null;
+  }
+
   function createCard(b) {
     var card = document.createElement('div');
     card.className = 'belief-card';
@@ -286,8 +294,9 @@
     var connCount = (b.dependents_count || 0) + (b.antecedents_count || 0);
 
     var sourceHtml = '';
-    if (b.source_url) {
-      sourceHtml = '<span class="card-source"><a href="' + escapeHtml(b.source_url) + '" target="_blank">' + escapeHtml(b.source || b.source_url) + '</a></span>';
+    var safeSrc = b.source_url ? safeUrl(b.source_url) : null;
+    if (safeSrc) {
+      sourceHtml = '<span class="card-source"><a href="' + escapeHtml(safeSrc) + '" target="_blank" rel="noopener">' + escapeHtml(b.source || b.source_url) + '</a></span>';
     } else if (b.source) {
       sourceHtml = '<span class="card-source">' + escapeHtml(b.source) + '</span>';
     }

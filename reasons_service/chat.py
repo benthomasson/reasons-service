@@ -9,10 +9,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from reasons_service.auth import verify_auth_or_public
 from reasons_service.config import settings
-from reasons_service.rbac import UserInfo
+from reasons_service.db.connection import get_session
+from reasons_service.db.models import Domain, DomainMember
+from reasons_service.rbac import Role, UserInfo
 from reasons_service.rms import api as rms_api
 
 logger = logging.getLogger(__name__)
@@ -127,7 +131,10 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     if req.history:
         for h in req.history[-10:]:
-            messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+            role = h.get("role", "user")
+            if role not in ("user", "assistant"):
+                continue
+            messages.append({"role": role, "content": h.get("content", "")})
     messages.append({"role": "user", "content": req.message})
 
     yield f"data: {json.dumps({'type': 'status', 'content': 'Thinking...'})}\n\n"
@@ -143,7 +150,8 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
                 )
             )
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'content': f'LLM error: {e}'})}\n\n"
+            logger.exception("LLM API error: %s", e)
+            yield f"data: {json.dumps({'type': 'error', 'content': 'LLM request failed. Check server logs for details.'})}\n\n"
             return
 
         choice = response.choices[0]
@@ -182,8 +190,37 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
     yield f"data: {json.dumps({'type': 'error', 'content': 'Max tool turns reached'})}\n\n"
 
 
+async def _verify_domain_access(domain_id: UUID, user: UserInfo, session: AsyncSession) -> None:
+    """Check that the user has access to the requested domain."""
+    if user.role == Role.ADMIN or user.identity in ("api", "dev"):
+        return
+    result = await session.execute(
+        select(Domain.public, Domain.members_only).where(Domain.id == domain_id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    if row.public:
+        return
+    if row.members_only:
+        member = await session.execute(
+            select(DomainMember).where(
+                DomainMember.domain_id == domain_id,
+                DomainMember.user_email == user.identity,
+            )
+        )
+        if not member.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Not a member of this domain")
+
+
 @router.post("/chat")
-async def chat(req: ChatRequest, user: UserInfo = Depends(verify_auth_or_public)):
+async def chat(
+    req: ChatRequest,
+    user: UserInfo = Depends(verify_auth_or_public),
+    session: AsyncSession = Depends(get_session),
+):
+    domain_id = UUID(req.domain_id)
+    await _verify_domain_access(domain_id, user, session)
     return StreamingResponse(
         _chat_stream(req, user),
         media_type="text/event-stream",
