@@ -920,7 +920,7 @@ async def import_sources(
             author=s.author,
             content_type=s.content_type,
             license=s.license,
-            added_by=user.identity if user else None,
+            added_by=user.identity,
         )
         session.add(source)
         await session.flush()
