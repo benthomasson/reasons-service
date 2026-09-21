@@ -8,11 +8,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from reasons_service.auth import verify_auth_or_public, _resolve_member_visible_tags
+from reasons_service.auth import security, verify_auth, _resolve_member_visible_tags
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
 from reasons_service.db.models import Domain, DomainMember
@@ -89,29 +90,27 @@ class ChatRequest(BaseModel):
 
 
 def _execute_tool(tool_name: str, args: dict, domain_id: UUID, visible_to: list[str] | None) -> str:
-    if tool_name == "search_beliefs":
-        result = rms_api.search(domain_id, args["query"], limit=10, visible_to=visible_to)
-        results = result.get("results", [])
-        if not results:
-            return json.dumps({"results": [], "message": "No beliefs found. Try different keywords."})
-        return json.dumps({"results": [
-            {"id": r["id"], "text": r["text"], "truth_value": r.get("truth_value", "IN")}
-            for r in results[:10]
-        ]})
-    elif tool_name == "show_belief":
-        try:
+    try:
+        if tool_name == "search_beliefs":
+            result = rms_api.search(domain_id, args["query"], limit=10, visible_to=visible_to)
+            results = result.get("results", [])
+            if not results:
+                return json.dumps({"results": [], "message": "No beliefs found. Try different keywords."})
+            return json.dumps({"results": [
+                {"id": r["id"], "text": r["text"], "truth_value": r.get("truth_value", "IN")}
+                for r in results[:10]
+            ]})
+        elif tool_name == "show_belief":
             result = rms_api.show_node(domain_id, args["belief_id"], visible_to=visible_to)
-        except (KeyError, PermissionError) as e:
-            return json.dumps({"error": str(e)})
-        return json.dumps(result)
-    elif tool_name == "explain_belief":
-        try:
+            return json.dumps(result)
+        elif tool_name == "explain_belief":
             result = rms_api.explain_node(domain_id, args["belief_id"], visible_to=visible_to)
-        except (KeyError, PermissionError) as e:
-            return json.dumps({"error": str(e)})
-        return json.dumps(result)
-    else:
-        return json.dumps({"error": f"Unknown tool: {tool_name}"})
+            return json.dumps(result)
+        else:
+            return json.dumps({"error": f"Unknown tool: {tool_name}"})
+    except Exception as e:
+        logger.exception("Tool %s failed: %s", tool_name, e)
+        return json.dumps({"error": f"Tool '{tool_name}' failed: {type(e).__name__}"})
 
 
 async def _chat_stream(req: ChatRequest, user: UserInfo):
@@ -168,9 +167,13 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
 
                 yield f"data: {json.dumps({'type': 'tool_call', 'name': fn_name, 'args': fn_args})}\n\n"
 
-                result = await asyncio.to_thread(
-                    _execute_tool, fn_name, fn_args, domain_id, user.visible_tags
-                )
+                try:
+                    result = await asyncio.to_thread(
+                        _execute_tool, fn_name, fn_args, domain_id, user.visible_tags
+                    )
+                except Exception as e:
+                    logger.exception("Tool execution thread failed: %s", e)
+                    result = json.dumps({"error": f"Tool failed: {type(e).__name__}"})
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc.id,
@@ -190,16 +193,26 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
     yield f"data: {json.dumps({'type': 'error', 'content': 'Max tool turns reached'})}\n\n"
 
 
-async def _resolve_chat_user(domain_id: UUID, user: UserInfo, session: AsyncSession) -> UserInfo:
-    """Verify domain access and resolve domain-scoped tags."""
-    if user.role == Role.ADMIN or user.identity in ("api", "dev"):
-        return user
+async def _resolve_chat_user(domain_id: UUID, user: UserInfo | None, session: AsyncSession) -> UserInfo:
+    """Verify domain access and resolve domain-scoped tags.
+
+    If user is None (unauthenticated), only public domains are allowed.
+    """
     result = await session.execute(
         select(Domain.public, Domain.members_only).where(Domain.id == domain_id)
     )
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Domain not found")
+
+    if user is None:
+        if row.public:
+            return UserInfo(identity="public", role=Role.READER)
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    if user.role == Role.ADMIN or user.identity in ("api", "dev"):
+        return user
+
     if row.members_only:
         member_result = await session.execute(
             select(DomainMember).where(
@@ -224,9 +237,16 @@ async def _resolve_chat_user(domain_id: UUID, user: UserInfo, session: AsyncSess
 @router.post("/chat")
 async def chat(
     req: ChatRequest,
-    user: UserInfo = Depends(verify_auth_or_public),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     session: AsyncSession = Depends(get_session),
 ):
+    user = None
+    try:
+        user = await verify_auth(request, credentials, session)
+    except HTTPException as e:
+        if e.status_code != 401:
+            raise
     domain_id = UUID(req.domain_id)
     effective_user = await _resolve_chat_user(domain_id, user, session)
     return StreamingResponse(

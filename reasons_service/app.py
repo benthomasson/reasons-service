@@ -170,7 +170,7 @@ app.include_router(data.router, dependencies=[Depends(verify_auth_or_public), De
 app.include_router(data.tag_router, dependencies=[Depends(verify_auth)])
 
 app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role)])
-app.include_router(chat_router, dependencies=[Depends(verify_auth_or_public)])
+app.include_router(chat_router)
 
 # MCP OAuth discovery routes (RFC 9728 + RFC 8414)
 # Must be on the parent app — MCP clients look for these at the domain root,
