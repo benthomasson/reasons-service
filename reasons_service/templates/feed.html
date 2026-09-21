@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+{% block title %}Feed — Reasons Service{% endblock %}
+{% block extra_head %}
+<style>
+.feed-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 10rem);
+  min-height: 300px;
+}
+.feed-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+  flex-wrap: wrap;
+}
+.feed-search {
+  flex: 1;
+  min-width: 200px;
+}
+.feed-search input[type="text"] {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: var(--sl-border-radius);
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-text);
+  font-size: var(--sl-text-sm);
+  outline: none;
+}
+.feed-search input[type="text"]:focus {
+  border-color: var(--sl-color-accent);
+}
+.feed-search input[type="text"]::placeholder {
+  color: var(--sl-color-gray-4);
+}
+.feed-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 0;
+  scroll-behavior: smooth;
+}
+.feed-stats {
+  font-size: var(--sl-text-2xs);
+  color: var(--sl-color-gray-3);
+  padding: 0.25rem 0;
+  text-align: center;
+}
+.belief-card {
+  background: var(--sl-color-gray-6);
+  border: 1px solid var(--sl-color-hairline-light);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.belief-card:hover {
+  border-color: var(--sl-color-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.belief-card.highlighted {
+  border-color: var(--sl-color-accent);
+  box-shadow: 0 0 0 2px var(--sl-color-accent-low);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.belief-id {
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-2xs);
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.card-badges {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+.truth-badge {
+  font-size: var(--sl-text-2xs);
+  padding: 0.0625rem 0.5rem;
+  border-radius: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.truth-in {
+  background: var(--sl-color-green-low);
+  color: var(--sl-color-green);
+}
+.truth-out {
+  background: hsl(0, 40%, 15%);
+  color: hsl(0, 70%, 65%);
+}
+.conn-badge {
+  font-size: var(--sl-text-2xs);
+  color: var(--sl-color-gray-3);
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.premise-badge {
+  font-size: var(--sl-text-2xs);
+  padding: 0.0625rem 0.5rem;
+  border-radius: 1rem;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+}
+.belief-text {
+  font-size: var(--sl-text-sm);
+  line-height: 1.6;
+  color: var(--sl-color-text);
+  margin-bottom: 0.625rem;
+}
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.card-btn {
+  font-size: var(--sl-text-2xs);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--sl-color-hairline-light);
+  background: transparent;
+  color: var(--sl-color-gray-3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.card-btn:hover {
+  background: var(--sl-color-gray-7, var(--sl-color-bg));
+  color: var(--sl-color-text);
+  border-color: var(--sl-color-gray-3);
+}
+.card-btn.active {
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+  border-color: var(--sl-color-accent);
+}
+.card-source {
+  font-size: var(--sl-text-2xs);
+  color: var(--sl-color-gray-3);
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.card-source a {
+  color: var(--sl-color-gray-3);
+  text-decoration: none;
+}
+.card-source a:hover {
+  color: var(--sl-color-text-accent);
+}
+.justifications {
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--sl-color-hairline-light);
+}
+.justification {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--sl-color-gray-7, var(--sl-color-bg));
+  border: 1px solid var(--sl-color-hairline-light);
+  border-radius: 0.375rem;
+  font-size: var(--sl-text-xs);
+}
+.just-label {
+  color: var(--sl-color-gray-3);
+  margin-bottom: 0.25rem;
+  font-style: italic;
+}
+.just-antecedents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+.ant-link {
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-2xs);
+  color: var(--sl-color-text-accent);
+  background: var(--sl-color-accent-low);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+  text-decoration: none;
+}
+.ant-link:hover {
+  border-color: var(--sl-color-accent);
+}
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--sl-color-gray-3);
+  text-align: center;
+}
+.empty-state p { margin: 0.25rem 0; }
+.loading-more {
+  text-align: center;
+  padding: 1rem;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="feed-container">
+  <div class="feed-header">
+    <select id="feed-domain-select">
+      <option value="">Select a domain...</option>
+    </select>
+    <div class="feed-search">
+      <input type="text" id="feed-search" placeholder="Search beliefs..." disabled>
+    </div>
+  </div>
+  <div class="feed-scroll" id="feed-scroll">
+    <div class="empty-state">
+      <div>
+        <p>Select a domain to browse beliefs</p>
+      </div>
+    </div>
+  </div>
+  <div class="feed-stats" id="feed-stats"></div>
+</div>
+
+<script>
+(function() {
+  var feedEl = document.getElementById('feed-scroll');
+  var domainSelect = document.getElementById('feed-domain-select');
+  var searchInput = document.getElementById('feed-search');
+  var statsEl = document.getElementById('feed-stats');
+  var emptyState = feedEl.querySelector('.empty-state');
+
+  var beliefs = [];
+  var loading = false;
+  var offset = 0;
+  var total = 0;
+  var currentDomain = '';
+  var searchTimeout = null;
+  var searchMode = false;
+
+  var fetchOpts = { credentials: 'same-origin' };
+
+  fetch('/api/domains', fetchOpts)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      (data.items || []).forEach(function(d) {
+        var opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        domainSelect.appendChild(opt);
+      });
+    });
+
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function safeUrl(url) {
+    try {
+      var parsed = new URL(url, window.location.origin);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+    } catch(e) {}
+    return null;
+  }
+
+  function createCard(b) {
+    var card = document.createElement('div');
+    card.className = 'belief-card';
+    card.id = 'belief-' + b.id;
+    var tv = (b.truth_value || 'IN').toUpperCase();
+    var tvClass = tv === 'IN' ? 'truth-in' : 'truth-out';
+    var isPremise = !b.support_list || b.support_list === '()';
+    var connCount = (b.dependents_count || 0) + (b.antecedents_count || 0);
+
+    var sourceHtml = '';
+    var safeSrc = b.source_url ? safeUrl(b.source_url) : null;
+    if (safeSrc) {
+      sourceHtml = '<span class="card-source"><a href="' + escapeHtml(safeSrc) + '" target="_blank" rel="noopener">' + escapeHtml(b.source || b.source_url) + '</a></span>';
+    } else if (b.source) {
+      sourceHtml = '<span class="card-source">' + escapeHtml(b.source) + '</span>';
+    }
+
+    card.innerHTML =
+      '<div class="card-header">' +
+        '<span class="belief-id">' + escapeHtml(b.id) + '</span>' +
+        '<div class="card-badges">' +
+          (isPremise ? '<span class="premise-badge">premise</span>' : '') +
+          '<span class="truth-badge ' + tvClass + '">' + tv + '</span>' +
+          (connCount > 0 ? '<span class="conn-badge">' + connCount + ' conn</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="belief-text">' + escapeHtml(b.text || '') + '</div>' +
+      '<div class="card-actions">' +
+        '<button class="card-btn expand-btn">Expand</button>' +
+        sourceHtml +
+      '</div>';
+
+    var expandBtn = card.querySelector('.expand-btn');
+    var expanded = false;
+    expandBtn.addEventListener('click', function() {
+      if (expanded) {
+        var just = card.querySelector('.justifications');
+        if (just) just.remove();
+        expandBtn.textContent = 'Expand';
+        expandBtn.classList.remove('active');
+        expanded = false;
+        return;
+      }
+      expandBtn.textContent = 'Loading...';
+      fetch('/api/domains/' + currentDomain + '/beliefs/' + encodeURIComponent(b.id) + '/explain', fetchOpts)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          expandBtn.textContent = 'Collapse';
+          expandBtn.classList.add('active');
+          expanded = true;
+          var justDiv = document.createElement('div');
+          justDiv.className = 'justifications';
+          var justs = data.justifications || [];
+          if (justs.length === 0) {
+            justDiv.innerHTML = '<div class="just-label">No justifications (premise)</div>';
+          } else {
+            justs.forEach(function(j) {
+              var jEl = document.createElement('div');
+              jEl.className = 'justification';
+              var label = j.label || 'supports';
+              var ants = j.antecedents || [];
+              var antHtml = ants.map(function(a) {
+                return '<a class="ant-link" data-id="' + escapeHtml(a) + '">' + escapeHtml(a) + '</a>';
+              }).join('');
+              jEl.innerHTML =
+                '<div class="just-label">' + escapeHtml(label) + '</div>' +
+                '<div class="just-antecedents">' + antHtml + '</div>';
+              justDiv.appendChild(jEl);
+            });
+          }
+          card.appendChild(justDiv);
+          justDiv.querySelectorAll('.ant-link').forEach(function(link) {
+            link.addEventListener('click', function() {
+              var antId = link.dataset.id;
+              navigateToCard(antId);
+            });
+          });
+        })
+        .catch(function() {
+          expandBtn.textContent = 'Expand';
+        });
+    });
+    return card;
+  }
+
+  function navigateToCard(beliefId) {
+    var existing = document.getElementById('belief-' + beliefId);
+    if (existing) {
+      existing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      existing.classList.add('highlighted');
+      setTimeout(function() { existing.classList.remove('highlighted'); }, 2000);
+      return;
+    }
+    fetch('/api/domains/' + currentDomain + '/beliefs/' + encodeURIComponent(beliefId), fetchOpts)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) return;
+        var card = createCard(data);
+        card.classList.add('highlighted');
+        feedEl.insertBefore(card, feedEl.firstChild);
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function() { card.classList.remove('highlighted'); }, 2000);
+      });
+  }
+
+  function loadBeliefs() {
+    if (loading || !currentDomain) return;
+    loading = true;
+    var loadingEl = document.createElement('div');
+    loadingEl.className = 'loading-more';
+    loadingEl.textContent = 'Loading...';
+    feedEl.appendChild(loadingEl);
+
+    fetch('/api/domains/' + currentDomain + '/beliefs?limit=20&offset=' + offset, fetchOpts)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        loadingEl.remove();
+        var items = data.items || [];
+        total = data.total || 0;
+        items.forEach(function(b) {
+          beliefs.push(b);
+          feedEl.appendChild(createCard(b));
+        });
+        offset += items.length;
+        statsEl.textContent = offset + ' of ' + total + ' beliefs loaded';
+        loading = false;
+      })
+      .catch(function() {
+        loadingEl.remove();
+        loading = false;
+      });
+  }
+
+  function searchBeliefs(query) {
+    if (!currentDomain) return;
+    searchMode = true;
+    feedEl.innerHTML = '<div class="loading-more">Searching...</div>';
+    fetch('/api/domains/' + currentDomain + '/search?q=' + encodeURIComponent(query), fetchOpts)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        feedEl.innerHTML = '';
+        var items = data.beliefs || [];
+        if (items.length === 0) {
+          feedEl.innerHTML = '<div class="empty-state"><div><p>No beliefs match "' + escapeHtml(query) + '"</p></div></div>';
+        }
+        items.forEach(function(b) {
+          feedEl.appendChild(createCard(b));
+        });
+        statsEl.textContent = items.length + ' results for "' + query + '"';
+      })
+      .catch(function() {
+        feedEl.innerHTML = '<div class="empty-state"><div><p>Search failed</p></div></div>';
+      });
+  }
+
+  function resetFeed() {
+    beliefs = [];
+    offset = 0;
+    total = 0;
+    searchMode = false;
+    feedEl.innerHTML = '';
+    statsEl.textContent = '';
+    searchInput.value = '';
+  }
+
+  domainSelect.addEventListener('change', function() {
+    currentDomain = domainSelect.value;
+    resetFeed();
+    if (currentDomain) {
+      searchInput.disabled = false;
+      loadBeliefs();
+    } else {
+      searchInput.disabled = true;
+      feedEl.innerHTML = '<div class="empty-state"><div><p>Select a domain to browse beliefs</p></div></div>';
+    }
+  });
+
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    var q = searchInput.value.trim();
+    if (!q) {
+      resetFeed();
+      if (currentDomain) loadBeliefs();
+      return;
+    }
+    searchTimeout = setTimeout(function() { searchBeliefs(q); }, 300);
+  });
+
+  feedEl.addEventListener('scroll', function() {
+    if (searchMode) return;
+    if (feedEl.scrollTop + feedEl.clientHeight >= feedEl.scrollHeight - 200) {
+      if (offset < total) loadBeliefs();
+    }
+  });
+})();
+</script>
+{% endblock %}

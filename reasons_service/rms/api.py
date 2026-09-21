@@ -274,16 +274,20 @@ def list_nodes(
     status: str | None = None,
     premises_only: bool = False,
     visible_to: list[str] | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> dict:
     """List nodes with optional filters."""
     if _is_sqlite():
         import reasons_lib.api as rlib
         return rlib.list_nodes(status=status, premises_only=premises_only,
                                visible_to=visible_to,
+                               limit=limit, offset=offset,
                                db_path=_db_path(domain_id))
     with _api(domain_id) as api:
         return api.list_nodes(status=status, premises_only=premises_only,
-                              visible_to=visible_to)
+                              visible_to=visible_to,
+                              limit=limit, offset=offset)
 
 
 def compact(domain_id: UUID, budget: int = 500, visible_to: list[str] | None = None) -> str:

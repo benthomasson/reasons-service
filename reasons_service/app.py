@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.sessions import SessionMiddleware
 
 from reasons_service.api import domains, data, ask, public
+from reasons_service.chat import router as chat_router
 from reasons_service.auth import router as auth_router, security, verify_auth, verify_auth_or_public, verify_auth_web, resolve_domain_role, _LoginRedirect
 from fastapi.security import HTTPAuthorizationCredentials
 from reasons_service.config import settings
@@ -169,6 +170,7 @@ app.include_router(data.router, dependencies=[Depends(verify_auth_or_public), De
 app.include_router(data.tag_router, dependencies=[Depends(verify_auth)])
 
 app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role)])
+app.include_router(chat_router)
 
 # MCP OAuth discovery routes (RFC 9728 + RFC 8414)
 # Must be on the parent app — MCP clients look for these at the domain root,
@@ -250,6 +252,18 @@ async def guide(request: Request):
     return templates.TemplateResponse(request, "guide.html", {
         "mcp_url": settings.mcp_issuer_url,
     })
+
+
+@app.get("/chat", response_class=HTMLResponse)
+async def chat_page(request: Request):
+    """Chat UI — conversational interface to domain knowledge."""
+    return templates.TemplateResponse(request, "chat.html")
+
+
+@app.get("/feed", response_class=HTMLResponse)
+async def feed_page(request: Request):
+    """Feed UI — browse domain beliefs with infinite scroll."""
+    return templates.TemplateResponse(request, "feed.html")
 
 
 @app.get("/", response_class=HTMLResponse)
