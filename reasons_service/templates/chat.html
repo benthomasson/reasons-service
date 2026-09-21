@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Chat — Reasons Service{% endblock %}
+{% block extra_head %}
+<style>
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 10rem);
+  min-height: 300px;
+}
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+  flex-wrap: wrap;
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 0;
+  scroll-behavior: smooth;
+}
+.chat-input-area {
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--sl-color-hairline-light);
+}
+.chat-input-area form {
+  display: flex;
+  gap: 0.5rem;
+}
+.chat-input-area input[type="text"] {
+  flex: 1;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: var(--sl-border-radius);
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-text);
+  font-size: var(--sl-text-base);
+  outline: none;
+}
+.chat-input-area input[type="text"]:focus {
+  border-color: var(--sl-color-accent);
+}
+.chat-input-area button {
+  padding: 0.625rem 1.5rem;
+  border: none;
+  border-radius: var(--sl-border-radius);
+  background: var(--sl-color-accent);
+  color: white;
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+  font-weight: 600;
+}
+.chat-input-area button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.msg {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: var(--sl-text-sm);
+  line-height: 1.6;
+}
+.msg-user {
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text);
+  margin-left: 3rem;
+}
+.msg-assistant {
+  background: var(--sl-color-gray-6);
+  border: 1px solid var(--sl-color-hairline-light);
+  margin-right: 3rem;
+}
+.msg-status {
+  text-align: center;
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-xs);
+  font-style: italic;
+}
+.msg-tool {
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-2xs);
+  color: var(--sl-color-gray-3);
+  padding: 0.375rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-left: 2px solid var(--sl-color-accent);
+  background: var(--sl-color-gray-7, var(--sl-color-bg));
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+.msg-error {
+  background: hsl(0, 40%, 15%);
+  color: hsl(0, 70%, 65%);
+  border: 1px solid hsl(0, 30%, 25%);
+}
+.empty-chat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--sl-color-gray-3);
+  text-align: center;
+}
+.empty-chat p { margin: 0.25rem 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+  <div class="chat-header">
+    <select id="chat-domain-select">
+      <option value="">Select a domain...</option>
+    </select>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="empty-chat">
+      <div>
+        <p>Select a domain and ask a question</p>
+        <p><small>The assistant will search the domain's belief network to answer</small></p>
+      </div>
+    </div>
+  </div>
+  <div class="chat-input-area">
+    <form id="chat-form">
+      <input type="text" id="chat-input" placeholder="Ask about the domain..." disabled autocomplete="off">
+      <button type="submit" id="chat-send" disabled>Send</button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  var messagesEl = document.getElementById('chat-messages');
+  var domainSelect = document.getElementById('chat-domain-select');
+  var chatInput = document.getElementById('chat-input');
+  var chatSend = document.getElementById('chat-send');
+  var chatForm = document.getElementById('chat-form');
+  var currentDomain = '';
+  var history = [];
+  var sending = false;
+
+  var fetchOpts = { credentials: 'same-origin' };
+
+  fetch('/api/domains', fetchOpts)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      (data.items || []).forEach(function(d) {
+        var opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        domainSelect.appendChild(opt);
+      });
+    });
+
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function addMessage(role, content) {
+    var el = document.createElement('div');
+    el.className = 'msg msg-' + role;
+    el.innerHTML = content;
+    var empty = messagesEl.querySelector('.empty-chat');
+    if (empty) empty.remove();
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  domainSelect.addEventListener('change', function() {
+    currentDomain = domainSelect.value;
+    history = [];
+    messagesEl.innerHTML = '';
+    if (currentDomain) {
+      chatInput.disabled = false;
+      chatSend.disabled = false;
+      chatInput.focus();
+      addMessage('status', 'Domain selected. Ask a question to search its knowledge base.');
+    } else {
+      chatInput.disabled = true;
+      chatSend.disabled = true;
+      messagesEl.innerHTML = '<div class="empty-chat"><div><p>Select a domain and ask a question</p></div></div>';
+    }
+  });
+
+  chatForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var msg = chatInput.value.trim();
+    if (!msg || !currentDomain || sending) return;
+    sending = true;
+    chatInput.value = '';
+    chatSend.disabled = true;
+
+    addMessage('user', escapeHtml(msg));
+    history.push({ role: 'user', content: msg });
+
+    var assistantEl = addMessage('assistant', '');
+    var fullResponse = '';
+
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        message: msg,
+        domain_id: currentDomain,
+        history: history.slice(-10)
+      })
+    }).then(function(response) {
+      var reader = response.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+
+      function read() {
+        reader.read().then(function(result) {
+          if (result.done) {
+            if (fullResponse) history.push({ role: 'assistant', content: fullResponse });
+            sending = false;
+            chatSend.disabled = false;
+            chatInput.focus();
+            return;
+          }
+          buffer += decoder.decode(result.value, { stream: true });
+          var lines = buffer.split('\n');
+          buffer = lines.pop();
+          lines.forEach(function(line) {
+            if (!line.startsWith('data: ')) return;
+            try {
+              var event = JSON.parse(line.slice(6));
+              if (event.type === 'token') {
+                fullResponse += event.content;
+                assistantEl.innerHTML = escapeHtml(fullResponse);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              } else if (event.type === 'tool_call') {
+                var toolText = event.name + '(' + JSON.stringify(event.args) + ')';
+                addMessage('tool', escapeHtml(toolText));
+              } else if (event.type === 'status') {
+                addMessage('status', escapeHtml(event.content));
+              } else if (event.type === 'error') {
+                addMessage('error', escapeHtml(event.content));
+              } else if (event.type === 'done') {
+                // stream complete
+              }
+            } catch(e) {}
+          });
+          read();
+        });
+      }
+      read();
+    }).catch(function(err) {
+      addMessage('error', 'Connection error: ' + escapeHtml(err.message));
+      sending = false;
+      chatSend.disabled = false;
+    });
+  });
+})();
+</script>
+{% endblock %}
