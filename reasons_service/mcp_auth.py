@@ -14,6 +14,7 @@ from mcp.server.auth.provider import (
     AuthorizationParams,
     OAuthAuthorizationServerProvider,
     RefreshToken,
+    TokenError,
     construct_redirect_uri,
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
@@ -140,7 +141,7 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
             return []
         invalid = set(scopes) - VALID_SCOPES
         if invalid:
-            raise ValueError(f"Invalid scopes: {', '.join(sorted(invalid))}")
+            raise TokenError(error="invalid_scope", error_description=f"Invalid scopes: {', '.join(sorted(invalid))}")
         return sorted(set(scopes))
 
     async def exchange_authorization_code(
@@ -199,7 +200,7 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
         if scopes:
             escalated = set(scopes) - set(refresh_token.scopes)
             if escalated:
-                raise ValueError(f"Cannot escalate scopes on refresh: {', '.join(sorted(escalated))}")
+                raise TokenError(error="invalid_scope", error_description=f"Cannot escalate scopes on refresh: {', '.join(sorted(escalated))}")
         effective = scopes or refresh_token.scopes
         validated_scopes = self._validate_scopes(effective)
         access = secrets.token_urlsafe(32)
