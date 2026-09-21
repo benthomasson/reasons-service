@@ -44,3 +44,8 @@ def fire_audit(coro) -> None:
     task = asyncio.create_task(coro)
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
+
+
+async def drain() -> None:
+    if _background_tasks:
+        await asyncio.gather(*_background_tasks, return_exceptions=True)

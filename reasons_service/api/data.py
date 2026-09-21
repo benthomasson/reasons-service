@@ -1406,7 +1406,7 @@ async def set_user_tags(email: str, data: SetTagsRequest, request: Request, sess
         resource_type="user",
         resource_id=email,
         before_state=before,
-        after_state={"visible_tags": data.visible_tags},
+        after_state={"visible_tags": user.visible_tags},
     ))
     return {"email": user.email, "visible_tags": user.visible_tags}
 
@@ -1427,7 +1427,7 @@ async def set_user_writable_tags(email: str, data: SetWritableTagsRequest, reque
         resource_type="user",
         resource_id=email,
         before_state=before,
-        after_state={"writable_tags": data.writable_tags},
+        after_state={"writable_tags": user.writable_tags},
     ))
     return {"email": user.email, "writable_tags": user.writable_tags}
 
@@ -1472,7 +1472,7 @@ async def set_allowed_tags(domain_id: UUID, data: SetAllowedTagsRequest, request
         resource_id=str(domain_id),
         domain_id=domain_id,
         before_state=before,
-        after_state={"allowed_tags": data.allowed_tags},
+        after_state={"allowed_tags": domain.allowed_tags},
     ))
     return {"domain_id": str(domain_id), "allowed_tags": domain.allowed_tags}
 
@@ -1541,6 +1541,11 @@ async def set_belief_tags(
     tags = sorted(set(data.access_tags))
     await _validate_tags(tags, domain_id, user, session)
     try:
+        existing = await asyncio.to_thread(rms_api.trace_access_tags, domain_id, node_id)
+        before_tags = existing.get("direct_tags", [])
+    except (KeyError, PermissionError):
+        before_tags = None
+    try:
         result = await asyncio.to_thread(rms_api.set_access_tags, domain_id, node_id, tags)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Belief not found: {node_id}")
@@ -1550,6 +1555,7 @@ async def set_belief_tags(
         resource_type="belief",
         resource_id=node_id,
         domain_id=domain_id,
+        before_state={"access_tags": before_tags} if before_tags is not None else None,
         after_state={"access_tags": tags},
     ))
     return result

@@ -23,7 +23,7 @@ from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
 from reasons_service.db.models import Assessment, Entry, Domain, Proposal, Source, Summary, entry_sources
 from reasons_service.rbac import Role, UserInfo
-from reasons_service.audit import audit_log, fire_audit
+from reasons_service.audit import audit_log, drain as drain_audit, fire_audit
 from reasons_service.mcp import mcp as mcp_server
 from reasons_service.rms import api as rms_api
 
@@ -48,6 +48,7 @@ async def lifespan(app):
         await session.commit()
     async with mcp_server._session_manager.run():
         yield
+    await drain_audit()
 
 app = FastAPI(title="Reasons Service", version="0.1.0", lifespan=lifespan)
 
