@@ -249,6 +249,26 @@ CREATE TABLE IF NOT EXISTS mcp_refresh_tokens (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Audit log (append-only)
+CREATE TABLE IF NOT EXISTS audit_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actor TEXT NOT NULL,
+    action TEXT NOT NULL,
+    resource_type TEXT NOT NULL,
+    resource_id TEXT,
+    domain_id UUID,
+    before_state JSONB,
+    after_state JSONB,
+    metadata JSONB
+);
+
+CREATE INDEX IF NOT EXISTS ix_audit_log_domain_id ON audit_log(domain_id);
+CREATE INDEX IF NOT EXISTS ix_audit_log_actor ON audit_log(actor);
+CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log(action);
+CREATE INDEX IF NOT EXISTS ix_audit_log_resource_type ON audit_log(resource_type);
+CREATE INDEX IF NOT EXISTS ix_audit_log_timestamp ON audit_log(timestamp);
+
 -- Source document chunks for FTS RAG
 CREATE TABLE IF NOT EXISTS source_chunks (
     id SERIAL PRIMARY KEY,

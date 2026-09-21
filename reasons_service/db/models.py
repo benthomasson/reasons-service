@@ -275,6 +275,28 @@ class McpRefreshToken(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+    __table_args__ = (
+        Index("ix_audit_log_domain_id", "domain_id"),
+        Index("ix_audit_log_actor", "actor"),
+        Index("ix_audit_log_action", "action"),
+        Index("ix_audit_log_resource_type", "resource_type"),
+        Index("ix_audit_log_timestamp", "timestamp"),
+    )
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    timestamp = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    actor = Column(String, nullable=False)
+    action = Column(String, nullable=False)
+    resource_type = Column(String, nullable=False)
+    resource_id = Column(String)
+    domain_id = Column(Uuid(as_uuid=True))
+    before_state = Column(JSON)
+    after_state = Column(JSON)
+    metadata_ = Column("metadata", JSON)
+
+
 if _has_pgvector:
 
     class Embedding(Base):
