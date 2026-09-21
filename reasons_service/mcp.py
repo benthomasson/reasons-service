@@ -7,10 +7,17 @@ import time
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.shared.exceptions import McpError
+from mcp.types import INVALID_PARAMS
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
 from reasons_service.config import settings
+
+SCOPE_READ = "reasons:read"
+SCOPE_PROPOSE = "reasons:propose"
+SCOPE_REVIEW = "reasons:review"
+VALID_SCOPES = frozenset({SCOPE_READ, SCOPE_PROPOSE, SCOPE_REVIEW})
 
 BASE_URL = settings.mcp_base_url
 TIMEOUT = 120.0
@@ -164,6 +171,18 @@ def _headers() -> dict[str, str]:
     return {}
 
 
+def _require_scope(scope: str) -> None:
+    from mcp.server.auth.middleware.auth_context import get_access_token
+
+    access_token = get_access_token()
+    if not access_token:
+        return
+    if not access_token.scopes:
+        return
+    if scope not in access_token.scopes:
+        raise McpError(INVALID_PARAMS, f"Missing required scope: {scope}")
+
+
 async def _resolve(domain: str) -> str:
     if len(domain) == 36 and domain.count("-") == 4:
         return domain
@@ -193,6 +212,7 @@ async def deep_search(query: str, domain: str) -> str:
         query: The question or search terms
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -217,6 +237,7 @@ async def search(query: str, domain: str) -> str:
         query: Search terms
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -240,6 +261,7 @@ async def explain_belief(node_id: str, domain: str) -> str:
         node_id: The belief ID to explain
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         belief = await client.get(
@@ -268,6 +290,7 @@ async def what_if(node_id: str, action: str = "retract", domain: str = "") -> st
         action: "retract" or "assert"
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -288,6 +311,7 @@ async def get_belief(node_id: str, domain: str) -> str:
         node_id: The belief ID
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -310,6 +334,7 @@ async def find_issues(domain: str) -> str:
     Args:
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -332,6 +357,7 @@ async def list_beliefs(status: str = "", domain: str = "", limit: int = 50, offs
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     params: dict = {"limit": limit, "offset": offset}
     if status:
@@ -358,6 +384,7 @@ async def list_domains(limit: int = 50, offset: int = 0) -> str:
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
+    _require_scope(SCOPE_READ)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"{BASE_URL}/api/domains",
@@ -382,6 +409,7 @@ async def list_topics(domain: str, limit: int = 50, offset: int = 0) -> str:
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     params: dict = {"limit": limit, "offset": offset}
     async with httpx.AsyncClient() as client:
@@ -421,6 +449,7 @@ async def list_entries(topic: str = "", domain: str = "", limit: int = 50, offse
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     params: dict = {"limit": limit, "offset": offset}
     if topic:
@@ -444,6 +473,7 @@ async def get_entry(entry_id: str, domain: str) -> str:
         entry_id: The entry ID
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -464,6 +494,7 @@ async def list_sources(domain: str, limit: int = 50, offset: int = 0) -> str:
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -484,6 +515,7 @@ async def get_source(slug: str, domain: str) -> str:
         slug: The source slug
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -505,6 +537,7 @@ async def list_summaries(topic: str = "", domain: str = "", limit: int = 50, off
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     params: dict = {"limit": limit, "offset": offset}
     if topic:
@@ -534,6 +567,7 @@ async def propose_belief(text: str, domain: str, rationale: str = "") -> str:
         domain: Domain name or UUID
         rationale: Why this belief should be added
     """
+    _require_scope(SCOPE_PROPOSE)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -561,6 +595,7 @@ async def propose_retraction(node_id: str, domain: str, rationale: str = "") -> 
         domain: Domain name or UUID
         rationale: Why this belief should be retracted
     """
+    _require_scope(SCOPE_PROPOSE)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -587,6 +622,7 @@ async def list_proposals(domain: str, status: str = "pending", limit: int = 50, 
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
+    _require_scope(SCOPE_PROPOSE)
     pid = await _resolve(domain)
     params: dict = {"limit": limit, "offset": offset}
     if status:
@@ -610,6 +646,7 @@ async def get_proposal(proposal_id: str, domain: str) -> str:
         proposal_id: The proposal UUID
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_PROPOSE)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -635,6 +672,7 @@ async def accept_proposal(proposal_id: str, domain: str) -> str:
         proposal_id: The proposal UUID to accept
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_REVIEW)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.put(
@@ -656,6 +694,7 @@ async def reject_proposal(proposal_id: str, domain: str, reason: str = "") -> st
         domain: Domain name or UUID
         reason: Why the proposal is being rejected
     """
+    _require_scope(SCOPE_REVIEW)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.put(
@@ -676,6 +715,7 @@ async def withdraw_proposal(proposal_id: str, domain: str) -> str:
         proposal_id: The proposal UUID to withdraw
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_PROPOSE)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.delete(
@@ -695,6 +735,7 @@ async def get_summary(summary_id: str, domain: str) -> str:
         summary_id: The summary ID
         domain: Domain name or UUID
     """
+    _require_scope(SCOPE_READ)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
