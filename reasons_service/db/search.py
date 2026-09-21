@@ -287,7 +287,7 @@ def search_source_chunks(domain_id: UUID, query: str, limit: int = 10) -> tuple[
             idfs = _compute_idf(session, pid, terms, "source_chunks")
             rows = session.execute(
                 sa_text(
-                    f"SELECT c.text, c.section, s.slug, s.url "
+                    f"SELECT c.text, c.section, s.slug, s.url, s.title "
                     f"FROM source_chunks c "
                     f"JOIN sources s ON s.id = c.source_id "
                     f"WHERE c.domain_id = :pid "

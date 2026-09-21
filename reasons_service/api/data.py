@@ -900,6 +900,7 @@ async def import_sources(
     """Bulk import sources from a file-based expert repo."""
     imported = 0
     skipped = 0
+    user = request.state.user
 
     for s in data.sources:
         existing = await session.execute(
@@ -908,8 +909,6 @@ async def import_sources(
         if existing.scalar_one_or_none() is not None:
             skipped += 1
             continue
-
-        user = request.state.user
         source = Source(
             domain_id=domain_id,
             slug=s.slug,
