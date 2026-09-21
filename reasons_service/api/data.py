@@ -1543,7 +1543,7 @@ async def set_belief_tags(
     try:
         existing = await asyncio.to_thread(rms_api.trace_access_tags, domain_id, node_id)
         before_tags = existing.get("direct_tags", [])
-    except (KeyError, PermissionError):
+    except Exception:
         before_tags = None
     try:
         result = await asyncio.to_thread(rms_api.set_access_tags, domain_id, node_id, tags)
