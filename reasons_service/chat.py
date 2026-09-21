@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from reasons_service.auth import security, verify_auth, _resolve_member_visible_tags
+from reasons_service.ratelimit import check_rate_limit
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
 from reasons_service.db.models import Domain, DomainMember
@@ -246,6 +247,7 @@ async def chat(
     except HTTPException as e:
         if e.status_code != 401:
             raise
+    await check_rate_limit(request, "chat")
     domain_id = UUID(req.domain_id)
     effective_user = await _resolve_chat_user(domain_id, user, session)
     return StreamingResponse(

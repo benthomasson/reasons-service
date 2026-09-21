@@ -67,6 +67,14 @@ class Settings(BaseModel):
     mcp_issuer_url: str = os.getenv("MCP_ISSUER_URL", "https://reasons.reasonsforge.com/mcp")
     mcp_base_url: str = os.getenv("MCP_BASE_URL", "http://localhost:8000")
     public_registration: bool = os.getenv("REASONS_PUBLIC_REGISTRATION", "false").lower() in ("true", "1", "yes")
+    # Rate limiting
+    rate_limit_enabled: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() in ("true", "1", "yes")
+    rate_limit_default: int = int(os.getenv("RATE_LIMIT_DEFAULT", "120"))
+    rate_limit_chat: int = int(os.getenv("RATE_LIMIT_CHAT", "10"))
+    rate_limit_search: int = int(os.getenv("RATE_LIMIT_SEARCH", "30"))
+    rate_limit_public: int = int(os.getenv("RATE_LIMIT_PUBLIC", "30"))
+    rate_limit_admin: int = int(os.getenv("RATE_LIMIT_ADMIN", "0"))
+    rate_limit_window: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
 
     @property
     def llm_enabled(self) -> bool:

@@ -18,6 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from reasons_service.api import audit as audit_api, domains, data, ask, public
 from reasons_service.chat import router as chat_router
 from reasons_service.auth import router as auth_router, security, verify_auth, verify_auth_or_public, verify_auth_web, resolve_domain_role, _LoginRedirect
+from reasons_service.ratelimit import require_rate_limit
 from fastapi.security import HTTPAuthorizationCredentials
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
@@ -61,6 +62,16 @@ async def set_default_user(request: Request, call_next):
     """Ensure request.state.user always exists for templates."""
     request.state.user = None
     return await call_next(request)
+
+
+@app.middleware("http")
+async def inject_rate_limit_headers(request: Request, call_next):
+    response = await call_next(request)
+    headers = getattr(request.state, "rate_limit_headers", None)
+    if headers:
+        for k, v in headers.items():
+            response.headers[k] = v
+    return response
 
 # OAuth setup (optional — disabled when credentials not set)
 oauth = None
@@ -163,16 +174,16 @@ async def resolve_domain_name(
     return {"id": str(row.id), "name": name, "public": False}
 
 # Public domain views (no auth — gated by domain.public flag)
-app.include_router(public.landing_router)
-app.include_router(public.router)
+app.include_router(public.landing_router, dependencies=[Depends(require_rate_limit("default"))])
+app.include_router(public.router, dependencies=[Depends(require_rate_limit("default"))])
 
 # API routes (protected by auth)
-app.include_router(domains.router, dependencies=[Depends(verify_auth), Depends(resolve_domain_role)])
-app.include_router(data.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role)])
-app.include_router(data.tag_router, dependencies=[Depends(verify_auth)])
+app.include_router(domains.router, dependencies=[Depends(verify_auth), Depends(resolve_domain_role), Depends(require_rate_limit("default"))])
+app.include_router(data.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role), Depends(require_rate_limit("default"))])
+app.include_router(data.tag_router, dependencies=[Depends(verify_auth), Depends(require_rate_limit("default"))])
 
-app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role)])
-app.include_router(audit_api.router)
+app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role), Depends(require_rate_limit("search"))])
+app.include_router(audit_api.router, dependencies=[Depends(require_rate_limit("default"))])
 app.include_router(chat_router)
 
 # MCP OAuth discovery routes (RFC 9728 + RFC 8414)
