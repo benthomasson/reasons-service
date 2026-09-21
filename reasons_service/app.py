@@ -174,8 +174,8 @@ async def resolve_domain_name(
     return {"id": str(row.id), "name": name, "public": False}
 
 # Public domain views (no auth — gated by domain.public flag)
-app.include_router(public.landing_router)
-app.include_router(public.router)
+app.include_router(public.landing_router, dependencies=[Depends(require_rate_limit("default"))])
+app.include_router(public.router, dependencies=[Depends(require_rate_limit("default"))])
 
 # API routes (protected by auth)
 app.include_router(domains.router, dependencies=[Depends(verify_auth), Depends(resolve_domain_role), Depends(require_rate_limit("default"))])
