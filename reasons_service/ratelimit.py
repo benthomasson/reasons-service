@@ -61,62 +61,66 @@ _limiter = RateLimiter()
 
 
 def _get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    # Use request.client.host (set by the ASGI server from the actual TCP
+    # connection) to avoid X-Forwarded-For spoofing. Reverse proxies that
+    # terminate TLS should set the real client IP via ASGI server config
+    # (e.g. uvicorn --proxy-headers with trusted proxy).
     if request.client:
         return request.client.host
     return "unknown"
 
 
+_TIER_SETTINGS = {
+    "default": "rate_limit_default",
+    "search": "rate_limit_search",
+    "chat": "rate_limit_chat",
+}
+
+
 def _get_limit(tier: str, user) -> int:
     if user and (user.role == Role.ADMIN or user.identity in ("api", "dev")):
-        limit = settings.rate_limit_admin
-        if limit == 0:
+        if settings.rate_limit_admin == 0:
             return 0
-        if tier == "chat":
-            return settings.rate_limit_chat * 6
-        return limit
+        return settings.rate_limit_admin
+
+    setting = _TIER_SETTINGS.get(tier, "rate_limit_default")
 
     if not user or user.identity == "public":
-        if tier == "chat":
-            return settings.rate_limit_chat
-        if tier == "search":
-            return settings.rate_limit_public // 2
         return settings.rate_limit_public
 
-    if tier == "chat":
-        return settings.rate_limit_chat
-    if tier == "search":
-        return settings.rate_limit_search
-    return settings.rate_limit_default
+    return getattr(settings, setting)
+
+
+async def check_rate_limit(request: Request, tier: str = "default"):
+    """Check rate limit for the current request. Can be called directly."""
+    if not settings.rate_limit_enabled:
+        return
+
+    user = getattr(request.state, "user", None)
+
+    limit = _get_limit(tier, user)
+    if limit == 0:
+        return
+
+    if user and user.identity not in ("public",):
+        key = f"user:{user.identity}:{tier}"
+    else:
+        key = f"ip:{_get_client_ip(request)}:{tier}"
+
+    allowed, headers = _limiter.check(key, limit, settings.rate_limit_window)
+
+    request.state.rate_limit_headers = headers
+
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded",
+            headers=headers,
+        )
 
 
 def require_rate_limit(tier: str = "default"):
-    async def _check_rate_limit(request: Request):
-        if not settings.rate_limit_enabled:
-            return
-
-        user = getattr(request.state, "user", None)
-
-        limit = _get_limit(tier, user)
-        if limit == 0:
-            return
-
-        if user and user.identity not in ("public",):
-            key = f"user:{user.identity}:{tier}"
-        else:
-            key = f"ip:{_get_client_ip(request)}:{tier}"
-
-        allowed, headers = _limiter.check(key, limit, settings.rate_limit_window)
-
-        request.state.rate_limit_headers = headers
-
-        if not allowed:
-            raise HTTPException(
-                status_code=429,
-                detail="Rate limit exceeded",
-                headers=headers,
-            )
-
-    return _check_rate_limit
+    """FastAPI dependency factory for rate limiting."""
+    async def _dep(request: Request):
+        await check_rate_limit(request, tier)
+    return _dep
