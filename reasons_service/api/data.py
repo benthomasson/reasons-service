@@ -303,7 +303,7 @@ class ProposalReview(BaseModel):
 
 @router.post(
     "/beliefs/propose",
-    dependencies=[Depends(verify_auth), Depends(require_action(Action.PROPOSE_BELIEFS))],
+    dependencies=[Depends(require_action(Action.PROPOSE_BELIEFS))],
 )
 async def propose_belief(
     domain_id: UUID,
@@ -548,7 +548,7 @@ def _apply_mutation(domain_id: UUID, proposal: Proposal) -> dict:
 
 @router.put(
     "/beliefs/proposed/{proposal_id}",
-    dependencies=[Depends(verify_auth), Depends(require_action(Action.REVIEW_PROPOSALS))],
+    dependencies=[Depends(require_action(Action.REVIEW_PROPOSALS))],
 )
 async def review_proposal(
     domain_id: UUID,
@@ -663,7 +663,7 @@ async def review_proposal(
 
 @router.delete(
     "/beliefs/proposed/{proposal_id}",
-    dependencies=[Depends(verify_auth), Depends(require_action(Action.PROPOSE_BELIEFS))],
+    dependencies=[Depends(require_action(Action.PROPOSE_BELIEFS))],
 )
 async def withdraw_proposal(
     domain_id: UUID,
@@ -1529,15 +1529,16 @@ class SetBeliefTagsRequest(BaseModel):
     access_tags: list[str]
 
 
-@router.put("/beliefs/{node_id}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
+@router.put("/beliefs/{node_id}/tags", dependencies=[Depends(require_action(Action.ADMIN))])
 async def set_belief_tags(
     domain_id: UUID,
     node_id: str,
     data: SetBeliefTagsRequest,
-    user: UserInfo = Depends(verify_auth),
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Set access_tags on a belief (admin only). Validates against domain allowlist."""
+    user = request.state.user
     tags = sorted(set(data.access_tags))
     await _validate_tags(tags, domain_id, user, session)
     try:
