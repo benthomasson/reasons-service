@@ -213,24 +213,23 @@ async def _resolve_chat_user(domain_id: UUID, user: UserInfo | None, session: As
     if user.role == Role.ADMIN or user.identity in ("api", "dev"):
         return user
 
-    if row.members_only:
-        member_result = await session.execute(
-            select(DomainMember).where(
-                DomainMember.domain_id == domain_id,
-                DomainMember.user_email == user.identity,
-            )
+    member_result = await session.execute(
+        select(DomainMember).where(
+            DomainMember.domain_id == domain_id,
+            DomainMember.user_email == user.identity,
         )
-        member = member_result.scalar_one_or_none()
-        if member:
-            return UserInfo(
-                identity=user.identity,
-                role=member.role,
-                display_name=user.display_name,
-                visible_tags=_resolve_member_visible_tags(member),
-                domain_id=str(domain_id),
-            )
-        if not row.public:
-            raise HTTPException(status_code=403, detail="Not a member of this domain")
+    )
+    member = member_result.scalar_one_or_none()
+    if member:
+        return UserInfo(
+            identity=user.identity,
+            role=member.role,
+            display_name=user.display_name,
+            visible_tags=_resolve_member_visible_tags(member),
+            domain_id=str(domain_id),
+        )
+    if row.members_only and not row.public:
+        raise HTTPException(status_code=403, detail="Not a member of this domain")
     return user
 
 

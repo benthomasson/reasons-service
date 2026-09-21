@@ -210,9 +210,9 @@ async def resolve_domain_role(
 ) -> UserInfo:
     """Resolve the user's effective role for the current domain.
 
-    Runs after verify_auth. On members_only domains, requires domain
-    membership and uses domain-scoped role/tags. On open domains,
-    passes through the global role unchanged.
+    Runs after verify_auth. Always checks domain membership — if a
+    DomainMember record exists, uses the domain-scoped role/tags.
+    Falls back to global role for non-members on open domains.
     """
     user: UserInfo = request.state.user
     domain_id = request.path_params.get("domain_id")
@@ -237,9 +237,6 @@ async def resolve_domain_role(
     if not row:
         return user
 
-    if not row.members_only:
-        return user
-
     member_result = await session.execute(
         select(DomainMember).where(
             DomainMember.domain_id == UUID(str(domain_id)),
@@ -248,24 +245,25 @@ async def resolve_domain_role(
     )
     member = member_result.scalar_one_or_none()
 
-    if not member:
-        if row.public:
-            return user
+    if member:
+        effective = UserInfo(
+            identity=user.identity,
+            role=member.role,
+            display_name=user.display_name,
+            visible_tags=_resolve_member_visible_tags(member),
+            writable_tags=_resolve_member_writable_tags(member),
+            domain_id=str(domain_id),
+        )
+        request.state.user = effective
+        return effective
+
+    if row.members_only and not row.public:
         raise HTTPException(
             status_code=403,
             detail="You are not a member of this domain",
         )
 
-    effective = UserInfo(
-        identity=user.identity,
-        role=member.role,
-        display_name=user.display_name,
-        visible_tags=_resolve_member_visible_tags(member),
-        writable_tags=_resolve_member_writable_tags(member),
-        domain_id=str(domain_id),
-    )
-    request.state.user = effective
-    return effective
+    return user
 
 
 # --- Dual auth dependency ---

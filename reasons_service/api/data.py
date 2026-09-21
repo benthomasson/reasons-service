@@ -303,7 +303,7 @@ class ProposalReview(BaseModel):
 
 @router.post(
     "/beliefs/propose",
-    dependencies=[Depends(verify_auth), Depends(require_action(Action.PROPOSE_BELIEFS))],
+    dependencies=[Depends(require_action(Action.PROPOSE_BELIEFS))],
 )
 async def propose_belief(
     domain_id: UUID,
@@ -548,7 +548,7 @@ def _apply_mutation(domain_id: UUID, proposal: Proposal) -> dict:
 
 @router.put(
     "/beliefs/proposed/{proposal_id}",
-    dependencies=[Depends(verify_auth), Depends(require_action(Action.REVIEW_PROPOSALS))],
+    dependencies=[Depends(require_action(Action.REVIEW_PROPOSALS))],
 )
 async def review_proposal(
     domain_id: UUID,
@@ -663,7 +663,7 @@ async def review_proposal(
 
 @router.delete(
     "/beliefs/proposed/{proposal_id}",
-    dependencies=[Depends(verify_auth), Depends(require_action(Action.PROPOSE_BELIEFS))],
+    dependencies=[Depends(require_action(Action.PROPOSE_BELIEFS))],
 )
 async def withdraw_proposal(
     domain_id: UUID,
@@ -878,7 +878,7 @@ class ClaimsImportRequest(BaseModel):
     claims: list[ClaimImport]
 
 
-@router.post("/import/sources", dependencies=[Depends(verify_auth)])
+@router.post("/import/sources", dependencies=[Depends(require_action(Action.MANAGE_SOURCES))])
 async def import_sources(
     domain_id: UUID,
     data: SourcesImportRequest,
@@ -928,7 +928,7 @@ async def import_sources(
     return {"imported": imported, "skipped": skipped}
 
 
-@router.post("/import/entries", dependencies=[Depends(verify_auth)])
+@router.post("/import/entries", dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
 async def import_entries(
     domain_id: UUID,
     data: EntriesImportRequest,
@@ -989,7 +989,7 @@ async def import_entries(
     return {"imported": imported, "skipped": skipped, "linked": linked}
 
 
-@router.post("/import/summaries", dependencies=[Depends(verify_auth)])
+@router.post("/import/summaries", dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
 async def import_summaries(
     domain_id: UUID,
     data: SummariesImportRequest,
@@ -1047,7 +1047,7 @@ async def import_summaries(
     return {"imported": imported, "skipped": skipped, "linked": linked}
 
 
-@router.post("/import/beliefs", dependencies=[Depends(verify_auth)])
+@router.post("/import/beliefs", dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
 async def import_beliefs(
     domain_id: UUID,
     data: ClaimsImportRequest,
@@ -1094,7 +1094,7 @@ async def import_beliefs(
     return result
 
 
-@router.post("/link-entries-sources", dependencies=[Depends(verify_auth)])
+@router.post("/link-entries-sources", dependencies=[Depends(require_action(Action.MANAGE_SOURCES))])
 async def link_entries_sources(
     domain_id: UUID,
     request: Request,
@@ -1175,7 +1175,7 @@ async def link_entries_sources(
     return {"linked": linked, "migrated": migrated, "already_linked": already_linked}
 
 
-@router.post("/chunk-sources", dependencies=[Depends(verify_auth)])
+@router.post("/chunk-sources", dependencies=[Depends(require_action(Action.MANAGE_SOURCES))])
 async def chunk_sources(
     domain_id: UUID,
     request: Request,
@@ -1250,7 +1250,7 @@ async def list_topics(
     }
 
 
-@router.post("/topics/generate", dependencies=[Depends(verify_auth)])
+@router.post("/topics/generate", dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
 async def generate_topics(
     domain_id: UUID,
     request: Request,
@@ -1316,7 +1316,7 @@ class TopicsImportRequest(BaseModel):
     topics: list[TopicImport]
 
 
-@router.post("/import/topics", dependencies=[Depends(verify_auth)])
+@router.post("/import/topics", dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
 async def import_topics(
     domain_id: UUID,
     data: TopicsImportRequest,
@@ -1529,15 +1529,16 @@ class SetBeliefTagsRequest(BaseModel):
     access_tags: list[str]
 
 
-@router.put("/beliefs/{node_id}/tags", dependencies=[Depends(verify_auth), Depends(require_action(Action.ADMIN))])
+@router.put("/beliefs/{node_id}/tags", dependencies=[Depends(require_action(Action.ADMIN))])
 async def set_belief_tags(
     domain_id: UUID,
     node_id: str,
     data: SetBeliefTagsRequest,
-    user: UserInfo = Depends(verify_auth),
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
     """Set access_tags on a belief (admin only). Validates against domain allowlist."""
+    user = request.state.user
     tags = sorted(set(data.access_tags))
     await _validate_tags(tags, domain_id, user, session)
     try:

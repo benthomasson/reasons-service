@@ -262,7 +262,8 @@ def _load_network_from_upload(content: bytes, filename: str):
         tmp_path.unlink(missing_ok=True)
 
 
-@router.post("/{domain_id}/import-reasons")
+@router.post("/{domain_id}/import-reasons",
+             dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
 async def upsert_reasons(
     domain_id: UUID,
     request: Request,
