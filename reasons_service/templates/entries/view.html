@@ -14,7 +14,7 @@
     {% if linked_sources %}
     &middot; Original source:
     {% for s in linked_sources %}
-    <a href="/domains/{{ domain.id }}/sources/{{ s.slug }}/view">{{ s.slug }}</a>{% if not loop.last %}, {% endif %}
+    <a href="/domains/{{ domain.id }}/sources/{{ s.slug }}/view">{{ s.title or s.slug }}</a>{% if not loop.last %}, {% endif %}
     {% endfor %}
     {% endif %}
 </div>

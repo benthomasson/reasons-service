@@ -42,7 +42,8 @@ async def list_sources(
     total_result = await session.execute(select(func.count()).select_from(base.subquery()))
     total = total_result.scalar() or 0
     result = await session.execute(
-        select(Source.id, Source.slug, Source.url, Source.word_count, Source.fetched_at)
+        select(Source.id, Source.slug, Source.url, Source.word_count, Source.fetched_at,
+               Source.title, Source.author, Source.content_type)
         .where(Source.domain_id == domain_id)
         .order_by(Source.fetched_at.desc())
         .limit(limit)
@@ -76,6 +77,12 @@ async def get_source(domain_id: UUID, slug: str, session: AsyncSession = Depends
         "word_count": source.word_count,
         "entry_count": entry_count_result.scalar(),
         "fetched_at": source.fetched_at.isoformat() if source.fetched_at else None,
+        "title": source.title,
+        "description": source.description,
+        "author": source.author,
+        "content_type": source.content_type,
+        "added_by": source.added_by,
+        "license": source.license,
     }
 
 
@@ -162,7 +169,7 @@ async def get_entry(domain_id: UUID, entry_id: str, session: AsyncSession = Depe
         "content": entry.content,
         "created_at": entry.created_at.isoformat(),
         "sources": [
-            {"slug": s.slug, "url": s.url, "word_count": s.word_count}
+            {"slug": s.slug, "url": s.url, "word_count": s.word_count, "title": s.title}
             for s in entry.sources
         ],
     }
@@ -219,7 +226,7 @@ async def get_summary(domain_id: UUID, summary_id: str, session: AsyncSession = 
         "content": summary.content,
         "created_at": summary.created_at.isoformat(),
         "sources": [
-            {"slug": s.slug, "url": s.url, "word_count": s.word_count}
+            {"slug": s.slug, "url": s.url, "word_count": s.word_count, "title": s.title}
             for s in summary.sources
         ],
     }
@@ -773,7 +780,7 @@ async def search(
     chunk_results = await session.execute(
         text(
             f"SELECT c.id, c.section, s.slug AS source_slug, s.url AS source_url, "
-            f"  {snippet_expr} AS snippet "
+            f"  s.title AS source_title, {snippet_expr} AS snippet "
             f"FROM source_chunks c "
             f"JOIN sources s ON s.id = c.source_id "
             f"WHERE c.domain_id = :pid AND {cw} "
@@ -836,6 +843,11 @@ class SourceImport(BaseModel):
     url: str | None = None
     content: str
     word_count: int | None = None
+    title: str | None = None
+    description: str | None = None
+    author: str | None = None
+    content_type: str | None = None
+    license: str | None = None
 
 
 class SourcesImportRequest(BaseModel):
@@ -888,6 +900,7 @@ async def import_sources(
     """Bulk import sources from a file-based expert repo."""
     imported = 0
     skipped = 0
+    user = request.state.user
 
     for s in data.sources:
         existing = await session.execute(
@@ -896,13 +909,18 @@ async def import_sources(
         if existing.scalar_one_or_none() is not None:
             skipped += 1
             continue
-
         source = Source(
             domain_id=domain_id,
             slug=s.slug,
             url=s.url,
             content=s.content,
             word_count=s.word_count,
+            title=s.title,
+            description=s.description,
+            author=s.author,
+            content_type=s.content_type,
+            license=s.license,
+            added_by=user.identity,
         )
         session.add(source)
         await session.flush()

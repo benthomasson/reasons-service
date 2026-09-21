@@ -167,6 +167,7 @@ class SourceRef:
     url: str
     category: str
     cite_key: str = ""
+    title: str = ""
 
 
 def _source_title_from_path(path: str) -> str:
@@ -251,7 +252,7 @@ def search_source_chunks(domain_id: UUID, query: str, limit: int = 10) -> tuple[
             try:
                 rows = session.execute(
                     sa_text(
-                        "SELECT c.text, c.section, s.slug, s.url "
+                        "SELECT c.text, c.section, s.slug, s.url, s.title "
                         "FROM source_chunks c "
                         "JOIN source_chunks_fts f ON f.id = c.id "
                         "JOIN sources s ON s.id = c.source_id "
@@ -268,7 +269,7 @@ def search_source_chunks(domain_id: UUID, query: str, limit: int = 10) -> tuple[
                 params["lim"] = limit * 3
                 rows = session.execute(
                     sa_text(
-                        f"SELECT c.text, c.section, s.slug, s.url "
+                        f"SELECT c.text, c.section, s.slug, s.url, s.title "
                         f"FROM source_chunks c "
                         f"JOIN sources s ON s.id = c.source_id "
                         f"WHERE c.domain_id = :pid "
@@ -286,7 +287,7 @@ def search_source_chunks(domain_id: UUID, query: str, limit: int = 10) -> tuple[
             idfs = _compute_idf(session, pid, terms, "source_chunks")
             rows = session.execute(
                 sa_text(
-                    f"SELECT c.text, c.section, s.slug, s.url "
+                    f"SELECT c.text, c.section, s.slug, s.url, s.title "
                     f"FROM source_chunks c "
                     f"JOIN sources s ON s.id = c.source_id "
                     f"WHERE c.domain_id = :pid "
@@ -316,9 +317,12 @@ def search_source_chunks(domain_id: UUID, query: str, limit: int = 10) -> tuple[
             break
         parts.append(part)
         total += len(part)
-        if "/" in r.slug:
-            domain, title = r.slug.split("/", 1)
-            label = f'{domain}, "{title}"'
+        source_title = getattr(r, "title", None) or ""
+        if source_title:
+            label = f'"{source_title}"'
+        elif "/" in r.slug:
+            domain_part, slug_part = r.slug.split("/", 1)
+            label = f'{domain_part}, "{slug_part}"'
         else:
             label = f'"{r.slug}"'
         url = r.url or ""
@@ -330,5 +334,6 @@ def search_source_chunks(domain_id: UUID, query: str, limit: int = 10) -> tuple[
             url=url,
             category="Supporting",
             cite_key=r.slug,
+            title=source_title,
         ))
     return "\n\n---\n\n".join(parts), sources

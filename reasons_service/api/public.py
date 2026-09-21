@@ -483,7 +483,7 @@ async def get_entry(
     source_links = ""
     if entry.sources:
         links = " &middot; ".join(
-            f'<a href="{prefix}/source/{html_mod.escape(s.slug)}">{html_mod.escape(s.slug)}</a>'
+            f'<a href="{prefix}/source/{html_mod.escape(s.slug)}">{html_mod.escape(s.title or s.slug)}</a>'
             for s in entry.sources
         )
         source_links = f'<p><strong>Original source:</strong> {links}</p><hr>'
@@ -514,7 +514,8 @@ async def get_source(
         raise HTTPException(status_code=404, detail="Source not found")
     prefix = f"/public/{domain_name}"
     nav = f'<nav><a href="{prefix}/beliefs">&larr; All beliefs</a></nav>'
-    title_html = f"<h1>{html_mod.escape(source.slug)}</h1>"
+    display_name = source.title or source.slug
+    title_html = f"<h1>{html_mod.escape(display_name)}</h1>"
     body = _md_to_html(source.content)
     html = _HTML_TEMPLATE.format(
         title=f"{slug} — {domain_obj.name}",

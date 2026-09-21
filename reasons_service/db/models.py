@@ -110,6 +110,12 @@ class Source(Base):
     content = Column(Text, nullable=False)
     word_count = Column(Integer)
     fetched_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    title = Column(String)
+    description = Column(Text)
+    author = Column(String)
+    content_type = Column(String)
+    added_by = Column(String)
+    license = Column(String)
 
     domain = relationship("Domain", back_populates="sources")
     entries = relationship("Entry", secondary=entry_sources, back_populates="sources")

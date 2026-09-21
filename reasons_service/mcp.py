@@ -488,7 +488,7 @@ async def get_entry(entry_id: str, domain: str) -> str:
 
 @mcp.tool()
 async def list_sources(domain: str, limit: int = 50, offset: int = 0) -> str:
-    """List source documents in a domain.
+    """List source documents in a domain with metadata (title, author, content_type).
 
     Args:
         domain: Domain name or UUID
@@ -510,7 +510,7 @@ async def list_sources(domain: str, limit: int = 50, offset: int = 0) -> str:
 
 @mcp.tool()
 async def get_source(slug: str, domain: str) -> str:
-    """Read a source document's metadata and content.
+    """Read a source document's metadata (title, author, description, content_type, license).
 
     Args:
         slug: The source slug

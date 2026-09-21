@@ -48,6 +48,12 @@ CREATE TABLE IF NOT EXISTS sources (
     content TEXT NOT NULL,
     word_count INT,
     fetched_at TIMESTAMPTZ DEFAULT now(),
+    title TEXT,
+    description TEXT,
+    author TEXT,
+    content_type TEXT,
+    added_by TEXT,
+    license TEXT,
     UNIQUE(domain_id, slug)
 );
 
