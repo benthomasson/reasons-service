@@ -196,12 +196,12 @@ class ReasonsOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode, R
     async def exchange_refresh_token(
         self, client: OAuthClientInformationFull, refresh_token: RefreshToken, scopes: list[str]
     ) -> OAuthToken:
-        effective = scopes or refresh_token.scopes
-        validated_scopes = self._validate_scopes(effective)
-        if scopes and refresh_token.scopes:
+        if scopes:
             escalated = set(scopes) - set(refresh_token.scopes)
             if escalated:
                 raise ValueError(f"Cannot escalate scopes on refresh: {', '.join(sorted(escalated))}")
+        effective = scopes or refresh_token.scopes
+        validated_scopes = self._validate_scopes(effective)
         access = secrets.token_urlsafe(32)
         new_refresh = secrets.token_urlsafe(32)
         expires_at = int(time.time()) + 86400

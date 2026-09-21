@@ -171,7 +171,8 @@ def _headers() -> dict[str, str]:
     return {}
 
 
-def _require_scope(scope: str) -> None:
+def _require_scope(*scopes: str) -> None:
+    """Check that the MCP access token has at least one of the required scopes."""
     from mcp.server.auth.middleware.auth_context import get_access_token
 
     access_token = get_access_token()
@@ -179,8 +180,8 @@ def _require_scope(scope: str) -> None:
         return
     if not access_token.scopes:
         return
-    if scope not in access_token.scopes:
-        raise McpError(INVALID_PARAMS, f"Missing required scope: {scope}")
+    if not any(s in access_token.scopes for s in scopes):
+        raise McpError(INVALID_PARAMS, f"Missing required scope: {scopes[0]}")
 
 
 async def _resolve(domain: str) -> str:
@@ -622,7 +623,7 @@ async def list_proposals(domain: str, status: str = "pending", limit: int = 50, 
         limit: Maximum number of results to return (default 50)
         offset: Number of results to skip (default 0)
     """
-    _require_scope(SCOPE_PROPOSE)
+    _require_scope(SCOPE_PROPOSE, SCOPE_REVIEW)
     pid = await _resolve(domain)
     params: dict = {"limit": limit, "offset": offset}
     if status:
@@ -646,7 +647,7 @@ async def get_proposal(proposal_id: str, domain: str) -> str:
         proposal_id: The proposal UUID
         domain: Domain name or UUID
     """
-    _require_scope(SCOPE_PROPOSE)
+    _require_scope(SCOPE_PROPOSE, SCOPE_REVIEW)
     pid = await _resolve(domain)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
