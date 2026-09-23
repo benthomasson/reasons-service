@@ -269,6 +269,11 @@
                 el.className = 'msg msg-error';
                 el.textContent = event.content;
                 thinkingEl.appendChild(el);
+              } else if (event.type === 'stats') {
+                var el = document.createElement('div');
+                el.className = 'msg msg-status';
+                el.textContent = event.content;
+                messagesEl.appendChild(el);
               } else if (event.type === 'done') {
                 // stream complete
               }

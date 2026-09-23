@@ -149,6 +149,11 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
 
     yield f"data: {json.dumps({'type': 'status', 'content': 'Thinking...'})}\n\n"
 
+    t0 = time.monotonic()
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    tool_call_count = 0
+
     for turn in range(10):
         try:
             response = await asyncio.to_thread(
@@ -165,6 +170,10 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
             yield f"data: {json.dumps({'type': 'error', 'content': 'LLM request failed. Check server logs for details.'})}\n\n"
             return
 
+        if response.usage:
+            total_prompt_tokens += response.usage.prompt_tokens
+            total_completion_tokens += response.usage.completion_tokens
+
         choice = response.choices[0]
         msg = choice.message
 
@@ -177,6 +186,7 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
                 except json.JSONDecodeError:
                     fn_args = {}
 
+                tool_call_count += 1
                 yield f"data: {json.dumps({'type': 'tool_call', 'name': fn_name, 'args': fn_args})}\n\n"
 
                 try:
@@ -199,9 +209,15 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
             token = line + ("\n" if i < len(lines) - 1 else "")
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
+        duration = time.monotonic() - t0
+        stats = f"{duration:.1f}s · {total_prompt_tokens + total_completion_tokens} tokens ({total_prompt_tokens} in, {total_completion_tokens} out) · {tool_call_count} tool calls"
+        yield f"data: {json.dumps({'type': 'stats', 'content': stats})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
 
+    duration = time.monotonic() - t0
+    stats = f"{duration:.1f}s · {total_prompt_tokens + total_completion_tokens} tokens ({total_prompt_tokens} in, {total_completion_tokens} out) · {tool_call_count} tool calls"
+    yield f"data: {json.dumps({'type': 'stats', 'content': stats})}\n\n"
     yield f"data: {json.dumps({'type': 'error', 'content': 'Max tool turns reached'})}\n\n"
 
 
