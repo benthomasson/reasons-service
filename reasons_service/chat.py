@@ -69,6 +69,17 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_topics",
+            "description": "List the main topics in the domain knowledge base, ranked by frequency. Use this to understand what the domain covers before searching.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+    },
 ]
 
 SYSTEM_PROMPT = """You are a knowledgeable assistant with access to a structured domain knowledge base.
@@ -116,6 +127,9 @@ def _execute_tool(tool_name: str, args: dict, domain_id: UUID, visible_to: list[
             return json.dumps(result)
         elif tool_name == "explain_belief":
             result = rms_api.explain_node(domain_id, args["belief_id"], visible_to=visible_to)
+            return json.dumps(result)
+        elif tool_name == "list_topics":
+            result = rms_api.topics(domain_id, limit=20)
             return json.dumps(result)
         else:
             return json.dumps({"error": f"Unknown tool: {tool_name}"})
