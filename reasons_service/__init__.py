@@ -1,4 +1,5 @@
-__version__ = "0.7.0"
+from importlib.metadata import version as _pkg_version
+__version__ = _pkg_version("reasons-service")
 
 # Git commit hash — set at build time by hatch hook, or resolved at runtime.
 __git_hash__ = ""
