@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Chat — Reasons Service{% endblock %}
 {% block extra_head %}
+<script src="https://unpkg.com/marked@15.0.4/marked.min.js"></script>
 <style>
 .chat-container {
   display: flex;
@@ -104,6 +105,14 @@
   text-align: center;
 }
 .empty-chat p { margin: 0.25rem 0; }
+.msg-assistant p { margin: 0.25rem 0; }
+.msg-assistant p:first-child { margin-top: 0; }
+.msg-assistant p:last-child { margin-bottom: 0; }
+.msg-assistant ul, .msg-assistant ol { margin: 0.25rem 0; padding-left: 1.5rem; }
+.msg-assistant code { background: var(--sl-color-gray-5, #333); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.9em; }
+.msg-assistant pre { background: var(--sl-color-gray-5, #333); padding: 0.5rem; border-radius: 4px; overflow-x: auto; margin: 0.25rem 0; }
+.msg-assistant pre code { background: none; padding: 0; }
+.msg-assistant blockquote { border-left: 3px solid var(--sl-color-gray-4); margin: 0.25rem 0; padding-left: 0.75rem; color: var(--sl-color-gray-3); }
 </style>
 {% endblock %}
 
@@ -233,7 +242,7 @@
               var event = JSON.parse(line.slice(6));
               if (event.type === 'token') {
                 fullResponse += event.content;
-                assistantEl.innerHTML = escapeHtml(fullResponse);
+                assistantEl.innerHTML = marked.parse(fullResponse);
                 messagesEl.scrollTop = messagesEl.scrollHeight;
               } else if (event.type === 'tool_call') {
                 var toolText = event.name + '(' + JSON.stringify(event.args) + ')';
