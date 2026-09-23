@@ -19,6 +19,7 @@ from reasons_service.config import settings
 from reasons_service.db.connection import get_session
 from reasons_service.db.models import Domain, DomainMember
 from reasons_service.rbac import Role, UserInfo
+from reasons_service.db.search import quick_belief_search, search_source_chunks
 from reasons_service.rms import api as rms_api
 
 logger = logging.getLogger(__name__)
@@ -30,11 +31,11 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_beliefs",
-            "description": "Search for beliefs in the domain knowledge base. Use short keywords, not full sentences. Try single words first. If no results, try synonyms or related terms.",
+            "description": "Search beliefs and source documents with IDF-ranked results. Returns pre-ranked context from both the belief network and source document chunks.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "Search query — use 1-3 keywords"},
+                    "query": {"type": "string", "description": "The question or search terms"},
                 },
                 "required": ["query"],
             },
@@ -71,13 +72,13 @@ TOOLS = [
 ]
 
 SYSTEM_PROMPT = """You are a knowledgeable assistant with access to a structured domain knowledge base.
-The knowledge base contains beliefs — justified propositions with dependency chains.
+The knowledge base contains beliefs (justified propositions with dependency chains) and source documents.
 Each belief has an ID, text, truth value (IN = believed, OUT = not believed), and may have justifications linking it to other beliefs.
 
 When answering questions:
-1. Search the knowledge base first using short keywords (1-3 words)
-2. If you find relevant beliefs, use show_belief and explain_belief to get details
-3. Ground your answers in the beliefs you find — cite belief IDs when relevant
+1. Search the knowledge base first — the search tool retrieves both beliefs and source document context
+2. Use show_belief and explain_belief to drill into specific beliefs
+3. Ground your answers in what you find — cite belief IDs and source material when relevant
 4. If the knowledge base doesn't have relevant information, say so clearly
 5. Be concise and direct
 
@@ -93,14 +94,16 @@ class ChatRequest(BaseModel):
 def _execute_tool(tool_name: str, args: dict, domain_id: UUID, visible_to: list[str] | None) -> str:
     try:
         if tool_name == "search_beliefs":
-            result = rms_api.search(domain_id, args["query"], limit=20, visible_to=visible_to)
-            results = result.get("results", [])
-            if not results:
-                return json.dumps({"results": [], "message": "No beliefs found. Try different keywords."})
-            return json.dumps({"results": [
-                {"id": r["id"], "text": r["text"], "truth_value": r.get("truth_value", "IN")}
-                for r in results[:20]
-            ]})
+            belief_ctx, belief_sources = quick_belief_search(domain_id, args["query"], 20)
+            chunk_ctx, chunk_sources = search_source_chunks(domain_id, args["query"], 10)
+            if not belief_ctx and not chunk_ctx:
+                return json.dumps({"results": [], "message": "No results found. Try different keywords."})
+            result = {}
+            if belief_ctx:
+                result["belief_context"] = belief_ctx
+            if chunk_ctx:
+                result["source_context"] = chunk_ctx
+            return json.dumps(result)
         elif tool_name == "show_belief":
             result = rms_api.show_node(domain_id, args["belief_id"], visible_to=visible_to)
             return json.dumps(result)
