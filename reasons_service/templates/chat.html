@@ -207,7 +207,7 @@
     addMessage('user', escapeHtml(msg));
     history.push({ role: 'user', content: msg });
 
-    var assistantEl = addMessage('assistant', '');
+    var assistantEl = null;
     var fullResponse = '';
 
     fetch('/api/chat', {
@@ -241,6 +241,7 @@
             try {
               var event = JSON.parse(line.slice(6));
               if (event.type === 'token') {
+                if (!assistantEl) assistantEl = addMessage('assistant', '');
                 fullResponse += event.content;
                 assistantEl.innerHTML = marked.parse(fullResponse);
                 messagesEl.scrollTop = messagesEl.scrollHeight;
