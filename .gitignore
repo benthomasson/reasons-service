@@ -7,3 +7,4 @@ build/
 *.db
 .venv/
 scripts/start.local.sh
+uv.lock
