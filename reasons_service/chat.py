@@ -150,6 +150,7 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
                     messages=messages,
                     tools=TOOLS,
                     tool_choice="auto",
+                    reasoning_effort="none",
                 )
             )
         except Exception as e:

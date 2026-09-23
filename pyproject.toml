@@ -1,6 +1,6 @@
 [project]
 name = "reasons-service"
-version = "0.8.1"
+version = "0.8.2"
 description = "Hosted Reasons knowledge base service — reasonsforge.com"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -26,6 +26,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "alembic>=1.13",
     "mcp[cli]>=1.0,<2",
+    "openai>=1.0",
 ]
 
 [project.optional-dependencies]
