@@ -1,7 +1,7 @@
 .PHONY: dev test lint lint-fix check build migrate migrate-down docker-up docker-down docker-build clean
 
 dev:
-	uv run uvicorn reasons_service.app:app --reload --host 0.0.0.0 --port 8000
+	DATABASE_URL="sqlite+aiosqlite:///data/reasons.db" uv run uvicorn reasons_service.app:app --reload --host 0.0.0.0 --port 8000
 
 test:
 	uv run pytest tests/
