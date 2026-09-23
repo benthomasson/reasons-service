@@ -1,5 +1,8 @@
 from importlib.metadata import version as _pkg_version
-__version__ = _pkg_version("reasons-service")
+try:
+    __version__ = _pkg_version("reasons-service")
+except Exception:
+    __version__ = 'dev'
 
 # Git commit hash — set at build time by hatch hook, or resolved at runtime.
 __git_hash__ = ""
