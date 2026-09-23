@@ -194,9 +194,9 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
             continue
 
         content = msg.content or ""
-        words = content.split()
-        for i, word in enumerate(words):
-            token = word + (" " if i < len(words) - 1 else "")
+        lines = content.split("\n")
+        for i, line in enumerate(lines):
+            token = line + ("\n" if i < len(lines) - 1 else "")
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
