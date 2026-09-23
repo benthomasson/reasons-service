@@ -93,13 +93,13 @@ class ChatRequest(BaseModel):
 def _execute_tool(tool_name: str, args: dict, domain_id: UUID, visible_to: list[str] | None) -> str:
     try:
         if tool_name == "search_beliefs":
-            result = rms_api.search(domain_id, args["query"], limit=10, visible_to=visible_to)
+            result = rms_api.search(domain_id, args["query"], limit=20, visible_to=visible_to)
             results = result.get("results", [])
             if not results:
                 return json.dumps({"results": [], "message": "No beliefs found. Try different keywords."})
             return json.dumps({"results": [
                 {"id": r["id"], "text": r["text"], "truth_value": r.get("truth_value", "IN")}
-                for r in results[:10]
+                for r in results[:20]
             ]})
         elif tool_name == "show_belief":
             result = rms_api.show_node(domain_id, args["belief_id"], visible_to=visible_to)
