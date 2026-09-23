@@ -207,7 +207,12 @@
     addMessage('user', escapeHtml(msg));
     history.push({ role: 'user', content: msg });
 
-    var assistantEl = null;
+    var thinkingEl = document.createElement('div');
+    thinkingEl.className = 'msg-thinking-group';
+    var responseEl = null;
+    var empty = messagesEl.querySelector('.empty-chat');
+    if (empty) empty.remove();
+    messagesEl.appendChild(thinkingEl);
     var fullResponse = '';
 
     fetch('/api/chat', {
@@ -241,17 +246,29 @@
             try {
               var event = JSON.parse(line.slice(6));
               if (event.type === 'token') {
-                if (!assistantEl) assistantEl = addMessage('assistant', '');
+                if (!responseEl) {
+                  responseEl = document.createElement('div');
+                  responseEl.className = 'msg msg-assistant';
+                  messagesEl.appendChild(responseEl);
+                }
                 fullResponse += event.content;
-                assistantEl.innerHTML = marked.parse(fullResponse);
+                responseEl.innerHTML = marked.parse(fullResponse);
                 messagesEl.scrollTop = messagesEl.scrollHeight;
               } else if (event.type === 'tool_call') {
-                var toolText = event.name + '(' + JSON.stringify(event.args) + ')';
-                addMessage('tool', escapeHtml(toolText));
+                var el = document.createElement('div');
+                el.className = 'msg msg-tool';
+                el.textContent = event.name + '(' + JSON.stringify(event.args) + ')';
+                thinkingEl.appendChild(el);
               } else if (event.type === 'status') {
-                addMessage('status', escapeHtml(event.content));
+                var el = document.createElement('div');
+                el.className = 'msg msg-status';
+                el.textContent = event.content;
+                thinkingEl.appendChild(el);
               } else if (event.type === 'error') {
-                addMessage('error', escapeHtml(event.content));
+                var el = document.createElement('div');
+                el.className = 'msg msg-error';
+                el.textContent = event.content;
+                thinkingEl.appendChild(el);
               } else if (event.type === 'done') {
                 // stream complete
               }
