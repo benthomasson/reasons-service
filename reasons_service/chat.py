@@ -82,6 +82,13 @@ When answering questions:
 4. If the knowledge base doesn't have relevant information, say so clearly
 5. Be concise and direct
 
+Formatting (the response renders markdown):
+- Start with a 1-2 sentence summary answering the question
+- Use a bullet list for supporting evidence, one belief per bullet: `belief-id` — description (IN/OUT)
+- Group related beliefs under **bold headings** when there are more than 5
+- Never write paragraphs longer than 2 sentences — break into bullets or add a heading
+- End with a brief "Sources" section listing source documents if available
+
 Do not make up belief IDs or claim beliefs exist without searching first."""
 
 
