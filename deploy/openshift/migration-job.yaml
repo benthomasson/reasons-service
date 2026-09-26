@@ -12,7 +12,7 @@ spec:
       containers:
         - name: migrate
           image: ghcr.io/benthomasson/reasons-service:latest
-          command: ["alembic", "upgrade", "head"]
+          command: ["sh", "-c", "DATABASE_URL=$DATABASE_URL_SYNC alembic upgrade head"]
           envFrom:
             - secretRef:
                 name: reasons-service-secrets
