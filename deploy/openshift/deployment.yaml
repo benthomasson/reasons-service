@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: reasons-service
-          image: reasons-service:latest
+          image: ghcr.io/benthomasson/reasons-service:latest
           ports:
             - containerPort: 8000
               protocol: TCP

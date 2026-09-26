@@ -11,7 +11,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: reasons-service:latest
+          image: ghcr.io/benthomasson/reasons-service:latest
           command: ["alembic", "upgrade", "head"]
           envFrom:
             - secretRef:
