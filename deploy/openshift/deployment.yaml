@@ -17,6 +17,7 @@ spec:
       containers:
         - name: reasons-service
           image: ghcr.io/benthomasson/reasons-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
               protocol: TCP
