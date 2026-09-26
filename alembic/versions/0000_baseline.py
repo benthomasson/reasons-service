@@ -21,7 +21,21 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    Base.metadata.create_all(bind)
+    dialect = bind.dialect.name
+    if dialect == "postgresql":
+        try:
+            op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        except Exception:
+            pass
+    tables = [t for t in Base.metadata.sorted_tables if t.name != "embeddings"]
+    Base.metadata.create_all(bind, tables=tables)
+    # Create embeddings table only if pgvector extension is available
+    embeddings = Base.metadata.tables.get("embeddings")
+    if embeddings is not None:
+        try:
+            Base.metadata.create_all(bind, tables=[embeddings])
+        except Exception:
+            pass
 
 
 def downgrade() -> None:
