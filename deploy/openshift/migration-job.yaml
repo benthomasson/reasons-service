@@ -12,7 +12,25 @@ spec:
       containers:
         - name: migrate
           image: ghcr.io/benthomasson/reasons-service:latest
-          command: ["sh", "-c", "DATABASE_URL=$DATABASE_URL_SYNC alembic upgrade head"]
+          command:
+            - sh
+            - -c
+            - |
+              export DATABASE_URL=$DATABASE_URL_SYNC
+              # Check if alembic_version table exists (i.e. not a fresh DB)
+              if python -c "
+              from sqlalchemy import create_engine, text
+              e = create_engine('$DATABASE_URL_SYNC')
+              with e.connect() as c:
+                  c.execute(text('SELECT 1 FROM alembic_version LIMIT 1'))
+              " 2>/dev/null; then
+                echo "Existing database — running incremental migrations"
+                alembic upgrade head
+              else
+                echo "Fresh database — running baseline then stamping head"
+                alembic upgrade 0000
+                alembic stamp head
+              fi
           envFrom:
             - secretRef:
                 name: reasons-service-secrets
