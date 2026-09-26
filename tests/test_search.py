@@ -100,11 +100,11 @@ class TestFtsClauseSQLite:
         assert "q1" not in params
         assert params["q0"] == "%pipeline%"
 
-    def test_all_stop_words_returns_false(self, mock_settings):
+    def test_all_stop_words_falls_back_to_raw_terms(self, mock_settings):
         mock_settings.db_backend = "sqlite"
         where, order, params = fts_clause("text", "a")
-        assert where == "1=0"
-        assert params == {}
+        assert "q0" in params
+        assert params["q0"] == "%a%"
 
     def test_disallowed_text_expr_raises(self, mock_settings):
         mock_settings.db_backend = "sqlite"
@@ -159,11 +159,11 @@ class TestPlaintoFtsClauseSQLite:
         assert params["q0"] == "%access%"
         assert params["q1"] == "%control%"
 
-    def test_all_stop_words_returns_false(self, mock_settings):
+    def test_all_stop_words_falls_back_to_raw_terms(self, mock_settings):
         mock_settings.db_backend = "sqlite"
         where, order, params = plainto_fts_clause("text", "a")
-        assert where == "1=0"
-        assert params == {}
+        assert "q0" in params
+        assert params["q0"] == "%a%"
 
     def test_disallowed_text_expr_raises(self, mock_settings):
         mock_settings.db_backend = "sqlite"

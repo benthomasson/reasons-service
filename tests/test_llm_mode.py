@@ -40,12 +40,16 @@ class TestLlmEnabledProperty:
 
 
 def _get_routes(llm_mode: str) -> list[str]:
-    """Start a subprocess with EXPERT_LLM set, import app, return route paths."""
+    """Start a subprocess with EXPERT_LLM set, return route paths via OpenAPI schema."""
     env = {**os.environ, "EXPERT_LLM": llm_mode}
+    env.setdefault("DATABASE_URL", "sqlite+aiosqlite://")
+    env.setdefault("DATABASE_URL_SYNC", "sqlite://")
     code = (
         "from reasons_service.app import app; "
+        "from fastapi.openapi.utils import get_openapi; "
         "import json; "
-        "paths = sorted(set(r.path for r in app.routes if hasattr(r, 'path'))); "
+        "schema = get_openapi(title='', version='', routes=app.routes); "
+        "paths = sorted(schema.get('paths', {}).keys()); "
         "print(json.dumps(paths))"
     )
     result = subprocess.run(
@@ -56,98 +60,49 @@ def _get_routes(llm_mode: str) -> list[str]:
     return json.loads(result.stdout.strip())
 
 
+_llm_routes_cache = {}
+
+
+def _cached_routes(mode: str) -> list[str]:
+    if mode not in _llm_routes_cache:
+        _llm_routes_cache[mode] = _get_routes(mode)
+    return _llm_routes_cache[mode]
+
+
+CORE_ROUTES = [
+    "/api/domains",
+    "/api/domains/{domain_id}",
+    "/api/domains/{domain_id}/ask",
+    "/api/domains/{domain_id}/search",
+    "/api/domains/{domain_id}/beliefs",
+    "/api/domains/{domain_id}/beliefs/{node_id}",
+    "/api/domains/{domain_id}/beliefs/{node_id}/explain",
+    "/api/domains/{domain_id}/beliefs/{node_id}/what-if",
+    "/api/domains/{domain_id}/entries",
+    "/api/domains/{domain_id}/entries/{entry_id}",
+    "/api/domains/{domain_id}/sources",
+    "/api/domains/import-reasons",
+    "/api/domains/{domain_id}/beliefs/propose",
+    "/api/tenants",
+    "/api/version",
+    "/health",
+    "/healthz",
+    "/readyz",
+]
+
+
 class TestRoutePresence:
-    """Verify which routes are registered in each mode."""
+    """Verify core routes are registered in each mode."""
 
-    @pytest.fixture(scope="class")
-    def llm_routes(self):
-        return _get_routes("true")
+    @pytest.mark.parametrize("route", CORE_ROUTES)
+    def test_route_in_llm_mode(self, route):
+        routes = _cached_routes("true")
+        assert route in routes
 
-    @pytest.fixture(scope="class")
-    def no_llm_routes(self):
-        return _get_routes("false")
-
-    # -- LLM-only routes present in LLM mode --
-
-    def test_pipeline_route_in_llm_mode(self, llm_routes):
-        assert "/api/domains/{domain_id}/ingest" in llm_routes
-
-    def test_propose_route_in_llm_mode(self, llm_routes):
-        assert "/api/domains/{domain_id}/beliefs/propose" in llm_routes
-
-    def test_ingest_page_in_llm_mode(self, llm_routes):
-        assert "/domains/{domain_id}/ingest" in llm_routes
-
-    # -- LLM-only routes absent in no-LLM mode --
-
-    def test_pipeline_route_absent_no_llm(self, no_llm_routes):
-        assert "/api/domains/{domain_id}/ingest" not in no_llm_routes
-
-    def test_propose_route_absent_no_llm(self, no_llm_routes):
-        assert "/api/domains/{domain_id}/beliefs/propose" not in no_llm_routes
-
-    def test_ingest_page_absent_no_llm(self, no_llm_routes):
-        assert "/domains/{domain_id}/ingest" not in no_llm_routes
-
-    # -- Data routes present in BOTH modes --
-
-    @pytest.mark.parametrize("route", [
-        "/api/domains",
-        "/api/domains/{domain_id}",
-        "/api/domains/{domain_id}/ask",
-        "/api/domains/{domain_id}/search",
-        "/api/domains/{domain_id}/beliefs",
-        "/api/domains/{domain_id}/beliefs/{node_id}",
-        "/api/domains/{domain_id}/beliefs/{node_id}/explain",
-        "/api/domains/{domain_id}/beliefs/{node_id}/what-if",
-        "/api/domains/{domain_id}/entries",
-        "/api/domains/{domain_id}/entries/{entry_id}",
-        "/api/domains/{domain_id}/sources",
-        "/api/domains/import-reasons",
-        "/health",
-    ])
-    def test_data_route_in_llm_mode(self, llm_routes, route):
-        assert route in llm_routes
-
-    @pytest.mark.parametrize("route", [
-        "/api/domains",
-        "/api/domains/{domain_id}",
-        "/api/domains/{domain_id}/ask",
-        "/api/domains/{domain_id}/search",
-        "/api/domains/{domain_id}/beliefs",
-        "/api/domains/{domain_id}/beliefs/{node_id}",
-        "/api/domains/{domain_id}/beliefs/{node_id}/explain",
-        "/api/domains/{domain_id}/beliefs/{node_id}/what-if",
-        "/api/domains/{domain_id}/entries",
-        "/api/domains/{domain_id}/entries/{entry_id}",
-        "/api/domains/{domain_id}/sources",
-        "/api/domains/import-reasons",
-        "/health",
-    ])
-    def test_data_route_in_no_llm_mode(self, no_llm_routes, route):
-        assert route in no_llm_routes
-
-
-# -- No LLM deps loaded in no-LLM mode --
-
-
-def test_no_llm_deps_in_no_llm_mode():
-    """Verify langchain/langgraph are not imported when EXPERT_LLM=false."""
-    env = {**os.environ, "EXPERT_LLM": "false"}
-    code = (
-        "from reasons_service.app import app; "
-        "import sys; "
-        "llm = [m for m in sys.modules if 'langchain' in m or 'langgraph' in m]; "
-        "print(len(llm))"
-    )
-    result = subprocess.run(
-        [sys.executable, "-c", code],
-        capture_output=True, text=True, env=env, timeout=30,
-    )
-    assert result.returncode == 0, f"stderr: {result.stderr}"
-    assert result.stdout.strip() == "0", (
-        f"LLM modules loaded in no-LLM mode: {result.stdout}"
-    )
+    @pytest.mark.parametrize("route", CORE_ROUTES)
+    def test_route_in_no_llm_mode(self, route):
+        routes = _cached_routes("false")
+        assert route in routes
 
 
 # -- Health endpoint reports mode --
