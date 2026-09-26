@@ -19,23 +19,27 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_pgvector(bind) -> bool:
+    """Check if pgvector extension is available without aborting the transaction."""
+    from sqlalchemy import text
+    result = bind.execute(
+        text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")
+    )
+    return result.scalar() is not None
+
+
 def upgrade() -> None:
     bind = op.get_bind()
     dialect = bind.dialect.name
-    if dialect == "postgresql":
-        try:
-            op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-        except Exception:
-            pass
-    tables = [t for t in Base.metadata.sorted_tables if t.name != "embeddings"]
+    skip_embeddings = True
+    if dialect == "postgresql" and _has_pgvector(bind):
+        op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        skip_embeddings = False
+    elif dialect != "postgresql":
+        skip_embeddings = False
+    tables = [t for t in Base.metadata.sorted_tables
+              if not (skip_embeddings and t.name == "embeddings")]
     Base.metadata.create_all(bind, tables=tables)
-    # Create embeddings table only if pgvector extension is available
-    embeddings = Base.metadata.tables.get("embeddings")
-    if embeddings is not None:
-        try:
-            Base.metadata.create_all(bind, tables=[embeddings])
-        except Exception:
-            pass
 
 
 def downgrade() -> None:
