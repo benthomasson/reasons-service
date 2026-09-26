@@ -141,6 +141,23 @@ async def version():
     return {"version": __version__, "git_hash": _resolve_git_hash()}
 
 
+@app.get("/healthz")
+async def healthz():
+    """Liveness probe — confirms the process is running."""
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+async def readyz(session: AsyncSession = Depends(get_session)):
+    """Readiness probe — confirms the database is reachable."""
+    try:
+        await session.execute(sa_text("SELECT 1"))
+        return {"status": "ready"}
+    except Exception:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"status": "not ready"}, status_code=503)
+
+
 # Public domain name resolution (must be before domains.router to avoid
 # /api/domains/{domain_id} matching "resolve" as a domain_id)
 @app.get("/api/domains/resolve")

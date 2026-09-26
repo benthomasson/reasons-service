@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reasons-service-config
+  labels:
+    app: reasons-service
+data:
+  PORT: "8000"
+  GOOGLE_CLOUD_PROJECT: ""
+  GOOGLE_CLOUD_LOCATION: "global"
+  DEFAULT_MODEL: "claude-sonnet-4-20250514"
+  MCP_ISSUER_URL: "https://reasons.example.com/mcp"
+  MCP_BASE_URL: "https://reasons.example.com"
+  REASONS_PUBLIC_REGISTRATION: "false"
+  REASONS_LLM: "true"
+  REASONS_HUB_MODE: "false"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_DEFAULT: "120"
+  RATE_LIMIT_CHAT: "10"
+  RATE_LIMIT_SEARCH: "30"
+  RATE_LIMIT_PUBLIC: "30"
+  RATE_LIMIT_WINDOW: "60"
