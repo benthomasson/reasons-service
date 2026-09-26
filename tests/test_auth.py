@@ -296,10 +296,11 @@ class TestRBAC:
         assert resp.status_code == 200
 
     def test_require_action_blocks_unpermitted(self):
+        from fastapi import Request as FastAPIRequest
         app = FastAPI()
 
         @app.get("/admin-only", dependencies=[Depends(require_action(Action.ADMIN))])
-        async def admin_route(request: Request):
+        async def admin_route(request: FastAPIRequest):
             return {"ok": True}
 
         from starlette.middleware.base import BaseHTTPMiddleware
