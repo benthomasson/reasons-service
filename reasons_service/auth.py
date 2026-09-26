@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import User
+from reasons_service.db.models import User, Tenant, TenantMember
 from reasons_service.rbac import UserInfo, Role
 
 logger = logging.getLogger(__name__)
@@ -156,15 +156,28 @@ async def _verify_mcp_access_token(token: str) -> str | None:
     return access.subject
 
 
+def _personal_tenant_slug(email: str) -> str:
+    """Injective slug: a@b.c -> personal-a_at_b-c (no collisions)."""
+    return "personal-" + email.replace("@", "_at_").replace(".", "-")
+
+
 async def _auto_register(email: str, display_name: str, session: AsyncSession) -> User | None:
-    """Auto-create a reader account if public registration is enabled."""
+    """Auto-create a reader account with personal tenant if public registration is enabled."""
     if not settings.public_registration:
         return None
-    user = User(email=email, role=Role.READER, display_name=display_name)
+    tenant_id = _personal_tenant_slug(email)
+    tenant = Tenant(id=tenant_id, name=tenant_id, display_name=email, type="personal")
+    session.add(tenant)
+    await session.flush()
+    user = User(email=email, role=Role.READER, display_name=display_name, tenant_id=tenant_id)
     session.add(user)
+    await session.flush()
+    from uuid import uuid4
+    membership = TenantMember(id=uuid4(), tenant_id=tenant_id, user_email=email, role="tenant_admin")
+    session.add(membership)
     await session.commit()
     await session.refresh(user)
-    logger.info("Auto-registered public user: %s", email)
+    logger.info("Auto-registered public user: %s (tenant: %s)", email, tenant_id)
     return user
 
 
@@ -189,6 +202,7 @@ def _user_info(db_user: User) -> UserInfo:
         display_name=db_user.display_name,
         visible_tags=_resolve_visible_tags(db_user),
         writable_tags=_resolve_writable_tags(db_user),
+        tenant_id=db_user.tenant_id,
     )
 
 

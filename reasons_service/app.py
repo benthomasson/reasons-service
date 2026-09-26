@@ -15,14 +15,14 @@ from sqlalchemy import func, select, text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.sessions import SessionMiddleware
 
-from reasons_service.api import audit as audit_api, domains, data, ask, public
+from reasons_service.api import audit as audit_api, domains, data, ask, public, tenants
 from reasons_service.chat import router as chat_router
 from reasons_service.auth import router as auth_router, security, verify_auth, verify_auth_or_public, verify_auth_web, resolve_domain_role, _LoginRedirect
 from reasons_service.ratelimit import require_rate_limit
 from fastapi.security import HTTPAuthorizationCredentials
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session, init_db
-from reasons_service.db.models import Assessment, Entry, Domain, Proposal, Source, Summary, entry_sources
+from reasons_service.db.models import Assessment, Entry, Domain, Proposal, Source, Summary, Tenant, TenantMember, entry_sources
 from reasons_service.rbac import Role, UserInfo
 from reasons_service.audit import audit_log, drain as drain_audit, fire_audit
 from reasons_service.mcp import mcp as mcp_server
@@ -151,16 +151,32 @@ async def resolve_domain_name(
     session: AsyncSession = Depends(get_session),
 ):
     """Resolve a domain name to its ID. No auth needed for public domains."""
+    # Try public domain from public tenant first (no auth required)
     result = await session.execute(
-        select(Domain.id, Domain.public, Domain.members_only).where(Domain.name == name)
+        select(Domain.id, Domain.public, Domain.members_only)
+        .join(Tenant, Domain.tenant_id == Tenant.id)
+        .where(Domain.name == name, Domain.public == True, Tenant.public == True)
     )
+    row = result.first()
+    if row:
+        return {"id": str(row.id), "name": name, "public": True}
+    # Private domain — require auth, scope to user's tenants
+    user = await verify_auth(request, credentials, session)
+    if user.role == Role.ADMIN or user.identity in ("api", "dev"):
+        result = await session.execute(
+            select(Domain.id, Domain.public, Domain.members_only).where(Domain.name == name)
+        )
+    else:
+        user_tenant_ids = select(TenantMember.tenant_id).where(
+            TenantMember.user_email == user.identity
+        ).scalar_subquery()
+        result = await session.execute(
+            select(Domain.id, Domain.public, Domain.members_only)
+            .where(Domain.name == name, Domain.tenant_id.in_(user_tenant_ids))
+        )
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail=f"Domain '{name}' not found")
-    if row.public:
-        return {"id": str(row.id), "name": name, "public": True}
-    # Private domain — require auth
-    user = await verify_auth(request, credentials, session)
     if row.members_only and user.role != Role.ADMIN and user.identity not in ("api", "dev"):
         from reasons_service.db.models import DomainMember
         member = await session.execute(
@@ -171,7 +187,7 @@ async def resolve_domain_name(
         )
         if not member.scalar_one_or_none():
             raise HTTPException(status_code=403, detail="You are not a member of this domain")
-    return {"id": str(row.id), "name": name, "public": False}
+    return {"id": str(row.id), "name": name, "public": row.public}
 
 # Public domain views (no auth — gated by domain.public flag)
 app.include_router(public.landing_router, dependencies=[Depends(require_rate_limit("default"))])
@@ -184,6 +200,7 @@ app.include_router(data.tag_router, dependencies=[Depends(verify_auth), Depends(
 
 app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role), Depends(require_rate_limit("search"))])
 app.include_router(audit_api.router, dependencies=[Depends(require_rate_limit("default"))])
+app.include_router(tenants.router, dependencies=[Depends(require_rate_limit("default"))])
 app.include_router(chat_router)
 
 # MCP OAuth discovery routes (RFC 9728 + RFC 8414)
@@ -284,7 +301,10 @@ async def feed_page(request: Request):
 async def home(request: Request, session: AsyncSession = Depends(get_session)):
     """Public landing page — lists public domains, links to login."""
     result = await session.execute(
-        select(Domain).where(Domain.public == True).order_by(Domain.name)
+        select(Domain)
+        .join(Tenant, Domain.tenant_id == Tenant.id)
+        .where(Domain.public == True, Tenant.public == True)
+        .order_by(Domain.name)
     )
     domain_list = result.scalars().all()
     public_domains = []
@@ -306,9 +326,24 @@ if not settings.hub_mode:
     async def domains_list(request: Request, _user: UserInfo = Depends(verify_auth_web), session: AsyncSession = Depends(get_session)):
         """Authenticated domains list page."""
         from reasons_service.db.models import DomainMember
-        result = await session.execute(select(Domain).order_by(Domain.created_at.desc()))
+        if _user.role == Role.ADMIN or _user.identity in ("api", "dev"):
+            query = select(Domain)
+        else:
+            user_tenant_ids = select(TenantMember.tenant_id).where(
+                TenantMember.user_email == _user.identity
+            ).scalar_subquery()
+            query = (
+                select(Domain)
+                .outerjoin(Tenant, Domain.tenant_id == Tenant.id)
+                .where(
+                    (Domain.tenant_id.in_(user_tenant_ids))
+                    | ((Tenant.public == True) & (Domain.public == True))
+                )
+            )
+        result = await session.execute(query.order_by(Domain.created_at.desc()))
         all_domains = result.scalars().all()
 
+        tenant_cache = {}
         domains_with_stats = []
         for d in all_domains:
             if d.members_only and _user.role != Role.ADMIN and _user.identity not in ("api", "dev"):
@@ -330,6 +365,13 @@ if not settings.hub_mode:
                 select(func.count()).select_from(Summary).where(Summary.domain_id == d.id)
             )
             belief_count = await asyncio.to_thread(rms_api.count_beliefs, d.id, "IN")
+            tenant_info = None
+            if d.tenant_id:
+                if d.tenant_id not in tenant_cache:
+                    t_result = await session.execute(select(Tenant).where(Tenant.id == d.tenant_id))
+                    t = t_result.scalar_one_or_none()
+                    tenant_cache[d.tenant_id] = {"id": t.id, "name": t.name, "display_name": t.display_name, "type": t.type} if t else None
+                tenant_info = tenant_cache[d.tenant_id]
             domains_with_stats.append({
                 "id": d.id,
                 "name": d.name,
@@ -338,26 +380,61 @@ if not settings.hub_mode:
                 "entry_count": entry_count or 0,
                 "summary_count": summary_count or 0,
                 "belief_count": belief_count or 0,
+                "tenant": tenant_info,
             })
+
+        user_tenants_result = await session.execute(
+            select(Tenant)
+            .join(TenantMember, TenantMember.tenant_id == Tenant.id)
+            .where(TenantMember.user_email == _user.identity)
+        )
+        user_tenants = [
+            {"id": t.id, "name": t.name, "display_name": t.display_name, "type": t.type}
+            for t in user_tenants_result.scalars().all()
+        ]
 
         return templates.TemplateResponse(request, "domains/list.html", {
             "domains": domains_with_stats,
+            "user_tenants": user_tenants,
         })
 
     @app.get("/domains/new", response_class=HTMLResponse)
-    async def new_domain_form(request: Request, _user: UserInfo = Depends(verify_auth_web)):
-        return templates.TemplateResponse(request, "domains/create.html")
+    async def new_domain_form(request: Request, _user: UserInfo = Depends(verify_auth_web), session: AsyncSession = Depends(get_session)):
+        user_tenants_result = await session.execute(
+            select(Tenant)
+            .join(TenantMember, TenantMember.tenant_id == Tenant.id)
+            .where(TenantMember.user_email == _user.identity)
+        )
+        user_tenants = [
+            {"id": t.id, "name": t.name, "display_name": t.display_name, "type": t.type}
+            for t in user_tenants_result.scalars().all()
+        ]
+        return templates.TemplateResponse(request, "domains/create.html", {
+            "user_tenants": user_tenants,
+            "default_tenant_id": _user.tenant_id,
+        })
 
     @app.post("/domains/new")
     async def create_domain_form(
         request: Request,
         name: str = Form(...),
         description: str = Form(...),
+        tenant_id: str = Form(""),
         _user: UserInfo = Depends(verify_auth_web),
         session: AsyncSession = Depends(get_session),
     ):
         from reasons_service.db.models import DomainMember
-        domain_obj = Domain(name=name, description=description)
+        chosen_tenant_id = tenant_id or _user.tenant_id
+        if chosen_tenant_id and _user.role != Role.ADMIN and _user.identity not in ("api", "dev"):
+            membership = await session.execute(
+                select(TenantMember).where(
+                    TenantMember.tenant_id == chosen_tenant_id,
+                    TenantMember.user_email == _user.identity,
+                )
+            )
+            if not membership.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Not a member of that tenant")
+        domain_obj = Domain(name=name, description=description, tenant_id=chosen_tenant_id)
         session.add(domain_obj)
         await session.flush()
         if _user.identity not in ("api", "dev", "public"):
@@ -423,10 +500,18 @@ async def domain_detail(
     for e in entries:
         e["created_at"] = e["created_at"].isoformat() if e["created_at"] else ""
 
+    tenant_info = None
+    if domain_obj.tenant_id:
+        t_result = await session.execute(select(Tenant).where(Tenant.id == domain_obj.tenant_id))
+        t = t_result.scalar_one_or_none()
+        if t:
+            tenant_info = {"id": t.id, "name": t.name, "display_name": t.display_name, "type": t.type}
+
     return templates.TemplateResponse(request, "domains/detail.html", {
         "domain": {"id": domain_id, "name": domain_obj.name, "description": domain_obj.description},
         "stats": stats,
         "entries": entries,
+        "tenant": tenant_info,
     })
 
 

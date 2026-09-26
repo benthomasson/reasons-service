@@ -14,7 +14,12 @@
 <div class="card-grid">
     {% for d in domains %}
     <article>
-        <header><strong>{{ d.name }}</strong></header>
+        <header>
+            <strong>{{ d.name }}</strong>
+            {% if d.tenant %}
+            <span class="tenant-badge tenant-{{ d.tenant.type }}">{{ d.tenant.display_name or d.tenant.name }}</span>
+            {% endif %}
+        </header>
         <p>{{ d.description }}</p>
         <div class="stats-grid">
             <div class="stat-card">

@@ -32,31 +32,67 @@ class Base(DeclarativeBase):
     pass
 
 
+class Tenant(Base):
+    __tablename__ = "tenants"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+    display_name = Column(String)
+    type = Column(String, nullable=False, default="organization")
+    public = Column(Boolean, nullable=False, default=False, server_default="false")
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    members = relationship("TenantMember", back_populates="tenant", cascade="all, delete-orphan")
+    domains = relationship("Domain", back_populates="tenant")
+
+
+class TenantMember(Base):
+    __tablename__ = "tenant_members"
+    __table_args__ = (UniqueConstraint("tenant_id", "user_email"),)
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    user_email = Column(String, ForeignKey("users.email", ondelete="CASCADE"), nullable=False)
+    role = Column(String, nullable=False, default="reader")
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    tenant = relationship("Tenant", back_populates="members")
+    user = relationship("User", back_populates="tenant_memberships")
+
+
 class User(Base):
     __tablename__ = "users"
 
     email = Column(String, primary_key=True)
     role = Column(String, nullable=False, default="reader")
     display_name = Column(String)
+    tenant_id = Column(String, ForeignKey("tenants.id"))
     visible_tags = Column(JSON, default=list)
     writable_tags = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+    tenant_memberships = relationship("TenantMember", back_populates="user")
+
 
 class Domain(Base):
     __tablename__ = "domains"
+    __table_args__ = (UniqueConstraint("tenant_id", "name"),)
 
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False)
     description = Column(String, nullable=False)
     config = Column(JSON, default=dict)
+    tenant_id = Column(String, ForeignKey("tenants.id"))
     public = Column(Boolean, nullable=False, default=False, server_default="false")
     members_only = Column(Boolean, nullable=False, default=False, server_default="false")
     allowed_tags = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+    tenant = relationship("Tenant", back_populates="domains")
     sources = relationship("Source", back_populates="domain", cascade="all, delete-orphan")
     entries = relationship("Entry", back_populates="domain", cascade="all, delete-orphan")
     summaries = relationship("Summary", back_populates="domain", cascade="all, delete-orphan")

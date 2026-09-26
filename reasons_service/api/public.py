@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import Depends
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import Entry, Domain, Source
+from reasons_service.db.models import Entry, Domain, Source, Tenant
 from reasons_service.rms import api as rms_api
 
 router = APIRouter(prefix="/public/{domain_name}", tags=["public"])
@@ -32,10 +32,12 @@ _CACHE_MAX_AGE = 300  # 5 minutes
 
 async def _resolve_public_domain(domain_name: str, session: AsyncSession) -> Domain:
     result = await session.execute(
-        select(Domain).where(Domain.name == domain_name)
+        select(Domain)
+        .join(Tenant, Domain.tenant_id == Tenant.id)
+        .where(Domain.name == domain_name, Domain.public == True, Tenant.public == True)
     )
     domain_obj = result.scalar_one_or_none()
-    if not domain_obj or not domain_obj.public:
+    if not domain_obj:
         raise HTTPException(status_code=404, detail="Domain not found")
     return domain_obj
 
@@ -584,7 +586,10 @@ async def deep_search(
 @landing_router.get("/", response_class=HTMLResponse)
 async def public_landing(request: Request, session: AsyncSession = Depends(get_session)):
     result = await session.execute(
-        select(Domain).where(Domain.public == True).order_by(Domain.name)
+        select(Domain)
+        .join(Tenant, Domain.tenant_id == Tenant.id)
+        .where(Domain.public == True, Tenant.public == True)
+        .order_by(Domain.name)
     )
     domain_list = result.scalars().all()
     public_domains = []

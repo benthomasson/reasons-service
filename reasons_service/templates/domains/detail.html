@@ -6,6 +6,13 @@
     <p>{{ domain.description }}</p>
 </hgroup>
 
+{% if tenant %}
+<p class="tenant-info">
+    <span class="tenant-badge tenant-{{ tenant.type }}">{{ tenant.display_name or tenant.name }}</span>
+    <small>{{ tenant.type }}</small>
+</p>
+{% endif %}
+
 <h3>Stats</h3>
 <div class="stats-grid">
     <div class="stat-card"><div class="value">{{ stats.sources }}</div><div class="label">Sources</div></div>

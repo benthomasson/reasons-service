@@ -17,7 +17,7 @@ from reasons_service.auth import security, verify_auth, _resolve_member_visible_
 from reasons_service.ratelimit import check_rate_limit
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import Domain, DomainMember
+from reasons_service.db.models import Domain, DomainMember, TenantMember
 from reasons_service.rbac import Role, UserInfo
 from reasons_service.db.search import quick_belief_search, search_source_chunks
 from reasons_service.rms import api as rms_api
@@ -241,7 +241,7 @@ async def _resolve_chat_user(domain_id: UUID, user: UserInfo | None, session: As
     If user is None (unauthenticated), only public domains are allowed.
     """
     result = await session.execute(
-        select(Domain.public, Domain.members_only).where(Domain.id == domain_id)
+        select(Domain.public, Domain.members_only, Domain.tenant_id).where(Domain.id == domain_id)
     )
     row = result.first()
     if not row:
@@ -269,7 +269,17 @@ async def _resolve_chat_user(domain_id: UUID, user: UserInfo | None, session: As
             display_name=user.display_name,
             visible_tags=_resolve_member_visible_tags(member),
             domain_id=str(domain_id),
+            tenant_id=user.tenant_id,
         )
+    if row.tenant_id:
+        tenant_member = await session.execute(
+            select(TenantMember).where(
+                TenantMember.tenant_id == row.tenant_id,
+                TenantMember.user_email == user.identity,
+            )
+        )
+        if tenant_member.scalar_one_or_none():
+            return user
     if row.members_only and not row.public:
         raise HTTPException(status_code=403, detail="Not a member of this domain")
     return user

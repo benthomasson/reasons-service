@@ -7,6 +7,19 @@
 </hgroup>
 
 <form method="post" action="/domains/new">
+    {% if user_tenants and user_tenants|length > 1 %}
+    <label for="tenant_id">Tenant
+        <select id="tenant_id" name="tenant_id">
+            {% for t in user_tenants %}
+            <option value="{{ t.id }}" {% if t.id == default_tenant_id %}selected{% endif %}>
+                {{ t.display_name or t.name }}{% if t.type == 'personal' %} (personal){% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    {% elif user_tenants and user_tenants|length == 1 %}
+    <input type="hidden" name="tenant_id" value="{{ user_tenants[0].id }}">
+    {% endif %}
     <label for="name">Domain Name
         <input type="text" id="name" name="name" placeholder="e.g. aap-domain" required>
     </label>

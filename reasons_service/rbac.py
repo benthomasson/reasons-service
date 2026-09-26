@@ -19,6 +19,7 @@ class Action(StrEnum):
 
 class Role(StrEnum):
     ADMIN = "admin"
+    TENANT_ADMIN = "tenant_admin"
     REVIEWER = "reviewer"
     EDITOR = "editor"
     READER = "reader"
@@ -32,9 +33,14 @@ class UserInfo:
     visible_tags: list[str] | None = None
     writable_tags: list[str] | None = None
     domain_id: str | None = None
+    tenant_id: str | None = None
 
 
 ROLE_ACTIONS: dict[Role, frozenset[Action]] = {
+    Role.TENANT_ADMIN: frozenset({
+        Action.READ, Action.CHAT, Action.EDIT_BELIEFS, Action.MANAGE_SOURCES,
+        Action.MANAGE_DOMAINS, Action.PROPOSE_BELIEFS, Action.REVIEW_PROPOSALS,
+    }),
     Role.REVIEWER: frozenset({
         Action.READ, Action.CHAT, Action.PROPOSE_BELIEFS, Action.REVIEW_PROPOSALS,
     }),

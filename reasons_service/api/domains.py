@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from reasons_service.auth import verify_auth
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import Entry, Domain, DomainMember, Source, User
+from reasons_service.db.models import Entry, Domain, DomainMember, Source, Tenant, TenantMember, User
 from reasons_service.rbac import Action, Role, require_action
 from reasons_service.audit import audit_log, fire_audit
 from reasons_service.rms import api as rms_api
@@ -53,14 +53,15 @@ class DomainResponse(BaseModel):
 
 @router.post("", response_model=DomainResponse)
 async def create_domain(data: DomainCreate, request: Request, session: AsyncSession = Depends(get_session)):
+    user = request.state.user
     domain_obj = Domain(
         name=data.name, description=data.description, config=data.config,
         public=data.public, members_only=data.members_only,
         allowed_tags=sorted(set(data.allowed_tags)),
+        tenant_id=user.tenant_id,
     )
     session.add(domain_obj)
     await session.flush()
-    user = request.state.user
     if user.identity not in ("api", "dev", "public"):
         session.add(DomainMember(
             domain_id=domain_obj.id,
@@ -105,13 +106,39 @@ async def list_domains(
     session: AsyncSession = Depends(get_session),
 ):
     limit, offset = max(1, min(limit, 1000)), max(0, offset)
-    total_result = await session.execute(select(func.count()).select_from(Domain))
+    user = request.state.user
+
+    if user.role == Role.ADMIN or user.identity in ("api", "dev"):
+        query = select(Domain)
+        count_query = select(func.count()).select_from(Domain)
+    else:
+        user_tenant_ids = select(TenantMember.tenant_id).where(
+            TenantMember.user_email == user.identity
+        ).scalar_subquery()
+        query = (
+            select(Domain)
+            .outerjoin(Tenant, Domain.tenant_id == Tenant.id)
+            .where(
+                (Domain.tenant_id.in_(user_tenant_ids))
+                | ((Tenant.public == True) & (Domain.public == True))
+            )
+        )
+        count_query = (
+            select(func.count())
+            .select_from(Domain)
+            .outerjoin(Tenant, Domain.tenant_id == Tenant.id)
+            .where(
+                (Domain.tenant_id.in_(user_tenant_ids))
+                | ((Tenant.public == True) & (Domain.public == True))
+            )
+        )
+
+    total_result = await session.execute(count_query)
     total = total_result.scalar() or 0
     result = await session.execute(
-        select(Domain).order_by(Domain.created_at.desc()).limit(limit).offset(offset)
+        query.order_by(Domain.created_at.desc()).limit(limit).offset(offset)
     )
     domains = result.scalars().all()
-    user = request.state.user
     responses = []
     for d in domains:
         if d.members_only and user.role != Role.ADMIN and user.identity not in ("api", "dev"):
@@ -337,7 +364,8 @@ async def import_reasons(
         store.close()
         logger.info("import-reasons: parsed %d nodes from %s", len(network.nodes), file.filename)
 
-        domain_obj = Domain(name=name, description=description)
+        user = request.state.user
+        domain_obj = Domain(name=name, description=description, tenant_id=user.tenant_id)
         session.add(domain_obj)
         await session.commit()
         await session.refresh(domain_obj)
