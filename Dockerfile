@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /
 WORKDIR /app
 
 COPY pyproject.toml README.md hatch_build.py ./
+RUN mkdir -p reasons_service && echo '__git_hash__ = ""' > reasons_service/__init__.py
 RUN pip install --no-cache-dir .
 
 COPY reasons_service/ reasons_service/
