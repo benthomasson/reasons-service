@@ -67,17 +67,20 @@ export async function createDomain(body: { name: string; description?: string; t
 
 export async function listBeliefs(
   domainId: string,
-  params?: { search?: string; truth_value?: string; sort?: string; offset?: number; limit?: number },
+  params?: { status?: string; sort?: string; offset?: number; limit?: number },
 ): Promise<{ beliefs: Belief[]; total: number }> {
   const q = new URLSearchParams()
-  if (params?.search) q.set('search', params.search)
-  if (params?.truth_value) q.set('truth_value', params.truth_value)
+  if (params?.status) q.set('status', params.status)
   if (params?.sort) q.set('sort', params.sort)
   if (params?.offset) q.set('offset', String(params.offset))
   if (params?.limit) q.set('limit', String(params.limit))
   const qs = q.toString()
   const data = await fetchJSON<{ items: Belief[]; total: number }>(`/api/domains/${domainId}/beliefs${qs ? '?' + qs : ''}`)
   return { beliefs: data.items, total: data.total }
+}
+
+export async function listIssues(domainId: string): Promise<{ gated: { nodes: Belief[] }; negative: { candidates: Belief[] } }> {
+  return fetchJSON(`/api/domains/${domainId}/issues`)
 }
 
 export async function getBeliefDetail(domainId: string, nodeId: string): Promise<BeliefDetail> {

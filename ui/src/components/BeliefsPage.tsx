@@ -7,7 +7,7 @@ import {
   Select, SelectOption, MenuToggle, type MenuToggleElement,
 } from '@patternfly/react-core'
 import { useTenant } from '../TenantContext'
-import { listBeliefs, getBeliefDetail, searchBeliefs } from '../api'
+import { listBeliefs, getBeliefDetail, searchBeliefs, listIssues } from '../api'
 import Markdown from './Markdown'
 import type { Belief, BeliefDetail } from '../types'
 
@@ -53,9 +53,16 @@ export default function BeliefsPage() {
         const data = await searchBeliefs(activeDomainId, searchRef.current)
         setBeliefs(data.results)
         setTotal(data.results.length)
+      } else if (truthFilter === 'Gated' || truthFilter === 'Blocker') {
+        const issues = await listIssues(activeDomainId)
+        const items = truthFilter === 'Gated'
+          ? (issues.gated?.nodes || [])
+          : (issues.negative?.candidates || [])
+        setBeliefs(items)
+        setTotal(items.length)
       } else {
         const data = await listBeliefs(activeDomainId, {
-          truth_value: truthFilter !== 'All' ? truthFilter : undefined,
+          status: truthFilter !== 'All' ? truthFilter : undefined,
           sort: sort !== 'default' ? sort : undefined,
           offset,
           limit: 50,
