@@ -79,7 +79,10 @@ export async function listBeliefs(
   return { beliefs: data.items, total: data.total }
 }
 
-export async function listIssues(domainId: string): Promise<{ gated: { nodes: Belief[] }; negative: { candidates: Belief[] } }> {
+export async function listIssues(domainId: string): Promise<{
+  gated: { blockers: Record<string, { text: string; gated: { id: string; text: string }[] }>; gated_count: number };
+  negative: { candidates: { id: string; text: string }[]; candidate_count: number };
+}> {
   return fetchJSON(`/api/domains/${domainId}/issues`)
 }
 
