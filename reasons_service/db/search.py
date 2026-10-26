@@ -133,7 +133,8 @@ def _compute_idf(session, domain_id: str, terms: list[str],
                  extra_where: str = "") -> dict[str, float]:
     if settings.db_backend == "sqlite":
         return {}
-    where = f"WHERE domain_id = :pid {extra_where}"
+    id_col = "project_id" if table == "rms_nodes" else "domain_id"
+    where = f"WHERE {id_col} = :pid {extra_where}"
     total = session.execute(
         sa_text(f"SELECT count(*) FROM {table} {where}"),
         {"pid": domain_id},
