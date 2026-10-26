@@ -128,10 +128,22 @@ export interface TaskItem {
 }
 
 export interface SourceEntry {
+  id?: string
   slug: string
-  path: string
+  url?: string
   title?: string
-  belief_count: number
+  word_count?: number
+  author?: string
+  content_type?: string
+  fetched_at?: string
+}
+
+export interface SummaryItem {
+  id: string
+  topic: string
+  title?: string
+  created_at?: string
+  source_slugs?: string[]
 }
 
 export interface EntryItem {

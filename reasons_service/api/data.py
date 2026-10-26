@@ -83,6 +83,7 @@ async def get_source(domain_id: UUID, slug: str, session: AsyncSession = Depends
         "content_type": source.content_type,
         "added_by": source.added_by,
         "license": source.license,
+        "content": source.content,
     }
 
 

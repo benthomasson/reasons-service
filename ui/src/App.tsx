@@ -16,7 +16,6 @@ import BeliefsPage from './components/BeliefsPage'
 import ProposalsPage from './components/ProposalsPage'
 import DocumentsPage from './components/DocumentsPage'
 import DomainsPage from './components/DomainsPage'
-import EntriesPage from './components/EntriesPage'
 import ConfigPage from './components/ConfigPage'
 
 function AppContent() {
@@ -53,7 +52,6 @@ function AppContent() {
     { path: '/chat', label: 'Chat' },
     { path: '/beliefs', label: 'Beliefs' },
     { path: '/proposals', label: 'Proposals' },
-    { path: '/entries', label: 'Entries' },
     { path: '/documents', label: 'Documents' },
     { path: '/domains', label: 'Domains' },
     { path: '/config', label: 'Config' },
@@ -138,8 +136,8 @@ function AppContent() {
           <Route path="/beliefs/:domain" element={<BeliefsPage />} />
           <Route path="/proposals" element={<ProposalsPage />} />
           <Route path="/proposals/:domain" element={<ProposalsPage />} />
-          <Route path="/entries" element={<EntriesPage />} />
-          <Route path="/entries/:domain" element={<EntriesPage />} />
+          <Route path="/entries" element={<Navigate to="/documents" replace />} />
+          <Route path="/entries/:domain" element={<Navigate to="/documents" replace />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/domains" element={<DomainsPage />} />
           <Route path="/domains/:domainId" element={<DomainsPage />} />

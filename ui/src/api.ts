@@ -1,6 +1,6 @@
 import type {
   UserInfo, Domain, Belief, BeliefDetail, Proposal,
-  ChatMessage, EntryItem, SourceEntry, Topic, DomainOverview,
+  ChatMessage, EntryItem, SourceEntry, SummaryItem, Topic, DomainOverview,
   Tenant, TenantMember,
 } from './types'
 
@@ -135,7 +135,7 @@ export async function listSources(domainId: string): Promise<{ sources: SourceEn
   return { sources: data.items }
 }
 
-export async function getSource(domainId: string, slug: string): Promise<{ content: string; frontmatter?: Record<string, unknown> }> {
+export async function getSource(domainId: string, slug: string): Promise<SourceEntry & { content?: string; description?: string; added_by?: string; license?: string; entry_count?: number }> {
   return fetchJSON(`/api/domains/${domainId}/sources/${slug}`)
 }
 
@@ -148,6 +148,17 @@ export async function listEntries(domainId: string): Promise<{ entries: EntryIte
 
 export async function getEntry(domainId: string, entryId: string): Promise<EntryItem & { content?: string }> {
   return fetchJSON(`/api/domains/${domainId}/entries/${entryId}`)
+}
+
+// --- Summaries ---
+
+export async function listSummaries(domainId: string): Promise<{ summaries: SummaryItem[]; total: number }> {
+  const data = await fetchJSON<{ items: SummaryItem[]; total: number }>(`/api/domains/${domainId}/summaries`)
+  return { summaries: data.items, total: data.total }
+}
+
+export async function getSummary(domainId: string, summaryId: string): Promise<SummaryItem & { content?: string; sources?: { slug: string; url?: string; word_count?: number; title?: string }[] }> {
+  return fetchJSON(`/api/domains/${domainId}/summaries/${summaryId}`)
 }
 
 // --- Topics ---
