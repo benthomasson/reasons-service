@@ -632,7 +632,7 @@ def search_beliefs_fts(domain_id: UUID, query: str, limit: int = 10, visible_to:
             text(
                 f"SELECT id, text, truth_value, source, source_url "
                 f"FROM rms_nodes "
-                f"WHERE domain_id = :pid AND truth_value = 'IN' "
+                f"WHERE project_id = :pid AND truth_value = 'IN' "
                 f"AND {where} "
                 f"{order_clause} "
                 f"LIMIT :lim"
@@ -699,7 +699,7 @@ def list_negative_candidates(domain_id: UUID, visible_to: list[str] | None = Non
         total = session.execute(
             text(
                 "SELECT count(*) FROM rms_nodes "
-                "WHERE domain_id = :pid AND truth_value = 'IN'"
+                "WHERE project_id = :pid AND truth_value = 'IN'"
             ),
             {"pid": params["pid"]},
         ).scalar()
@@ -707,7 +707,7 @@ def list_negative_candidates(domain_id: UUID, visible_to: list[str] | None = Non
         rows = session.execute(
             text(
                 f"SELECT id, text FROM rms_nodes "
-                f"WHERE domain_id = :pid AND truth_value = 'IN' "
+                f"WHERE project_id = :pid AND truth_value = 'IN' "
                 f"AND ({conditions}) "
                 f"ORDER BY id"
             ),
