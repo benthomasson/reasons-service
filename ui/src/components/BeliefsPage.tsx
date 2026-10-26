@@ -59,7 +59,7 @@ export default function BeliefsPage() {
         if (truthFilter === 'Gated') {
           const blockers = issues.gated?.blockers || {}
           items = Object.entries(blockers).flatMap(([blockerId, b]) =>
-            b.gated.map(g => ({ ...g, truth_value: 'IN', source: `gated by: ${blockerId}` }))
+            b.gated.map(g => ({ ...g, truth_value: 'OUT', source: `gated by: ${blockerId}` }))
           )
         } else {
           items = (issues.negative?.candidates || []).map(c => ({ ...c, truth_value: 'IN' }))
