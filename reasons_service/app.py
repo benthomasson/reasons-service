@@ -724,6 +724,20 @@ async def entry_report(
     })
 
 
+# --- SPA fallback ---
+
+_spa_dist = Path(__file__).parent.parent / "ui" / "dist"
+if _spa_dist.exists() and (_spa_dist / "index.html").exists():
+    from fastapi.responses import FileResponse
+
+    app.mount("/app/assets", StaticFiles(directory=str(_spa_dist / "assets")), name="spa-assets")
+
+    @app.get("/app/{path:path}")
+    @app.get("/app")
+    async def spa_fallback(path: str = ""):
+        return FileResponse(str(_spa_dist / "index.html"))
+
+
 def main():
     """Entry point for the reasons-service command."""
     import os

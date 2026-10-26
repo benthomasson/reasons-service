@@ -8,3 +8,5 @@ build/
 .venv/
 scripts/start.local.sh
 uv.lock
+node_modules/
+ui/dist/
