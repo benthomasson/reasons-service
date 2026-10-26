@@ -171,7 +171,7 @@ export async function listTopics(domainId: string): Promise<{ topics: Topic[] }>
 // --- Chat ---
 
 export function streamChat(
-  body: { domain_id: string; message: string; history?: { role: string; content: string }[] },
+  body: { domain_id: string; message: string; conversation_id?: string; history?: { role: string; content: string }[] },
 ): { response: Promise<Response>; abort: () => void } {
   const controller = new AbortController()
   const response = fetch('/api/chat', {
@@ -182,6 +182,35 @@ export function streamChat(
     signal: controller.signal,
   })
   return { response, abort: () => controller.abort() }
+}
+
+export interface Conversation {
+  id: string
+  domain_id: string
+  title: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ConversationDetail {
+  id: string
+  domain_id: string
+  title: string | null
+  messages: { role: string; content: string; created_at: string | null }[]
+}
+
+export async function listConversations(domainId?: string): Promise<Conversation[]> {
+  const q = domainId ? `?domain_id=${domainId}` : ''
+  const data = await fetchJSON<{ items: Conversation[] }>(`/api/chat/conversations${q}`)
+  return data.items
+}
+
+export async function getConversation(conversationId: string): Promise<ConversationDetail> {
+  return fetchJSON(`/api/chat/conversations/${conversationId}`)
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  await fetchJSON(`/api/chat/conversations/${conversationId}`, { method: 'DELETE' })
 }
 
 // --- Documents (import) ---

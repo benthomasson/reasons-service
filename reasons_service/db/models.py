@@ -339,6 +339,39 @@ class AuditLog(Base):
     metadata_ = Column("metadata", JSON)
 
 
+class ChatConversation(Base):
+    __tablename__ = "chat_conversations"
+    __table_args__ = (
+        Index("ix_chat_conversations_user", "user_email", "updated_at"),
+        Index("ix_chat_conversations_domain", "domain_id", "updated_at"),
+    )
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
+    user_email = Column(String, nullable=False)
+    title = Column(String)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    messages = relationship("ChatMessage", back_populates="conversation", cascade="all, delete-orphan", order_by="ChatMessage.created_at")
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    __table_args__ = (
+        Index("ix_chat_messages_conversation", "conversation_id", "created_at"),
+    )
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    conversation_id = Column(Uuid(as_uuid=True), ForeignKey("chat_conversations.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    beliefs_used = Column(JSON)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    conversation = relationship("ChatConversation", back_populates="messages")
+
+
 if _has_pgvector:
 
     class Embedding(Base):
