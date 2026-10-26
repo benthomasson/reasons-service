@@ -151,7 +151,7 @@ export default function BeliefsPage() {
                             <div key={a.id} style={{ cursor: 'pointer', padding: '2px 0' }}
                               onClick={() => openDetail(a.id)}>
                               <Label isCompact color={truthColor(a.truth_value)}>{a.truth_value}</Label>{' '}
-                              <code style={{ fontSize: '0.75rem' }}>{a.id}</code> — {a.text.slice(0, 80)}
+                              <code style={{ fontSize: '0.75rem' }}>{a.id}</code> — {(a.text || '').slice(0, 80)}
                             </div>
                           ))}
                         </div>
@@ -163,7 +163,7 @@ export default function BeliefsPage() {
                             <div key={o.id} style={{ cursor: 'pointer', padding: '2px 0' }}
                               onClick={() => openDetail(o.id)}>
                               <Label isCompact color={truthColor(o.truth_value)}>{o.truth_value}</Label>{' '}
-                              <code style={{ fontSize: '0.75rem' }}>{o.id}</code> — {o.text.slice(0, 80)}
+                              <code style={{ fontSize: '0.75rem' }}>{o.id}</code> — {(o.text || '').slice(0, 80)}
                             </div>
                           ))}
                         </div>
@@ -181,7 +181,7 @@ export default function BeliefsPage() {
                   <div key={d.id} style={{ cursor: 'pointer', padding: '4px 0', fontSize: '0.85rem' }}
                     onClick={() => openDetail(d.id)}>
                     <Label isCompact color={truthColor(d.truth_value)}>{d.truth_value}</Label>{' '}
-                    <code style={{ fontSize: '0.75rem' }}>{d.id}</code> — {d.text.slice(0, 80)}
+                    <code style={{ fontSize: '0.75rem' }}>{d.id}</code> — {(d.text || '').slice(0, 80)}
                   </div>
                 ))}
               </div>
@@ -252,7 +252,7 @@ export default function BeliefsPage() {
                   <code style={{ fontSize: '0.75rem' }}>{b.id.length > 40 ? b.id.slice(0, 40) + '...' : b.id}</code>
                 </FlexItem>
               </Flex>
-              <div style={{ fontSize: '0.85rem' }}>{b.text.slice(0, 200)}{b.text.length > 200 ? '...' : ''}</div>
+              <div style={{ fontSize: '0.85rem' }}>{(b.text || '').slice(0, 200)}{(b.text || '').length > 200 ? '...' : ''}</div>
             </CardBody>
           </Card>
         ))}
