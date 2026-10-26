@@ -84,40 +84,33 @@ export default function ChatPage() {
 
         for (const part of parts) {
           const lines = part.split('\n')
-          let event = 'message'
           let data = ''
           for (const line of lines) {
-            if (line.startsWith('event: ')) event = line.slice(7)
-            else if (line.startsWith('data: ')) data += line.slice(6)
+            if (line.startsWith('data: ')) data += line.slice(6)
           }
+          if (!data) continue
 
-          if (event === 'status') {
-            try {
-              const text = JSON.parse(data).text
-              if (text) setToolActivity(prev => [...prev, text])
-            } catch { /* */ }
-          } else if (event === 'tool_call') {
-            try {
-              const tc = JSON.parse(data)
-              const label = tc.name === 'search_beliefs' ? `Searching: "${tc.arguments?.query || ''}"` : `${tc.name}: ${tc.arguments?.id || ''}`
+          try {
+            const evt = JSON.parse(data)
+            const eventType = evt.type
+
+            if (eventType === 'status') {
+              if (evt.content) setToolActivity(prev => [...prev, evt.content])
+            } else if (eventType === 'tool_call') {
+              const label = evt.name === 'search_beliefs' ? `Searching: "${evt.args?.query || ''}"` : `${evt.name}: ${evt.args?.id || ''}`
               setToolActivity(prev => [...prev, label])
-            } catch { /* */ }
-          } else if (event === 'token') {
-            try {
-              const tokenData = JSON.parse(data)
-              fullResponse += tokenData.content
+            } else if (eventType === 'token') {
+              fullResponse += evt.content
               setStreamBuf(fullResponse)
-            } catch { /* */ }
-          } else if (event === 'done') {
-            addedDone = true
-            setMessages(prev => [...prev, { role: 'assistant', content: fullResponse }])
-            setStreamBuf('')
-          } else if (event === 'error') {
-            try {
-              setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${JSON.parse(data).message}` }])
-            } catch { /* */ }
-            setStreamBuf('')
-          }
+            } else if (eventType === 'done') {
+              addedDone = true
+              setMessages(prev => [...prev, { role: 'assistant', content: fullResponse }])
+              setStreamBuf('')
+            } else if (eventType === 'error') {
+              setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${evt.content || 'Unknown error'}` }])
+              setStreamBuf('')
+            }
+          } catch { /* ignore unparseable lines */ }
         }
       }
 

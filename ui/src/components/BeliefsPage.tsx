@@ -7,7 +7,7 @@ import {
   Select, SelectOption, MenuToggle, type MenuToggleElement,
 } from '@patternfly/react-core'
 import { useTenant } from '../TenantContext'
-import { listBeliefs, getBeliefDetail } from '../api'
+import { listBeliefs, getBeliefDetail, searchBeliefs } from '../api'
 import Markdown from './Markdown'
 import type { Belief, BeliefDetail } from '../types'
 
@@ -49,19 +49,24 @@ export default function BeliefsPage() {
   const load = useCallback(async (offset = 0) => {
     if (!activeDomainId) return
     try {
-      const data = await listBeliefs(activeDomainId, {
-        search: searchRef.current || undefined,
-        truth_value: truthFilter !== 'All' ? truthFilter : undefined,
-        sort: sort !== 'default' ? sort : undefined,
-        offset,
-        limit: 50,
-      })
-      if (offset === 0) {
-        setBeliefs(data.beliefs)
+      if (searchRef.current) {
+        const data = await searchBeliefs(activeDomainId, searchRef.current)
+        setBeliefs(data.results)
+        setTotal(data.results.length)
       } else {
-        setBeliefs(prev => [...prev, ...data.beliefs])
+        const data = await listBeliefs(activeDomainId, {
+          truth_value: truthFilter !== 'All' ? truthFilter : undefined,
+          sort: sort !== 'default' ? sort : undefined,
+          offset,
+          limit: 50,
+        })
+        if (offset === 0) {
+          setBeliefs(data.beliefs)
+        } else {
+          setBeliefs(prev => [...prev, ...data.beliefs])
+        }
+        setTotal(data.total)
       }
-      setTotal(data.total)
     } catch { /* */ }
   }, [activeDomainId, truthFilter, sort])
 
@@ -123,7 +128,7 @@ export default function BeliefsPage() {
                   <Card isCompact key={i} style={{ marginBottom: '0.5rem' }}>
                     <CardBody>
                       <Flex gap={{ default: 'gapSm' }} style={{ marginBottom: '0.25rem' }}>
-                        <Label isCompact variant="outline">{j.jtype}</Label>
+                        <Label isCompact variant="outline">{j.type}</Label>
                         <span style={{ fontSize: '0.85rem' }}>{j.label}</span>
                       </Flex>
                       {j.antecedents.length > 0 && (

@@ -28,9 +28,15 @@ export interface Domain {
   id: string
   name: string
   description: string
-  tenant_id: string
-  config: string
+  tenant_id?: string
+  config?: Record<string, unknown>
+  public?: boolean
+  members_only?: boolean
+  allowed_tags?: string[]
   created_at: string
+  source_count?: number
+  entry_count?: number
+  belief_count?: number
 }
 
 export interface DomainCounts {
@@ -44,11 +50,11 @@ export interface Belief {
   id: string
   text: string
   truth_value: string
-  type: string
-  depth: number
+  type?: string
+  depth?: number
   source?: string
-  justification_count: number
-  is_premise: boolean
+  justification_count?: number
+  is_premise?: boolean
   metadata?: Record<string, unknown>
 }
 
@@ -58,7 +64,7 @@ export interface BeliefDetail extends Belief {
 }
 
 export interface Justification {
-  jtype: string
+  type: string
   label: string
   antecedents: { id: string; text: string; truth_value: string }[]
   outlist: { id: string; text: string; truth_value: string }[]

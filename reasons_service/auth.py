@@ -88,20 +88,24 @@ async def auth_me(
 ):
     """Return the authenticated user's identity and tenant memberships."""
     user = await verify_auth(request, credentials, session)
-    memberships = await session.execute(
-        select(TenantMember.tenant_id, TenantMember.role, Tenant.name, Tenant.display_name)
-        .join(Tenant, TenantMember.tenant_id == Tenant.id)
-        .where(TenantMember.user_email == user.identity)
-    )
-    tenants = [
-        {
-            "id": str(row.tenant_id),
-            "name": row.name,
-            "displayName": row.display_name,
-            "role": row.role,
-        }
-        for row in memberships.all()
-    ]
+    tenants: list[dict] = []
+    try:
+        memberships = await session.execute(
+            select(TenantMember.tenant_id, TenantMember.role, Tenant.name, Tenant.display_name)
+            .join(Tenant, TenantMember.tenant_id == Tenant.id)
+            .where(TenantMember.user_email == user.identity)
+        )
+        tenants = [
+            {
+                "id": str(row.tenant_id),
+                "name": row.name,
+                "displayName": row.display_name,
+                "role": row.role,
+            }
+            for row in memberships.all()
+        ]
+    except Exception:
+        pass
     return {
         "identity": user.identity,
         "role": user.role,

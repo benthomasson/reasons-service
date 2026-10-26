@@ -89,8 +89,8 @@ export async function explainBelief(domainId: string, nodeId: string): Promise<{
 }
 
 export async function searchBeliefs(domainId: string, query: string): Promise<{ results: Belief[] }> {
-  const data = await fetchJSON<{ items: Belief[] }>(`/api/domains/${domainId}/search?q=${encodeURIComponent(query)}`)
-  return { results: data.items }
+  const data = await fetchJSON<{ beliefs: Belief[] }>(`/api/domains/${domainId}/search?q=${encodeURIComponent(query)}`)
+  return { results: data.beliefs }
 }
 
 // --- Proposals ---
