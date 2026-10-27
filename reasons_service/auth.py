@@ -97,15 +97,14 @@ async def auth_me(
         )
         tenants = [
             {
-                "id": str(row.tenant_id),
-                "name": row.name,
-                "displayName": row.display_name,
+                "tenantId": str(row.tenant_id),
+                "tenantName": row.display_name or row.name,
                 "role": row.role,
             }
             for row in memberships.all()
         ]
     except Exception:
-        pass
+        logger.debug("Tenant membership query failed (table may not exist)", exc_info=True)
     return {
         "identity": user.identity,
         "role": user.role,

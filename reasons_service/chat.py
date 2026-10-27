@@ -139,27 +139,44 @@ def _execute_tool(tool_name: str, args: dict, domain_id: UUID, visible_to: list[
         return json.dumps({"error": f"Tool '{tool_name}' failed: {type(e).__name__}"})
 
 
-async def _save_messages(conversation_id: UUID, user_message: str, assistant_message: str):
-    """Persist user and assistant messages to the database."""
+async def _save_messages(
+    conversation_id: UUID | None,
+    domain_id: UUID,
+    user_email: str,
+    user_message: str,
+    assistant_message: str,
+) -> UUID:
+    """Persist user and assistant messages. Creates conversation if needed."""
     from reasons_service.db.connection import async_session
     async with async_session() as session:
-        session.add(ChatMessageModel(conversation_id=conversation_id, role="user", content=user_message))
-        session.add(ChatMessageModel(conversation_id=conversation_id, role="assistant", content=assistant_message))
-        await session.execute(
-            update(ChatConversation)
-            .where(ChatConversation.id == conversation_id)
-            .values(updated_at=func.now())
-        )
-        if not (await session.execute(
-            select(ChatConversation.title).where(ChatConversation.id == conversation_id)
-        )).scalar():
-            title = user_message[:100].strip()
+        if not conversation_id:
+            conv = ChatConversation(
+                domain_id=domain_id,
+                user_email=user_email,
+                title=user_message[:100].strip(),
+            )
+            session.add(conv)
+            await session.flush()
+            conversation_id = conv.id
+        else:
             await session.execute(
                 update(ChatConversation)
                 .where(ChatConversation.id == conversation_id)
-                .values(title=title)
+                .values(updated_at=func.now())
             )
+            has_title = (await session.execute(
+                select(ChatConversation.title).where(ChatConversation.id == conversation_id)
+            )).scalar()
+            if not has_title:
+                await session.execute(
+                    update(ChatConversation)
+                    .where(ChatConversation.id == conversation_id)
+                    .values(title=user_message[:100].strip())
+                )
+        session.add(ChatMessageModel(conversation_id=conversation_id, role="user", content=user_message))
+        session.add(ChatMessageModel(conversation_id=conversation_id, role="assistant", content=assistant_message))
         await session.commit()
+    return conversation_id
 
 
 async def _chat_stream(req: ChatRequest, user: UserInfo, conversation_id: UUID | None = None):
@@ -247,9 +264,11 @@ async def _chat_stream(req: ChatRequest, user: UserInfo, conversation_id: UUID |
             token = line + ("\n" if i < len(lines) - 1 else "")
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
-        if conversation_id and content:
+        if content and user.identity != "public":
             try:
-                await _save_messages(conversation_id, req.message, content)
+                conversation_id = await _save_messages(
+                    conversation_id, domain_id, user.identity, req.message, content,
+                )
             except Exception:
                 logger.exception("Failed to save chat messages")
 
@@ -332,14 +351,7 @@ async def chat(
     domain_id = UUID(req.domain_id)
     effective_user = await _resolve_chat_user(domain_id, user, session)
 
-    conversation_id = None
-    if req.conversation_id:
-        conversation_id = UUID(req.conversation_id)
-    elif effective_user.identity not in ("public",):
-        conv = ChatConversation(domain_id=domain_id, user_email=effective_user.identity)
-        session.add(conv)
-        await session.commit()
-        conversation_id = conv.id
+    conversation_id = UUID(req.conversation_id) if req.conversation_id else None
 
     return StreamingResponse(
         _chat_stream(req, effective_user, conversation_id),

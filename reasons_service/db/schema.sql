@@ -275,6 +275,30 @@ CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log(action);
 CREATE INDEX IF NOT EXISTS ix_audit_log_resource_type ON audit_log(resource_type);
 CREATE INDEX IF NOT EXISTS ix_audit_log_timestamp ON audit_log(timestamp);
 
+-- Chat conversation history
+CREATE TABLE IF NOT EXISTS chat_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    user_email TEXT NOT NULL,
+    title TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_conversations_user ON chat_conversations(user_email, updated_at);
+CREATE INDEX IF NOT EXISTS ix_chat_conversations_domain ON chat_conversations(domain_id, updated_at);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    beliefs_used JSONB,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_messages_conversation ON chat_messages(conversation_id, created_at);
+
 -- Source document chunks for FTS RAG
 CREATE TABLE IF NOT EXISTS source_chunks (
     id SERIAL PRIMARY KEY,

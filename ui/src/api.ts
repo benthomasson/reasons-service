@@ -17,7 +17,7 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
     headers: { ...headers(!!init?.body), ...init?.headers },
   })
   if (resp.status === 401) {
-    window.location.href = '/login'
+    window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`
     throw new Error('Unauthorized')
   }
   if (!resp.ok) {
@@ -224,7 +224,7 @@ export async function uploadDocuments(domainId: string, files: File[]): Promise<
     body: formData,
   })
   if (resp.status === 401) {
-    window.location.href = '/login'
+    window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`
     throw new Error('Unauthorized')
   }
   if (!resp.ok) throw new Error('Upload failed')
