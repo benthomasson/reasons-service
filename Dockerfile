@@ -1,3 +1,13 @@
+# Stage 1: Build the SPA
+FROM node:22-slim AS ui-build
+
+WORKDIR /ui
+COPY ui/package.json ui/package-lock.json* ./
+RUN npm ci
+COPY ui/ ./
+RUN npm run build
+
+# Stage 2: Python application
 FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
@@ -11,6 +21,9 @@ RUN pip install --no-cache-dir ".[postgres]"
 COPY reasons_service/ reasons_service/
 COPY alembic.ini ./
 COPY alembic/ alembic/
+
+# Copy built SPA assets from stage 1
+COPY --from=ui-build /ui/dist/ ui/dist/
 
 RUN useradd --create-home --shell /bin/bash appuser
 USER appuser
