@@ -1,5 +1,7 @@
 """Admin CLI for reasons-service."""
 
+from datetime import datetime, timezone
+
 import click
 from sqlalchemy import create_engine, text
 
@@ -46,9 +48,11 @@ def user_list():
 def user_add(email, role, display_name):
     """Add a user."""
     with _engine().connect() as conn:
+        now = datetime.now(timezone.utc)
         conn.execute(text(
-            "INSERT INTO users (email, role, display_name) VALUES (:email, :role, :name)"
-        ), {"email": email.strip().lower(), "role": role, "name": display_name or email})
+            "INSERT INTO users (email, role, display_name, created_at, updated_at) "
+            "VALUES (:email, :role, :name, :now, :now)"
+        ), {"email": email.strip().lower(), "role": role, "name": display_name or email, "now": now})
         conn.commit()
     click.echo(f"Added {email} as {role}")
 
@@ -59,9 +63,10 @@ def user_add(email, role, display_name):
 def user_set_role(email, role):
     """Change a user's role."""
     with _engine().connect() as conn:
+        now = datetime.now(timezone.utc)
         result = conn.execute(text(
-            "UPDATE users SET role = :role, updated_at = now() WHERE email = :email"
-        ), {"email": email.strip().lower(), "role": role})
+            "UPDATE users SET role = :role, updated_at = :now WHERE email = :email"
+        ), {"email": email.strip().lower(), "role": role, "now": now})
         conn.commit()
     if result.rowcount:
         click.echo(f"Set {email} → {role}")

@@ -26,6 +26,7 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const prefillConsumed = useRef(false)
 
   useEffect(() => {
     return () => { abortRef.current?.() }
@@ -176,11 +177,12 @@ export default function ChatPage() {
 
   useEffect(() => {
     const prefill = searchParams.get('prefill')
-    if (prefill && activeDomainId && !streaming) {
+    if (prefill && activeDomainId && !streaming && !prefillConsumed.current) {
+      prefillConsumed.current = true
       setSearchParams({}, { replace: true })
       handleSend(prefill)
     }
-  }, [activeDomainId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeDomainId, streaming, searchParams, setSearchParams, handleSend])
 
   const newChat = () => {
     setMessages([])
