@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select, text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.sessions import SessionMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from reasons_service.api import audit as audit_api, domains, data, ask, public, tenants
 from reasons_service.chat import router as chat_router
@@ -53,6 +54,8 @@ async def lifespan(app):
 
 app = FastAPI(title="Reasons Service", version="0.1.0", lifespan=lifespan)
 
+# Trust X-Forwarded-Proto/For from reverse proxies (OpenShift router, etc.)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 # Session middleware for OAuth cookie sessions
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 

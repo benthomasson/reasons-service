@@ -36,6 +36,7 @@ openai = ["openai>=1.0"]
 
 [project.scripts]
 reasons-service = "reasons_service.app:main"
+reasons-admin = "reasons_service.manage:cli"
 
 [tool.hatch.metadata]
 allow-direct-references = true
