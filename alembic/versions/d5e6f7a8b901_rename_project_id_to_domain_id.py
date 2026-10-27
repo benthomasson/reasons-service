@@ -22,19 +22,29 @@ def upgrade() -> None:
     if bind.dialect.name != "postgresql":
         return
 
-    bind.execute(sa.text("""
-        ALTER TABLE rms_nodes RENAME COLUMN project_id TO domain_id;
-        ALTER TABLE rms_justifications RENAME COLUMN project_id TO domain_id;
-        ALTER TABLE rms_nogoods RENAME COLUMN project_id TO domain_id;
-        ALTER TABLE rms_propagation_log RENAME COLUMN project_id TO domain_id;
-        ALTER TABLE rms_network_meta RENAME COLUMN project_id TO domain_id;
-    """))
+    for table in ("rms_nodes", "rms_justifications", "rms_nogoods",
+                   "rms_propagation_log", "rms_network_meta"):
+        has_col = bind.execute(sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = :t AND column_name = 'project_id'"
+        ), {"t": table}).fetchone()
+        if has_col:
+            bind.execute(sa.text(
+                f"ALTER TABLE {table} RENAME COLUMN project_id TO domain_id"
+            ))
 
-    bind.execute(sa.text("""
-        ALTER INDEX IF EXISTS idx_rms_nodes_project RENAME TO idx_rms_nodes_domain;
-        ALTER INDEX IF EXISTS idx_rms_nogoods_project RENAME TO idx_rms_nogoods_domain;
-        ALTER INDEX IF EXISTS idx_rms_log_project RENAME TO idx_rms_log_domain;
-    """))
+    for old, new in (("idx_rms_nodes_project", "idx_rms_nodes_domain"),
+                     ("idx_rms_nogoods_project", "idx_rms_nogoods_domain"),
+                     ("idx_rms_log_project", "idx_rms_log_domain")):
+        has_new = bind.execute(sa.text(
+            "SELECT 1 FROM pg_indexes WHERE indexname = :n"
+        ), {"n": new}).fetchone()
+        if has_new:
+            bind.execute(sa.text(f"DROP INDEX IF EXISTS {old}"))
+        else:
+            bind.execute(sa.text(
+                f"ALTER INDEX IF EXISTS {old} RENAME TO {new}"
+            ))
 
 
 def downgrade() -> None:
