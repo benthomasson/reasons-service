@@ -159,20 +159,26 @@ async def _save_messages(
             await session.flush()
             conversation_id = conv.id
         else:
-            await session.execute(
-                update(ChatConversation)
-                .where(ChatConversation.id == conversation_id)
-                .values(updated_at=func.now())
-            )
-            has_title = (await session.execute(
-                select(ChatConversation.title).where(ChatConversation.id == conversation_id)
-            )).scalar()
-            if not has_title:
-                await session.execute(
-                    update(ChatConversation)
-                    .where(ChatConversation.id == conversation_id)
-                    .values(title=user_message[:100].strip())
+            conv = (await session.execute(
+                select(ChatConversation).where(
+                    ChatConversation.id == conversation_id,
+                    ChatConversation.user_email == user_email,
                 )
+            )).scalar_one_or_none()
+            if not conv:
+                logger.warning("Conversation %s not owned by %s, creating new", conversation_id, user_email)
+                conv = ChatConversation(
+                    domain_id=domain_id,
+                    user_email=user_email,
+                    title=user_message[:100].strip(),
+                )
+                session.add(conv)
+                await session.flush()
+                conversation_id = conv.id
+            else:
+                conv.updated_at = func.now()
+                if not conv.title:
+                    conv.title = user_message[:100].strip()
         session.add(ChatMessageModel(conversation_id=conversation_id, role="user", content=user_message))
         session.add(ChatMessageModel(conversation_id=conversation_id, role="assistant", content=assistant_message))
         await session.commit()
