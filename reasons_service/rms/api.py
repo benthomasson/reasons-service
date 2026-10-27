@@ -102,7 +102,7 @@ def update_node(
     from sqlalchemy import text as sa_text
     with get_sync_session() as session:
         row = session.execute(
-            sa_text("SELECT metadata FROM rms_nodes WHERE project_id = :pid AND id = :nid"),
+            sa_text("SELECT metadata FROM rms_nodes WHERE domain_id = :pid AND id = :nid"),
             {"pid": str(domain_id), "nid": node_id},
         ).fetchone()
         if not row:
@@ -122,7 +122,7 @@ def update_node(
             params["metadata"] = _json.dumps(meta)
         if sets:
             session.execute(
-                sa_text(f"UPDATE rms_nodes SET {', '.join(sets)} WHERE project_id = :pid AND id = :nid"),
+                sa_text(f"UPDATE rms_nodes SET {', '.join(sets)} WHERE domain_id = :pid AND id = :nid"),
                 params,
             )
             session.commit()
@@ -479,7 +479,7 @@ def set_access_tags(domain_id: UUID, node_id: str, tags: list[str]) -> dict:
     import json as _json
     with get_sync_session() as session:
         row = session.execute(
-            text("SELECT metadata FROM rms_nodes WHERE project_id = :pid AND id = :nid"),
+            text("SELECT metadata FROM rms_nodes WHERE domain_id = :pid AND id = :nid"),
             {"pid": str(domain_id), "nid": node_id},
         ).fetchone()
         if not row:
@@ -487,7 +487,7 @@ def set_access_tags(domain_id: UUID, node_id: str, tags: list[str]) -> dict:
         meta = _json.loads(row[0]) if row[0] else {}
         meta["access_tags"] = sorted(set(tags))
         session.execute(
-            text("UPDATE rms_nodes SET metadata = :meta WHERE project_id = :pid AND id = :nid"),
+            text("UPDATE rms_nodes SET metadata = :meta WHERE domain_id = :pid AND id = :nid"),
             {"pid": str(domain_id), "nid": node_id, "meta": _json.dumps(meta)},
         )
         session.commit()
@@ -531,11 +531,11 @@ def count_beliefs(domain_id: UUID, status: str | None = "IN", visible_to: list[s
     with get_sync_session() as session:
         if status:
             return session.execute(
-                text("SELECT count(*) FROM rms_nodes WHERE project_id = :pid AND truth_value = :st"),
+                text("SELECT count(*) FROM rms_nodes WHERE domain_id = :pid AND truth_value = :st"),
                 {"pid": str(domain_id), "st": status},
             ).scalar() or 0
         return session.execute(
-            text("SELECT count(*) FROM rms_nodes WHERE project_id = :pid"),
+            text("SELECT count(*) FROM rms_nodes WHERE domain_id = :pid"),
             {"pid": str(domain_id)},
         ).scalar() or 0
 
@@ -559,7 +559,7 @@ def count_nogoods(domain_id: UUID) -> int:
     from sqlalchemy import text
     with get_sync_session() as session:
         return session.execute(
-            text("SELECT count(*) FROM rms_nogoods WHERE project_id = :pid"),
+            text("SELECT count(*) FROM rms_nogoods WHERE domain_id = :pid"),
             {"pid": str(domain_id)},
         ).scalar() or 0
 
@@ -632,7 +632,7 @@ def search_beliefs_fts(domain_id: UUID, query: str, limit: int = 10, visible_to:
             text(
                 f"SELECT id, text, truth_value, source, source_url "
                 f"FROM rms_nodes "
-                f"WHERE project_id = :pid AND truth_value = 'IN' "
+                f"WHERE domain_id = :pid AND truth_value = 'IN' "
                 f"AND {where} "
                 f"{order_clause} "
                 f"LIMIT :lim"
@@ -699,7 +699,7 @@ def list_negative_candidates(domain_id: UUID, visible_to: list[str] | None = Non
         total = session.execute(
             text(
                 "SELECT count(*) FROM rms_nodes "
-                "WHERE project_id = :pid AND truth_value = 'IN'"
+                "WHERE domain_id = :pid AND truth_value = 'IN'"
             ),
             {"pid": params["pid"]},
         ).scalar()
@@ -707,7 +707,7 @@ def list_negative_candidates(domain_id: UUID, visible_to: list[str] | None = Non
         rows = session.execute(
             text(
                 f"SELECT id, text FROM rms_nodes "
-                f"WHERE project_id = :pid AND truth_value = 'IN' "
+                f"WHERE domain_id = :pid AND truth_value = 'IN' "
                 f"AND ({conditions}) "
                 f"ORDER BY id"
             ),

@@ -53,7 +53,7 @@ def build_embeddings(domain_id: UUID) -> dict[str, int]:
             items.append(("entries", e.id, e.title or e.id, text))
 
         beliefs = session.execute(
-            sa_text("SELECT id, text FROM rms_nodes WHERE project_id = :pid"),
+            sa_text("SELECT id, text FROM rms_nodes WHERE domain_id = :pid"),
             {"pid": str(domain_id)},
         ).all()
         for b in beliefs:

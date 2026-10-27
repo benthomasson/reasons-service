@@ -5,7 +5,7 @@ Revises: 9f2d0422d685
 Create Date: 2026-10-27
 
 Creates rms_nodes, rms_justifications, rms_nogoods, rms_propagation_log,
-and rms_network_meta with project_id (as expected by ftl-reasons) and all
+and rms_network_meta with domain_id (as expected by ftl-reasons) and all
 timestamp columns (updated_at, reviewed_at, verified_at, retracted_at).
 """
 from typing import Sequence, Union
@@ -27,7 +27,7 @@ def upgrade() -> None:
     bind.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS rms_nodes (
             id TEXT NOT NULL,
-            project_id UUID NOT NULL,
+            domain_id UUID NOT NULL,
             text TEXT NOT NULL,
             truth_value TEXT NOT NULL DEFAULT 'IN' CHECK (truth_value IN ('IN', 'OUT')),
             source TEXT DEFAULT '',
@@ -40,7 +40,7 @@ def upgrade() -> None:
             reviewed_at TIMESTAMPTZ,
             verified_at TIMESTAMPTZ,
             retracted_at TIMESTAMPTZ,
-            PRIMARY KEY (id, project_id)
+            PRIMARY KEY (id, domain_id)
         )
     """))
 
@@ -48,30 +48,30 @@ def upgrade() -> None:
         CREATE TABLE IF NOT EXISTS rms_justifications (
             id SERIAL PRIMARY KEY,
             node_id TEXT NOT NULL,
-            project_id UUID NOT NULL,
+            domain_id UUID NOT NULL,
             type TEXT NOT NULL CHECK (type IN ('SL', 'CP')),
             antecedents JSONB NOT NULL DEFAULT '[]',
             outlist JSONB NOT NULL DEFAULT '[]',
             label TEXT DEFAULT '',
-            FOREIGN KEY (node_id, project_id) REFERENCES rms_nodes(id, project_id) ON DELETE CASCADE
+            FOREIGN KEY (node_id, domain_id) REFERENCES rms_nodes(id, domain_id) ON DELETE CASCADE
         )
     """))
 
     bind.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS rms_nogoods (
             id TEXT NOT NULL,
-            project_id UUID NOT NULL,
+            domain_id UUID NOT NULL,
             nodes JSONB NOT NULL DEFAULT '[]',
             discovered TEXT DEFAULT '',
             resolution TEXT DEFAULT '',
-            PRIMARY KEY (id, project_id)
+            PRIMARY KEY (id, domain_id)
         )
     """))
 
     bind.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS rms_propagation_log (
             id SERIAL PRIMARY KEY,
-            project_id UUID NOT NULL,
+            domain_id UUID NOT NULL,
             timestamp TEXT NOT NULL,
             action TEXT NOT NULL,
             target TEXT NOT NULL,
@@ -82,18 +82,18 @@ def upgrade() -> None:
     bind.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS rms_network_meta (
             key TEXT NOT NULL,
-            project_id UUID NOT NULL,
+            domain_id UUID NOT NULL,
             value TEXT NOT NULL,
-            PRIMARY KEY (key, project_id)
+            PRIMARY KEY (key, domain_id)
         )
     """))
 
     bind.execute(sa.text("""
-        CREATE INDEX IF NOT EXISTS idx_rms_nodes_project ON rms_nodes(project_id);
-        CREATE INDEX IF NOT EXISTS idx_rms_nodes_status ON rms_nodes(project_id, truth_value);
-        CREATE INDEX IF NOT EXISTS idx_rms_justifications_node ON rms_justifications(node_id, project_id);
-        CREATE INDEX IF NOT EXISTS idx_rms_nogoods_project ON rms_nogoods(project_id);
-        CREATE INDEX IF NOT EXISTS idx_rms_log_project ON rms_propagation_log(project_id);
+        CREATE INDEX IF NOT EXISTS idx_rms_nodes_domain ON rms_nodes(domain_id);
+        CREATE INDEX IF NOT EXISTS idx_rms_nodes_status ON rms_nodes(domain_id, truth_value);
+        CREATE INDEX IF NOT EXISTS idx_rms_justifications_node ON rms_justifications(node_id, domain_id);
+        CREATE INDEX IF NOT EXISTS idx_rms_nogoods_domain ON rms_nogoods(domain_id);
+        CREATE INDEX IF NOT EXISTS idx_rms_log_domain ON rms_propagation_log(domain_id);
         CREATE INDEX IF NOT EXISTS idx_rms_nodes_fts ON rms_nodes USING gin(to_tsvector('english', text));
         CREATE INDEX IF NOT EXISTS idx_rms_justifications_antecedents ON rms_justifications USING gin(antecedents);
         CREATE INDEX IF NOT EXISTS idx_rms_justifications_outlist ON rms_justifications USING gin(outlist);
