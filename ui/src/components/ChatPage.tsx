@@ -123,7 +123,7 @@ export default function ChatPage() {
           const lines = part.split('\n')
           let data = ''
           for (const line of lines) {
-            if (line.startsWith('data: ')) data += line.slice(6)
+            if (line.startsWith('data: ')) data += (data ? '\n' : '') + line.slice(6)
           }
           if (!data) continue
 

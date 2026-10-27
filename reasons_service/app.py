@@ -55,7 +55,7 @@ async def lifespan(app):
 app = FastAPI(title="Reasons Service", version="0.1.0", lifespan=lifespan)
 
 # Trust X-Forwarded-Proto/For from reverse proxies (OpenShift router, etc.)
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12"])
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
 # Session middleware for OAuth cookie sessions
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 
