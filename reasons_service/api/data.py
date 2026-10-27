@@ -898,17 +898,42 @@ async def import_sources(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    """Bulk import sources from a file-based expert repo."""
+    """Bulk import or update sources from a file-based expert repo."""
     imported = 0
-    skipped = 0
+    updated = 0
+    unchanged = 0
     user = request.state.user
 
     for s in data.sources:
         existing = await session.execute(
-            select(Source.id).where(Source.domain_id == domain_id, Source.slug == s.slug)
+            select(Source).where(Source.domain_id == domain_id, Source.slug == s.slug)
         )
-        if existing.scalar_one_or_none() is not None:
-            skipped += 1
+        source = existing.scalar_one_or_none()
+        if source is not None:
+            if source.content == s.content and source.title == s.title:
+                unchanged += 1
+                continue
+            source.content = s.content
+            source.word_count = s.word_count
+            source.title = s.title
+            source.description = s.description
+            source.author = s.author
+            source.content_type = s.content_type
+            source.url = s.url
+            source.license = s.license
+            await session.execute(
+                SourceChunk.__table__.delete().where(SourceChunk.source_id == source.id)
+            )
+            await session.flush()
+            for c in chunk_markdown(s.content):
+                session.add(SourceChunk(
+                    domain_id=domain_id,
+                    source_id=source.id,
+                    chunk_index=c["chunk_index"],
+                    section=c["section"],
+                    text=c["text"],
+                ))
+            updated += 1
             continue
         source = Source(
             domain_id=domain_id,
@@ -942,9 +967,9 @@ async def import_sources(
         action="import.sources",
         resource_type="import",
         domain_id=domain_id,
-        metadata={"imported": imported, "skipped": skipped},
+        metadata={"imported": imported, "updated": updated, "unchanged": unchanged},
     ))
-    return {"imported": imported, "skipped": skipped}
+    return {"imported": imported, "updated": updated, "unchanged": unchanged}
 
 
 @router.post("/import/entries", dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
@@ -954,9 +979,10 @@ async def import_entries(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    """Bulk import entries from a file-based expert repo."""
+    """Bulk import or update entries from a file-based expert repo."""
     imported = 0
-    skipped = 0
+    updated = 0
+    unchanged = 0
     linked = 0
 
     # Pre-load source slug→id map for auto-matching
@@ -966,36 +992,42 @@ async def import_entries(
     source_map = {row.slug: row.id for row in source_result.all()}
 
     for e in data.entries:
-        # Check if already exists
         existing = await session.execute(
-            select(Entry.id).where(Entry.domain_id == domain_id, Entry.id == e.id)
+            select(Entry).where(Entry.domain_id == domain_id, Entry.id == e.id)
         )
-        if existing.scalar_one_or_none() is not None:
-            skipped += 1
-            continue
-
-        entry = Entry(
-            id=e.id,
-            domain_id=domain_id,
-            topic=e.topic,
-            title=e.title,
-            content=e.content,
-            metadata_={"imported_from": e.path} if e.path else None,
-        )
-        session.add(entry)
-        imported += 1
-
-        # Auto-match entry to source by topic == slug
-        if e.topic in source_map:
-            await session.flush()
-            await session.execute(
-                insert(entry_sources).values(
-                    entry_id=e.id,
-                    entry_domain_id=domain_id,
-                    source_id=source_map[e.topic],
-                )
+        entry = existing.scalar_one_or_none()
+        if entry is not None:
+            if entry.content == e.content and entry.title == e.title and entry.topic == e.topic:
+                unchanged += 1
+            else:
+                entry.topic = e.topic
+                entry.title = e.title
+                entry.content = e.content
+                if e.path:
+                    entry.metadata_ = {"imported_from": e.path}
+                updated += 1
+        else:
+            entry = Entry(
+                id=e.id,
+                domain_id=domain_id,
+                topic=e.topic,
+                title=e.title,
+                content=e.content,
+                metadata_={"imported_from": e.path} if e.path else None,
             )
-            linked += 1
+            session.add(entry)
+            imported += 1
+
+            if e.topic in source_map:
+                await session.flush()
+                await session.execute(
+                    insert(entry_sources).values(
+                        entry_id=e.id,
+                        entry_domain_id=domain_id,
+                        source_id=source_map[e.topic],
+                    )
+                )
+                linked += 1
 
     await session.commit()
     fire_audit(audit_log(
@@ -1003,9 +1035,9 @@ async def import_entries(
         action="import.entries",
         resource_type="import",
         domain_id=domain_id,
-        metadata={"imported": imported, "skipped": skipped, "linked": linked},
+        metadata={"imported": imported, "updated": updated, "unchanged": unchanged, "linked": linked},
     ))
-    return {"imported": imported, "skipped": skipped, "linked": linked}
+    return {"imported": imported, "updated": updated, "unchanged": unchanged, "linked": linked}
 
 
 @router.post("/import/summaries", dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
@@ -1015,9 +1047,10 @@ async def import_summaries(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    """Bulk import summaries from a file-based expert repo."""
+    """Bulk import or update summaries from a file-based expert repo."""
     imported = 0
-    skipped = 0
+    updated = 0
+    unchanged = 0
     linked = 0
 
     source_result = await session.execute(
@@ -1027,33 +1060,41 @@ async def import_summaries(
 
     for s in data.summaries:
         existing = await session.execute(
-            select(Summary.id).where(Summary.domain_id == domain_id, Summary.id == s.id)
+            select(Summary).where(Summary.domain_id == domain_id, Summary.id == s.id)
         )
-        if existing.scalar_one_or_none() is not None:
-            skipped += 1
-            continue
-
-        summary = Summary(
-            id=s.id,
-            domain_id=domain_id,
-            topic=s.topic,
-            title=s.title,
-            content=s.content,
-            metadata_={"imported_from": s.path} if s.path else None,
-        )
-        session.add(summary)
-        imported += 1
-
-        if s.topic in source_map:
-            await session.flush()
-            await session.execute(
-                insert(summary_sources).values(
-                    summary_id=s.id,
-                    summary_domain_id=domain_id,
-                    source_id=source_map[s.topic],
-                )
+        summary = existing.scalar_one_or_none()
+        if summary is not None:
+            if summary.content == s.content and summary.title == s.title and summary.topic == s.topic:
+                unchanged += 1
+            else:
+                summary.topic = s.topic
+                summary.title = s.title
+                summary.content = s.content
+                if s.path:
+                    summary.metadata_ = {"imported_from": s.path}
+                updated += 1
+        else:
+            summary = Summary(
+                id=s.id,
+                domain_id=domain_id,
+                topic=s.topic,
+                title=s.title,
+                content=s.content,
+                metadata_={"imported_from": s.path} if s.path else None,
             )
-            linked += 1
+            session.add(summary)
+            imported += 1
+
+            if s.topic in source_map:
+                await session.flush()
+                await session.execute(
+                    insert(summary_sources).values(
+                        summary_id=s.id,
+                        summary_domain_id=domain_id,
+                        source_id=source_map[s.topic],
+                    )
+                )
+                linked += 1
 
     await session.commit()
     fire_audit(audit_log(
@@ -1061,9 +1102,9 @@ async def import_summaries(
         action="import.summaries",
         resource_type="import",
         domain_id=domain_id,
-        metadata={"imported": imported, "skipped": skipped, "linked": linked},
+        metadata={"imported": imported, "updated": updated, "unchanged": unchanged, "linked": linked},
     ))
-    return {"imported": imported, "skipped": skipped, "linked": linked}
+    return {"imported": imported, "updated": updated, "unchanged": unchanged, "linked": linked}
 
 
 @router.post("/import/beliefs", dependencies=[Depends(require_action(Action.EDIT_BELIEFS))])
@@ -1072,19 +1113,29 @@ async def import_beliefs(
     data: ClaimsImportRequest,
     request: Request,
 ):
-    """Bulk import beliefs into RMS from a file-based expert repo."""
+    """Bulk import or update beliefs in RMS from a file-based expert repo."""
 
     def _do_import():
         imported = 0
-        skipped = 0
+        updated = 0
+        unchanged = 0
 
-        # Check existing nodes
         existing_status = rms_api.get_status(domain_id)
-        existing_ids = {n["id"] for n in existing_status["nodes"]}
+        existing_map = {n["id"]: n for n in existing_status["nodes"]}
 
         for c in data.claims:
-            if c.id in existing_ids:
-                skipped += 1
+            if c.id in existing_map:
+                old = existing_map[c.id]
+                if old.get("text") == c.text and old.get("truth_value", old.get("status")) == c.status:
+                    unchanged += 1
+                    continue
+                rms_api.update_node(domain_id, c.id, text=c.text, source=c.source or "")
+                current_status = old.get("truth_value", old.get("status"))
+                if c.status == "OUT" and current_status != "OUT":
+                    rms_api.retract_node(domain_id, c.id)
+                elif c.status == "IN" and current_status == "OUT":
+                    rms_api.assert_node(domain_id, c.id)
+                updated += 1
                 continue
 
             rms_api.add_node(
@@ -1094,13 +1145,12 @@ async def import_beliefs(
                 source=c.source or "",
             )
 
-            # Match original status
             if c.status == "OUT":
                 rms_api.retract_node(domain_id, c.id)
 
             imported += 1
 
-        return {"imported": imported, "skipped": skipped}
+        return {"imported": imported, "updated": updated, "unchanged": unchanged}
 
     result = await asyncio.to_thread(_do_import)
     fire_audit(audit_log(
