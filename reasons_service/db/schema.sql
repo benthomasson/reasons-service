@@ -175,9 +175,10 @@ CREATE TABLE IF NOT EXISTS embeddings (
 );
 
 -- RMS (Reason Maintenance System) tables
+-- Column is project_id to match ftl-reasons library; aliased as domain_id in service code
 CREATE TABLE IF NOT EXISTS rms_nodes (
     id TEXT NOT NULL,
-    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL,
     text TEXT NOT NULL,
     truth_value TEXT NOT NULL DEFAULT 'IN' CHECK (truth_value IN ('IN', 'OUT')),
     source TEXT DEFAULT '',
@@ -186,32 +187,36 @@ CREATE TABLE IF NOT EXISTS rms_nodes (
     date TEXT DEFAULT '',
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT now(),
-    PRIMARY KEY (id, domain_id)
+    updated_at TIMESTAMPTZ,
+    reviewed_at TIMESTAMPTZ,
+    verified_at TIMESTAMPTZ,
+    retracted_at TIMESTAMPTZ,
+    PRIMARY KEY (id, project_id)
 );
 
 CREATE TABLE IF NOT EXISTS rms_justifications (
     id SERIAL PRIMARY KEY,
     node_id TEXT NOT NULL,
-    domain_id UUID NOT NULL,
+    project_id UUID NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('SL', 'CP')),
     antecedents JSONB NOT NULL DEFAULT '[]',
     outlist JSONB NOT NULL DEFAULT '[]',
     label TEXT DEFAULT '',
-    FOREIGN KEY (node_id, domain_id) REFERENCES rms_nodes(id, domain_id) ON DELETE CASCADE
+    FOREIGN KEY (node_id, project_id) REFERENCES rms_nodes(id, project_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS rms_nogoods (
     id TEXT NOT NULL,
-    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL,
     nodes JSONB NOT NULL DEFAULT '[]',
     discovered TEXT DEFAULT '',
     resolution TEXT DEFAULT '',
-    PRIMARY KEY (id, domain_id)
+    PRIMARY KEY (id, project_id)
 );
 
 CREATE TABLE IF NOT EXISTS rms_propagation_log (
     id SERIAL PRIMARY KEY,
-    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL,
     timestamp TEXT NOT NULL,
     action TEXT NOT NULL,
     target TEXT NOT NULL,
@@ -220,9 +225,9 @@ CREATE TABLE IF NOT EXISTS rms_propagation_log (
 
 CREATE TABLE IF NOT EXISTS rms_network_meta (
     key TEXT NOT NULL,
-    domain_id UUID NOT NULL,
+    project_id UUID NOT NULL,
     value TEXT NOT NULL,
-    PRIMARY KEY (key, domain_id)
+    PRIMARY KEY (key, project_id)
 );
 
 -- MCP OAuth token persistence
@@ -275,6 +280,30 @@ CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log(action);
 CREATE INDEX IF NOT EXISTS ix_audit_log_resource_type ON audit_log(resource_type);
 CREATE INDEX IF NOT EXISTS ix_audit_log_timestamp ON audit_log(timestamp);
 
+-- Chat conversation history
+CREATE TABLE IF NOT EXISTS chat_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    user_email TEXT NOT NULL,
+    title TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_conversations_user ON chat_conversations(user_email, updated_at);
+CREATE INDEX IF NOT EXISTS ix_chat_conversations_domain ON chat_conversations(domain_id, updated_at);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    beliefs_used JSONB,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_chat_messages_conversation ON chat_messages(conversation_id, created_at);
+
 -- Source document chunks for FTS RAG
 CREATE TABLE IF NOT EXISTS source_chunks (
     id SERIAL PRIMARY KEY,
@@ -304,11 +333,11 @@ CREATE INDEX IF NOT EXISTS idx_entries_domain ON entries(domain_id);
 CREATE INDEX IF NOT EXISTS idx_entries_topic ON entries(domain_id, topic);
 CREATE INDEX IF NOT EXISTS idx_claims_domain ON claims(domain_id);
 CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(domain_id, status);
-CREATE INDEX IF NOT EXISTS idx_rms_nodes_domain ON rms_nodes(domain_id);
-CREATE INDEX IF NOT EXISTS idx_rms_nodes_status ON rms_nodes(domain_id, truth_value);
-CREATE INDEX IF NOT EXISTS idx_rms_justifications_node ON rms_justifications(node_id, domain_id);
-CREATE INDEX IF NOT EXISTS idx_rms_nogoods_domain ON rms_nogoods(domain_id);
-CREATE INDEX IF NOT EXISTS idx_rms_log_domain ON rms_propagation_log(domain_id);
+CREATE INDEX IF NOT EXISTS idx_rms_nodes_project ON rms_nodes(project_id);
+CREATE INDEX IF NOT EXISTS idx_rms_nodes_status ON rms_nodes(project_id, truth_value);
+CREATE INDEX IF NOT EXISTS idx_rms_justifications_node ON rms_justifications(node_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_rms_nogoods_project ON rms_nogoods(project_id);
+CREATE INDEX IF NOT EXISTS idx_rms_log_project ON rms_propagation_log(project_id);
 CREATE INDEX IF NOT EXISTS idx_rms_justifications_antecedents ON rms_justifications USING gin(antecedents);
 CREATE INDEX IF NOT EXISTS idx_rms_justifications_outlist ON rms_justifications USING gin(outlist);
 CREATE INDEX IF NOT EXISTS idx_pipeline_domain ON pipeline_runs(domain_id);

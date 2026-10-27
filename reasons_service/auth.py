@@ -80,6 +80,39 @@ async def auth_callback(request: Request, session: AsyncSession = Depends(get_se
     return RedirectResponse(url="/domains")
 
 
+@router.get("/api/auth/me")
+async def auth_me(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return the authenticated user's identity and tenant memberships."""
+    user = await verify_auth(request, credentials, session)
+    tenants: list[dict] = []
+    try:
+        memberships = await session.execute(
+            select(TenantMember.tenant_id, TenantMember.role, Tenant.name, Tenant.display_name)
+            .join(Tenant, TenantMember.tenant_id == Tenant.id)
+            .where(TenantMember.user_email == user.identity)
+        )
+        tenants = [
+            {
+                "tenantId": str(row.tenant_id),
+                "tenantName": row.display_name or row.name,
+                "role": row.role,
+            }
+            for row in memberships.all()
+        ]
+    except Exception:
+        logger.debug("Tenant membership query failed (table may not exist)", exc_info=True)
+    return {
+        "identity": user.identity,
+        "role": user.role,
+        "display_name": user.display_name,
+        "tenants": tenants,
+    }
+
+
 @router.get("/logout")
 async def logout(request: Request):
     request.session.clear()

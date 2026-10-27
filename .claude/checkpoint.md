@@ -1,68 +1,64 @@
 # Checkpoint
 
-**Saved:** 2026-08-06
-**Project:** /Users/ben/git/reasons-service
+**Saved:** 2026-10-26 15:45
+**Project:** /Users/ai/git/reasons-service
 
 ## Task
 
-Multiple features added: RBAC reviewer role, belief proposals system, MCP review tools, proposal review web UI. Also fixed import_expert.py, manage_users.py SQLite support, pinned mcp<2.
+Porting the reasons-service UI to PatternFly React 6 SPA, scaffolding the app, fixing backend compatibility, and importing test data.
 
 ## Status
 
-### Completed (prior sessions)
-- [x] Updated import_expert.py: removed beliefs import, added summaries support
-- [x] Fixed manage_users.py to work with SQLite (`--db` flag)
-- [x] Added RBAC reviewer role and belief proposals system (Issue #41)
-- [x] Fixed proposal endpoints: proper HTTP errors and input validation
-- [x] Added modify proposal validation and CHAT to reviewer role
-- [x] Pinned mcp[cli]<2 to avoid breaking import changes
-- [x] Added MCP review tools: accept_proposal, reject_proposal, get_proposal (Issue #42)
-- [x] Added review_notes field to proposals
-- [x] Fixed proposal route ordering: `/beliefs/propose` and `/beliefs/proposed` before `/beliefs/{node_id}`
-- [x] Added proposal review web UI: list page, detail page, domain stats (Issue #43)
-
-### Not yet done
-- [ ] Bump version (currently 0.6.9, needs bump for deploy)
-- [ ] Build wheel (`uv build`)
-- [ ] Update deploy script WHEEL path
-- [ ] Deploy to server
+- [x] Created `feature-patternfly-ui` branch
+- [x] Scaffolded Vite + React 19 + TypeScript + PatternFly v6 SPA in `ui/` (15 files, ~1800 lines)
+- [x] Added `/api/auth/me` endpoint for SPA auth
+- [x] Added SPA fallback serving at `/app/*`
+- [x] Fixed Python 3.12 / asyncpg / onnxruntime compatibility
+- [x] Fixed database schema: created `tenants`, `tenant_members`, `topics` tables; added `tenant_id` to `users` and `domains`
+- [x] Dropped and recreated rms_* tables using library's own schema (fixes project_id vs domain_id mismatch)
+- [x] Updated raw SQL in `rms/api.py` and `embeddings.py` to use `project_id` on rms_* tables (matching ftl-reasons library)
+- [x] Fixed SPA SSE parser to match server's event format (`data: {"type": "...", "content": "..."}` not named SSE events)
+- [x] Fixed `searchBeliefs` API response shape (`beliefs` not `items`)
+- [x] Fixed `Justification.type` (was `jtype`)
+- [x] Made `Belief` fields optional to match actual API response
+- [x] Updated `BeliefsPage` search to use FTS endpoint
+- [x] Imported patternfly-expert domain: 1,804 beliefs, 2 nogoods
+- [x] Alembic stamped to head
+- [ ] Test all SPA pages in browser against live data
+- [ ] Test chat (requires OPENAI_API_KEY)
+- [ ] Commit all changes
 
 ## Key Files
 
-- `reasons_service/rbac.py` — REVIEWER role, PROPOSE_BELIEFS and REVIEW_PROPOSALS actions
-- `reasons_service/db/models.py` — Proposal model with review_notes
-- `reasons_service/db/schema.sql` — proposals table DDL
-- `reasons_service/api/data.py` — Proposal REST endpoints (must be before `{node_id}` routes)
-- `reasons_service/mcp.py` — 6 proposal MCP tools (Tier 4)
-- `reasons_service/app.py` — Web routes for proposals list/detail, proposals count in domain stats
-- `reasons_service/templates/proposals/list.html` — Proposals list with status filter tabs
-- `reasons_service/templates/proposals/detail.html` — Proposal detail with accept/reject form
+- `ui/src/components/ChatPage.tsx` — SSE parser fixed to match server format
+- `ui/src/api.ts` — searchBeliefs response shape fixed
+- `ui/src/types.ts` — Belief fields made optional, Justification.type fixed
+- `ui/src/components/BeliefsPage.tsx` — uses searchBeliefs for FTS
+- `reasons_service/rms/api.py` — raw SQL uses `project_id` on rms_* tables
+- `reasons_service/embeddings.py` — raw SQL uses `project_id` on rms_* tables
+- `reasons_service/auth.py` — `/api/auth/me` endpoint added
+- `reasons_service/app.py` — SPA fallback added
 
 ## Commands
 
 ```bash
-# Build wheel
-cd /Users/ben/git/reasons-service && uv build
+# Start FastAPI (Python 3.12 required for onnxruntime)
+cd ~/git/reasons-service && DATABASE_URL="postgresql+asyncpg://expert:expert_dev@localhost:5433/reasons_service" DATABASE_URL_SYNC="postgresql+psycopg://expert:expert_dev@localhost:5433/reasons_service" uv run --python 3.12 python -m reasons_service.app
 
-# Deploy
-cd /Users/ben/git/ftl2-deployments/reasons-service && source ../.env-reasonsforge.com && ./deploy.py redeploy
+# Start Vite dev server
+cd ~/git/reasons-service/ui && npm run dev
 
-# Manual install on server
-ssh admin@34.162.111.227 "sudo su - reasons -c '/home/reasons/.local/bin/uv pip install --no-cache --reinstall-package reasons-service --python /home/reasons/.venv/bin/python /home/reasons/reasons_service-<VERSION>-py3-none-any.whl'"
-ssh admin@34.162.111.227 "sudo systemctl restart reasons-service"
+# Import a domain
+curl -X POST http://localhost:8000/api/domains/import-reasons -F "name=..." -F "description=..." -F "file=@path/to/reasons.db"
 ```
 
 ## Next Step
 
-Bump version, commit, push, build wheel, and deploy. The deploy script at `ftl2-deployments/reasons-service/deploy.py` needs the WHEEL path updated to match the new version.
+Test the SPA pages in browser (http://localhost:3001/app/) — verify domains list, beliefs list with search, belief detail, domains overview. Then commit.
 
 ## Context
 
-- Version is 0.6.9, all features committed but wheel not rebuilt since version bump
-- Latest commit: `0090e65` (proposal review UI)
-- Route ordering is critical: proposal endpoints must be registered before `{node_id}` routes in `data.py`
-- Proposals are staging-only — reasons-service stores them but doesn't apply them to live beliefs
-- mcp pinned to <2 because mcp 2.0 has breaking import path changes
-- **DO NOT rename** `google_cloud_project` / `GOOGLE_CLOUD_PROJECT` — GCP/Vertex AI references
-- **Server**: 34.162.111.227, user `admin`, service user `reasons`, SQLite at `/home/reasons/data/reasons.db`
-- **Deploy script**: `~/git/ftl2-deployments/reasons-service/deploy.py`
+- `ftl-reasons` library uses `project_id` on rms_* tables; the service schema.sql used `domain_id`. Resolved by dropping rms tables and letting the library recreate them with its own schema, then updating the service's raw SQL to match.
+- The Alembic migration chain is broken (migration 0001 references a `projects` table that doesn't exist). Stamped to head and did schema changes manually.
+- Dev mode auth bypass: when no Google OAuth credentials, auth returns `UserInfo(identity="dev", role=Role.ADMIN)`.
+- Domain imported: patternfly-expert with 1,804 beliefs.

@@ -10,14 +10,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from reasons_service.auth import security, verify_auth, _resolve_member_visible_tags
 from reasons_service.ratelimit import check_rate_limit
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import Domain, DomainMember, TenantMember
+from reasons_service.db.models import ChatConversation, ChatMessage as ChatMessageModel, Domain, DomainMember, TenantMember
 from reasons_service.rbac import Role, UserInfo
 from reasons_service.db.search import quick_belief_search, search_source_chunks
 from reasons_service.rms import api as rms_api
@@ -106,6 +106,7 @@ Do not make up belief IDs or claim beliefs exist without searching first."""
 class ChatRequest(BaseModel):
     message: str
     domain_id: str
+    conversation_id: str | None = None
     history: list[dict] | None = None
 
 
@@ -138,7 +139,53 @@ def _execute_tool(tool_name: str, args: dict, domain_id: UUID, visible_to: list[
         return json.dumps({"error": f"Tool '{tool_name}' failed: {type(e).__name__}"})
 
 
-async def _chat_stream(req: ChatRequest, user: UserInfo):
+async def _save_messages(
+    conversation_id: UUID | None,
+    domain_id: UUID,
+    user_email: str,
+    user_message: str,
+    assistant_message: str,
+) -> UUID:
+    """Persist user and assistant messages. Creates conversation if needed."""
+    from reasons_service.db.connection import async_session
+    async with async_session() as session:
+        if not conversation_id:
+            conv = ChatConversation(
+                domain_id=domain_id,
+                user_email=user_email,
+                title=user_message[:100].strip(),
+            )
+            session.add(conv)
+            await session.flush()
+            conversation_id = conv.id
+        else:
+            conv = (await session.execute(
+                select(ChatConversation).where(
+                    ChatConversation.id == conversation_id,
+                    ChatConversation.user_email == user_email,
+                )
+            )).scalar_one_or_none()
+            if not conv:
+                logger.warning("Conversation %s not owned by %s, creating new", conversation_id, user_email)
+                conv = ChatConversation(
+                    domain_id=domain_id,
+                    user_email=user_email,
+                    title=user_message[:100].strip(),
+                )
+                session.add(conv)
+                await session.flush()
+                conversation_id = conv.id
+            else:
+                conv.updated_at = func.now()
+                if not conv.title:
+                    conv.title = user_message[:100].strip()
+        session.add(ChatMessageModel(conversation_id=conversation_id, role="user", content=user_message))
+        session.add(ChatMessageModel(conversation_id=conversation_id, role="assistant", content=assistant_message))
+        await session.commit()
+    return conversation_id
+
+
+async def _chat_stream(req: ChatRequest, user: UserInfo, conversation_id: UUID | None = None):
     try:
         from openai import OpenAI
     except ImportError:
@@ -223,10 +270,18 @@ async def _chat_stream(req: ChatRequest, user: UserInfo):
             token = line + ("\n" if i < len(lines) - 1 else "")
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
 
+        if content and user.identity != "public":
+            try:
+                conversation_id = await _save_messages(
+                    conversation_id, domain_id, user.identity, req.message, content,
+                )
+            except Exception:
+                logger.exception("Failed to save chat messages")
+
         duration = time.monotonic() - t0
         stats = f"{duration:.1f}s · {total_prompt_tokens + total_completion_tokens} tokens ({total_prompt_tokens} in, {total_completion_tokens} out) · {tool_call_count} tool calls"
         yield f"data: {json.dumps({'type': 'stats', 'content': stats})}\n\n"
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'conversation_id': str(conversation_id) if conversation_id else None})}\n\n"
         return
 
     duration = time.monotonic() - t0
@@ -301,11 +356,94 @@ async def chat(
     await check_rate_limit(request, "chat")
     domain_id = UUID(req.domain_id)
     effective_user = await _resolve_chat_user(domain_id, user, session)
+
+    conversation_id = UUID(req.conversation_id) if req.conversation_id else None
+
     return StreamingResponse(
-        _chat_stream(req, effective_user),
+        _chat_stream(req, effective_user, conversation_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/chat/conversations")
+async def list_conversations(
+    request: Request,
+    domain_id: str | None = None,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    session: AsyncSession = Depends(get_session),
+):
+    user = await verify_auth(request, credentials, session)
+    q = select(ChatConversation).where(
+        ChatConversation.user_email == user.identity
+    ).order_by(ChatConversation.updated_at.desc()).limit(50)
+    if domain_id:
+        q = q.where(ChatConversation.domain_id == UUID(domain_id))
+    result = await session.execute(q)
+    convs = result.scalars().all()
+    return {"items": [
+        {
+            "id": str(c.id),
+            "domain_id": str(c.domain_id),
+            "title": c.title,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+        }
+        for c in convs
+    ]}
+
+
+@router.get("/chat/conversations/{conversation_id}")
+async def get_conversation(
+    conversation_id: UUID,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    session: AsyncSession = Depends(get_session),
+):
+    user = await verify_auth(request, credentials, session)
+    conv = (await session.execute(
+        select(ChatConversation).where(
+            ChatConversation.id == conversation_id,
+            ChatConversation.user_email == user.identity,
+        )
+    )).scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    msgs = (await session.execute(
+        select(ChatMessageModel).where(
+            ChatMessageModel.conversation_id == conversation_id
+        ).order_by(ChatMessageModel.created_at)
+    )).scalars().all()
+    return {
+        "id": str(conv.id),
+        "domain_id": str(conv.domain_id),
+        "title": conv.title,
+        "messages": [
+            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat() if m.created_at else None}
+            for m in msgs
+        ],
+    }
+
+
+@router.delete("/chat/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: UUID,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    session: AsyncSession = Depends(get_session),
+):
+    user = await verify_auth(request, credentials, session)
+    conv = (await session.execute(
+        select(ChatConversation).where(
+            ChatConversation.id == conversation_id,
+            ChatConversation.user_email == user.identity,
+        )
+    )).scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    await session.delete(conv)
+    await session.commit()
+    return {"ok": True}
