@@ -14,7 +14,7 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(url, {
     ...init,
     credentials: 'same-origin',
-    headers: { ...headers(!!init?.body), ...init?.headers },
+    headers: { ...headers(!!init?.body && !(init.body instanceof FormData)), ...init?.headers },
   })
   if (resp.status === 401) {
     window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`

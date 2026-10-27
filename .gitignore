@@ -10,3 +10,4 @@ scripts/start.local.sh
 uv.lock
 node_modules/
 ui/dist/
+deploy/openshift/postgres-secret.yaml
