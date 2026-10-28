@@ -4,6 +4,7 @@ import {
   EmptyState, EmptyStateBody, Spinner,
   Label, Split, SplitItem,
   DescriptionList, DescriptionListGroup, DescriptionListTerm, DescriptionListDescription,
+  Select, SelectOption, MenuToggle, type MenuToggleElement,
 } from '@patternfly/react-core'
 import { useTenant } from '../TenantContext'
 import { listTasks, createTask, cancelTask } from '../api'
@@ -22,6 +23,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTask, setSelectedTask] = useState<TaskSummary | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const loadTasks = useCallback(() => {
     setLoading(true)
@@ -41,9 +43,9 @@ export default function TasksPage() {
     return () => clearInterval(interval)
   }, [tasks, loadTasks])
 
-  const handleCreateEcho = async () => {
+  const handleCreate = async (type: string, config: Record<string, unknown> = {}) => {
     if (!domainId) return
-    await createTask({ domain_id: domainId, type: 'echo', config: { message: 'Test task', steps: 5, delay: 2 } })
+    await createTask({ domain_id: domainId, type, config })
     loadTasks()
   }
 
@@ -79,9 +81,26 @@ export default function TasksPage() {
         <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
           <Flex>
             <FlexItem flex={{ default: 'flex_1' }}>
-              <Button variant="primary" size="sm" isBlock onClick={handleCreateEcho} isDisabled={!domainId}>
-                Run Test Task
-              </Button>
+              <Select
+                isOpen={createOpen}
+                onOpenChange={setCreateOpen}
+                onSelect={(_e, value) => {
+                  setCreateOpen(false)
+                  if (value === 'document_forge') handleCreate('document_forge', { model: 'claude', rounds: 1 })
+                  else if (value === 'derive_review_repair') handleCreate('derive_review_repair', { model: 'claude', rounds: 3 })
+                  else if (value === 'echo') handleCreate('echo', { message: 'Test task', steps: 5, delay: 2 })
+                }}
+                toggle={(ref: React.Ref<MenuToggleElement>) => (
+                  <MenuToggle ref={ref} onClick={() => setCreateOpen(!createOpen)} isExpanded={createOpen}
+                    isDisabled={!domainId} isFullWidth variant="primary">
+                    Run Task
+                  </MenuToggle>
+                )}
+              >
+                <SelectOption value="document_forge">Document Forge</SelectOption>
+                <SelectOption value="derive_review_repair">Derive / Review / Repair</SelectOption>
+                <SelectOption value="echo">Echo (test)</SelectOption>
+              </Select>
             </FlexItem>
             <FlexItem>
               <Button variant="plain" size="sm" onClick={loadTasks}>Refresh</Button>

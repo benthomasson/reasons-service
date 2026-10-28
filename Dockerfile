@@ -16,7 +16,7 @@ WORKDIR /app
 
 COPY pyproject.toml README.md hatch_build.py ./
 RUN mkdir -p reasons_service && echo '__git_hash__ = ""' > reasons_service/__init__.py
-RUN pip install --no-cache-dir ".[postgres]"
+RUN pip install --no-cache-dir ".[postgres,worker]"
 
 COPY reasons_service/ reasons_service/
 COPY alembic.ini ./

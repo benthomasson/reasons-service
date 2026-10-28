@@ -8,17 +8,28 @@ import asyncio
 import json
 import logging
 import os
-import sys
+import shutil
+import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
+from types import SimpleNamespace
 from uuid import UUID
 
+import httpx
 from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from reasons_service.db.connection import async_session, init_db
 from reasons_service.db.models import Task
 
 log = logging.getLogger(__name__)
+
+
+def _service_url() -> str:
+    return os.environ.get("REASONS_SERVICE_URL", "http://reasons-service:8000")
+
+
+def _service_token() -> str:
+    return os.environ.get("API_KEY", "")
 
 
 async def _update_task(task_id: str, **kwargs):
@@ -41,6 +52,10 @@ async def run_task(task_id: str, domain_id: str, task_type: str, config: dict):
     try:
         if task_type == "echo":
             await _run_echo(task_id, config)
+        elif task_type == "document_forge":
+            await _run_document_forge(task_id, domain_id, config)
+        elif task_type == "derive_review_repair":
+            await _run_derive_review_repair(task_id, domain_id, config)
         else:
             raise ValueError(f"Unknown task type: {task_type}")
 
@@ -63,7 +78,6 @@ async def run_task(task_id: str, domain_id: str, task_type: str, config: dict):
 
 
 async def _run_echo(task_id: str, config: dict):
-    """Simple test task — logs a message and updates progress."""
     message = config.get("message", "Hello from worker!")
     steps = config.get("steps", 3)
     delay = config.get("delay", 2)
@@ -73,6 +87,179 @@ async def _run_echo(task_id: str, config: dict):
         progress = {"step": i, "total": steps, "message": f"Step {i}/{steps}: {message}"}
         await _update_task(task_id, progress=progress)
         log.info("Task %s progress: %s", task_id, progress)
+
+
+async def _run_document_forge(task_id: str, domain_id: str, config: dict):
+    work_dir = Path(tempfile.mkdtemp(prefix=f"forge-{task_id[:8]}-"))
+    try:
+        await _do_document_forge(task_id, domain_id, config, work_dir)
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
+async def _do_document_forge(task_id: str, domain_id: str, config: dict, work_dir: Path):
+    base_url = _service_url()
+    token = _service_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    sources_dir = work_dir / "sources"
+    sources_dir.mkdir()
+
+    await _update_task(task_id, progress={"stage": "downloading", "percent": 5})
+
+    source_slugs = config.get("source_slugs", [])
+    async with httpx.AsyncClient(timeout=120) as client:
+        for slug in source_slugs:
+            resp = await client.get(
+                f"{base_url}/api/domains/{domain_id}/sources/{slug}",
+                headers=headers,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                (sources_dir / f"{slug}.md").write_text(data.get("content", ""), encoding="utf-8")
+                log.info("Downloaded source: %s", slug)
+
+    db_path = work_dir / "reasons.db"
+    try:
+        from reasonsforge.storage import Storage
+        Storage(str(db_path))
+        log.info("Initialized empty reasons.db")
+    except Exception as e:
+        log.warning("Could not init reasons.db: %s", e)
+
+    model = config.get("model", "claude")
+    domain = config.get("domain", "")
+    rounds = config.get("rounds", 1)
+    max_derive = config.get("max_derive_rounds", 10)
+
+    orig_dir = os.getcwd()
+    os.chdir(str(work_dir))
+
+    try:
+        await _update_task(task_id, progress={"stage": "forging", "percent": 15})
+
+        from reasonsforge.forge.pipeline import cmd_pipeline
+        args = SimpleNamespace(
+            sources_dir=str(sources_dir),
+            pdf=None,
+            model=model,
+            rounds=rounds,
+            max_derive_rounds=max_derive,
+            search_rounds=0,
+            no_auto_accept=False,
+            timeout=600,
+            domain=domain,
+            parallel=1,
+            recursive=False,
+            resume=False,
+            namespace=None,
+            mode=None,
+            num_ctx=None,
+            index_db=str(work_dir / "rag_fts.db"),
+        )
+
+        await asyncio.to_thread(cmd_pipeline, args)
+
+        await _update_task(task_id, progress={"stage": "uploading", "percent": 90})
+
+        if db_path.exists():
+            async with httpx.AsyncClient(timeout=300) as client:
+                with open(db_path, "rb") as f:
+                    resp = await client.post(
+                        f"{base_url}/api/domains/{domain_id}/import-reasons",
+                        headers=headers,
+                        files={"file": ("reasons.db", f, "application/octet-stream")},
+                    )
+                if resp.status_code == 200:
+                    log.info("Uploaded reasons.db (%d bytes)", db_path.stat().st_size)
+                else:
+                    log.error("Upload failed: %d %s", resp.status_code, resp.text[:200])
+    finally:
+        os.chdir(orig_dir)
+
+
+async def _run_derive_review_repair(task_id: str, domain_id: str, config: dict):
+    work_dir = Path(tempfile.mkdtemp(prefix=f"derive-{task_id[:8]}-"))
+    try:
+        await _do_derive_review_repair(task_id, domain_id, config, work_dir)
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
+async def _do_derive_review_repair(task_id: str, domain_id: str, config: dict, work_dir: Path):
+    base_url = _service_url()
+    token = _service_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    db_path = work_dir / "reasons.db"
+
+    await _update_task(task_id, progress={"stage": "downloading", "percent": 5})
+
+    # Try to download existing reasons.db from the domain
+    db_url = config.get("reasons_db_url")
+    if not db_url:
+        db_url = f"{base_url}/api/domains/{domain_id}/download-db"
+
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.get(db_url, headers=headers)
+            if resp.status_code == 200:
+                db_path.write_bytes(resp.content)
+                log.info("Downloaded existing DB (%d bytes)", db_path.stat().st_size)
+            else:
+                raise ValueError(f"Download failed: {resp.status_code}")
+    except Exception:
+        from reasonsforge.storage import Storage
+        Storage(str(db_path))
+        log.info("Initialized empty reasons.db (no existing DB available)")
+
+    model = config.get("model", "claude")
+    rounds = config.get("rounds", 3)
+    max_derive = config.get("max_derive_rounds", 10)
+    domain = config.get("domain", "")
+
+    orig_dir = os.getcwd()
+    os.chdir(str(work_dir))
+
+    try:
+        import reasonsforge.forge as forge
+        forge.REASONS_DB = "reasons.db"
+        import reasonsforge.forge.pipeline as pipeline_mod
+        pipeline_mod.REASONS_DB = "reasons.db"
+
+        await _update_task(task_id, progress={"stage": "deriving", "percent": 20})
+
+        from reasonsforge.forge.pipeline import cmd_derive_review_repair
+        args = SimpleNamespace(
+            model=model,
+            rounds=rounds,
+            max_derive_rounds=max_derive,
+            search_rounds=0,
+            timeout=600,
+            domain=domain,
+            namespace=None,
+            verify_dedup=True,
+        )
+
+        log.info("Running derive-review-repair (rounds=%d, model=%s)", rounds, model)
+        await asyncio.to_thread(cmd_derive_review_repair, args)
+
+        await _update_task(task_id, progress={"stage": "uploading", "percent": 90})
+
+        if db_path.exists():
+            async with httpx.AsyncClient(timeout=300) as client:
+                with open(db_path, "rb") as f:
+                    resp = await client.post(
+                        f"{base_url}/api/domains/{domain_id}/import-reasons",
+                        headers=headers,
+                        files={"file": ("reasons.db", f, "application/octet-stream")},
+                    )
+                if resp.status_code == 200:
+                    log.info("Uploaded reasons.db (%d bytes)", db_path.stat().st_size)
+                else:
+                    log.error("Upload failed: %d %s", resp.status_code, resp.text[:200])
+    finally:
+        os.chdir(orig_dir)
 
 
 async def _main():

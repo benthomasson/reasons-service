@@ -31,6 +31,7 @@ dependencies = [
 
 [project.optional-dependencies]
 postgres = ["asyncpg>=0.30", "psycopg[binary]>=3.1", "psycopg-pool>=3.1", "pgvector>=0.3", "langgraph-checkpoint-postgres>=2.0"]
+worker = ["reasonsforge @ git+https://github.com/benthomasson/reasonsforge.git"]
 ollama = ["langchain-ollama>=0.3"]
 openai = ["openai>=1.0"]
 
