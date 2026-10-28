@@ -29,7 +29,7 @@ def _service_url() -> str:
 
 
 def _service_token() -> str:
-    return os.environ.get("API_KEY", "")
+    return os.environ.get("REASONS_SERVICE_API_KEY", os.environ.get("API_KEY", ""))
 
 
 async def _update_task(task_id: str, **kwargs):

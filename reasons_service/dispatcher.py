@@ -10,7 +10,7 @@ from uuid import UUID
 
 import httpx
 
-from reasons_service.config import settings
+from reasons_service.config import settings  # noqa: F401 — used by in-process fallback
 
 log = logging.getLogger(__name__)
 
@@ -52,18 +52,16 @@ async def dispatch_k8s_job(
     job_name = f"task-{str(task_id)[:8]}"
     image = os.getenv("WORKER_IMAGE", "ghcr.io/benthomasson/reasons-service:latest")
 
+    secrets_name = os.getenv("WORKER_SECRETS", "reasons-service-secrets")
+    config_name = os.getenv("WORKER_CONFIG", "reasons-service-config")
+
     env_vars = [
         {"name": "TASK_ID", "value": str(task_id)},
         {"name": "DOMAIN_ID", "value": str(domain_id)},
         {"name": "TASK_TYPE", "value": task_type},
         {"name": "TASK_CONFIG", "value": json.dumps(config)},
-        {"name": "DATABASE_URL", "value": settings.database_url},
-        {"name": "API_KEY", "value": settings.api_key or ""},
         {"name": "REASONS_SERVICE_URL", "value": os.getenv("REASONS_SERVICE_URL", "http://reasons-service:8000")},
     ]
-
-    if settings.openai_api_key:
-        env_vars.append({"name": "OPENAI_API_KEY", "value": settings.openai_api_key})
 
     job_manifest = {
         "apiVersion": "batch/v1",
@@ -90,6 +88,10 @@ async def dispatch_k8s_job(
                             "name": "worker",
                             "image": image,
                             "command": ["python", "-m", "reasons_service.worker"],
+                            "envFrom": [
+                                {"configMapRef": {"name": config_name}},
+                                {"secretRef": {"name": secrets_name}},
+                            ],
                             "env": env_vars,
                             "resources": {
                                 "requests": {"cpu": "100m", "memory": "256Mi"},
