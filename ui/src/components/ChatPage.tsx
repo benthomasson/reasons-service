@@ -271,8 +271,8 @@ export default function ChatPage() {
                         padding: '0.4rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem',
                         borderRadius: 'var(--pf-t--global--border--radius--pill)',
                         marginBottom: '0.25rem',
-                        background: p.id === activePersonaId ? 'var(--pf-t--global--background--color--brand--default)' : undefined,
-                        color: p.id === activePersonaId ? 'var(--pf-t--global--text--color--on-brand--default)' : undefined,
+                        background: p.id === activePersonaId ? 'var(--pf-t--global--color--brand--default)' : undefined,
+                        color: p.id === activePersonaId ? 'var(--pf-t--global--text--color--inverse)' : undefined,
                       }}
                     >
                       <div style={{ fontWeight: p.id === activePersonaId ? 600 : 400 }}>{p.name}</div>
@@ -299,8 +299,8 @@ export default function ChatPage() {
                 style={{
                   padding: '0.5rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem',
                   borderBottom: '1px solid var(--pf-t--global--border--color--default)',
-                  background: c.id === activeConversationId ? 'var(--pf-t--global--background--color--primary--default)' : undefined,
-                  color: c.id === activeConversationId ? 'var(--pf-t--global--text--color--on-brand--default)' : undefined,
+                  background: c.id === activeConversationId ? 'var(--pf-t--global--color--brand--default)' : undefined,
+                  color: c.id === activeConversationId ? 'var(--pf-t--global--text--color--inverse)' : undefined,
                 }}
               >
                 <div style={{
