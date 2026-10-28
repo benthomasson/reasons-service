@@ -361,6 +361,30 @@ class Persona(Base):
     domains = relationship("Domain", secondary=persona_domains)
 
 
+class Task(Base):
+    __tablename__ = "tasks"
+    __table_args__ = (
+        Index("ix_tasks_domain_status", "domain_id", "status"),
+        Index("ix_tasks_created_at", "created_at"),
+    )
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
+    type = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    config = Column(JSON, default=dict)
+    progress = Column(JSON, default=dict)
+    result = Column(JSON)
+    error = Column(Text)
+    created_by = Column(String)
+    job_name = Column(String)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+
+    domain = relationship("Domain")
+
+
 class ChatConversation(Base):
     __tablename__ = "chat_conversations"
     __table_args__ = (

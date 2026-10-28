@@ -248,6 +248,26 @@ CREATE TABLE IF NOT EXISTS persona_domains (
 CREATE INDEX IF NOT EXISTS idx_persona_domains_persona ON persona_domains(persona_id);
 CREATE INDEX IF NOT EXISTS idx_persona_domains_domain ON persona_domains(domain_id);
 
+-- Background tasks (OpenShift Jobs / in-process fallback)
+CREATE TABLE IF NOT EXISTS tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+    config JSONB DEFAULT '{}',
+    progress JSONB DEFAULT '{}',
+    result JSONB,
+    error TEXT,
+    created_by TEXT,
+    job_name TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS ix_tasks_domain_status ON tasks(domain_id, status);
+CREATE INDEX IF NOT EXISTS ix_tasks_created_at ON tasks(created_at);
+
 -- MCP OAuth token persistence
 CREATE TABLE IF NOT EXISTS mcp_clients (
     client_id TEXT PRIMARY KEY,

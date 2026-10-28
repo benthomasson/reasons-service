@@ -260,6 +260,45 @@ export async function uploadDocuments(domainId: string, files: File[]): Promise<
   return resp.json()
 }
 
+// --- Tasks ---
+
+export interface TaskSummary {
+  id: string
+  domain_id: string
+  type: string
+  status: string
+  config: Record<string, unknown>
+  progress: Record<string, unknown>
+  result: Record<string, unknown> | null
+  error: string | null
+  created_by: string | null
+  job_name: string | null
+  created_at: string | null
+  started_at: string | null
+  completed_at: string | null
+}
+
+export async function listTasks(domainId?: string, status?: string): Promise<TaskSummary[]> {
+  const params = new URLSearchParams()
+  if (domainId) params.set('domain_id', domainId)
+  if (status) params.set('status', status)
+  const qs = params.toString()
+  const data = await fetchJSON<{ items: TaskSummary[] }>(`/api/tasks${qs ? '?' + qs : ''}`)
+  return data.items
+}
+
+export async function getTask(id: string): Promise<TaskSummary> {
+  return fetchJSON(`/api/tasks/${id}`)
+}
+
+export async function createTask(body: { domain_id: string; type: string; config?: Record<string, unknown> }): Promise<TaskSummary> {
+  return fetchJSON('/api/tasks', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function cancelTask(id: string): Promise<TaskSummary> {
+  return fetchJSON(`/api/tasks/${id}/cancel`, { method: 'POST' })
+}
+
 // --- Overview ---
 
 export async function getDomainOverview(domainId: string): Promise<DomainOverview> {

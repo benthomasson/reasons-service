@@ -18,6 +18,7 @@ import DocumentsPage from './components/DocumentsPage'
 import DomainsPage from './components/DomainsPage'
 import ConfigPage from './components/ConfigPage'
 import ConnectPage from './components/ConnectPage'
+import TasksPage from './components/TasksPage'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -67,6 +68,7 @@ function AppContent() {
     { path: '/beliefs', label: 'Beliefs' },
     { path: '/proposals', label: 'Proposals' },
     { path: '/documents', label: 'Documents' },
+    { path: '/tasks', label: 'Tasks' },
     { path: '/connect', label: 'Connect' },
     { path: '/domains', label: 'Domains' },
     { path: '/config', label: 'Config' },
@@ -161,6 +163,7 @@ function AppContent() {
           <Route path="/entries" element={<Navigate to="/documents" replace />} />
           <Route path="/entries/:domain" element={<Navigate to="/documents" replace />} />
           <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
           <Route path="/connect" element={<ConnectPage />} />
           <Route path="/domains" element={<DomainsPage />} />
           <Route path="/domains/:domainId" element={<DomainsPage />} />
