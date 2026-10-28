@@ -7,7 +7,7 @@ import {
   Select, SelectOption, MenuToggle, type MenuToggleElement,
   Button, Spinner,
 } from '@patternfly/react-core'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 import { AuthProvider, useAuth } from './AuthContext'
 import { TenantProvider, useTenant } from './TenantContext'
@@ -28,6 +28,19 @@ function AppContent() {
   const [domainOpen, setDomainOpen] = useState(false)
   const tenantRef = useRef<HTMLDivElement>(null)
   const domainRef = useRef<HTMLDivElement>(null)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('pf-dark-mode') === 'true')
+
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode(prev => {
+      const next = !prev
+      localStorage.setItem('pf-dark-mode', String(next))
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('pf-v6-theme-dark', darkMode)
+  }, [darkMode])
 
   if (loading) {
     return (
@@ -102,6 +115,13 @@ function AppContent() {
               </div>
             </ToolbarItem>
             <ToolbarItem align={{ default: 'alignEnd' }}>
+              <Button variant="plain" size="sm" onClick={toggleDarkMode}
+                aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                style={{ fontSize: '1rem' }}>
+                {darkMode ? '☀' : '☾'}
+              </Button>
+            </ToolbarItem>
+            <ToolbarItem>
               <span style={{ fontSize: '0.8rem' }}>{user.display_name || user.identity}</span>
             </ToolbarItem>
             <ToolbarItem>
