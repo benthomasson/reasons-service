@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from reasons_service.auth import verify_auth
@@ -28,25 +28,29 @@ class PersonaUpdate(BaseModel):
     domain_ids: list[str] | None = None
 
 
+async def _persona_dict(session: AsyncSession, p: Persona) -> dict:
+    rows = (await session.execute(
+        select(Domain.id, Domain.name)
+        .join(persona_domains, Domain.id == persona_domains.c.domain_id)
+        .where(persona_domains.c.persona_id == p.id)
+    )).all()
+    return {
+        "id": str(p.id),
+        "name": p.name,
+        "description": p.description,
+        "system_prompt": p.system_prompt,
+        "domain_ids": [str(r.id) for r in rows],
+        "domains": [{"id": str(r.id), "name": r.name} for r in rows],
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+    }
+
+
 @router.get("")
 async def list_personas(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(
-        select(Persona).order_by(Persona.name)
-    )
+    result = await session.execute(select(Persona).order_by(Persona.name))
     personas = result.scalars().all()
-    return {"items": [
-        {
-            "id": str(p.id),
-            "name": p.name,
-            "description": p.description,
-            "system_prompt": p.system_prompt,
-            "domain_ids": [str(d.id) for d in p.domains],
-            "domains": [{"id": str(d.id), "name": d.name} for d in p.domains],
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-        }
-        for p in personas
-    ]}
+    return {"items": [await _persona_dict(session, p) for p in personas]}
 
 
 @router.get("/{persona_id}")
@@ -56,16 +60,7 @@ async def get_persona(persona_id: UUID, session: AsyncSession = Depends(get_sess
     )).scalar_one_or_none()
     if not p:
         raise HTTPException(status_code=404, detail="Persona not found")
-    return {
-        "id": str(p.id),
-        "name": p.name,
-        "description": p.description,
-        "system_prompt": p.system_prompt,
-        "domain_ids": [str(d.id) for d in p.domains],
-        "domains": [{"id": str(d.id), "name": d.name} for d in p.domains],
-        "created_at": p.created_at.isoformat() if p.created_at else None,
-        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-    }
+    return await _persona_dict(session, p)
 
 
 @router.post("", status_code=201)
@@ -83,24 +78,17 @@ async def create_persona(
     session.add(p)
     await session.flush()
 
-    if data.domain_ids:
-        for did in data.domain_ids:
-            domain = (await session.execute(
-                select(Domain).where(Domain.id == UUID(did))
-            )).scalar_one_or_none()
-            if domain:
-                p.domains.append(domain)
+    for did in data.domain_ids:
+        domain = (await session.execute(
+            select(Domain).where(Domain.id == UUID(did))
+        )).scalar_one_or_none()
+        if domain:
+            await session.execute(
+                insert(persona_domains).values(persona_id=p.id, domain_id=domain.id)
+            )
 
     await session.commit()
-    await session.refresh(p)
-    return {
-        "id": str(p.id),
-        "name": p.name,
-        "description": p.description,
-        "system_prompt": p.system_prompt,
-        "domain_ids": [str(d.id) for d in p.domains],
-        "domains": [{"id": str(d.id), "name": d.name} for d in p.domains],
-    }
+    return await _persona_dict(session, p)
 
 
 @router.put("/{persona_id}")
@@ -126,25 +114,17 @@ async def update_persona(
         await session.execute(
             delete(persona_domains).where(persona_domains.c.persona_id == persona_id)
         )
-        await session.flush()
-        p.domains.clear()
         for did in data.domain_ids:
             domain = (await session.execute(
                 select(Domain).where(Domain.id == UUID(did))
             )).scalar_one_or_none()
             if domain:
-                p.domains.append(domain)
+                await session.execute(
+                    insert(persona_domains).values(persona_id=p.id, domain_id=domain.id)
+                )
 
     await session.commit()
-    await session.refresh(p)
-    return {
-        "id": str(p.id),
-        "name": p.name,
-        "description": p.description,
-        "system_prompt": p.system_prompt,
-        "domain_ids": [str(d.id) for d in p.domains],
-        "domains": [{"id": str(d.id), "name": d.name} for d in p.domains],
-    }
+    return await _persona_dict(session, p)
 
 
 @router.delete("/{persona_id}", status_code=204)

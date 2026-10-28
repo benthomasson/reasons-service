@@ -211,13 +211,19 @@ async def _save_messages(
 
 async def _resolve_persona_domains(persona_id: str) -> tuple[Persona | None, list[UUID]]:
     from reasons_service.db.connection import async_session
+    from reasons_service.db.models import persona_domains, Domain
     async with async_session() as session:
         p = (await session.execute(
             select(Persona).where(Persona.id == UUID(persona_id))
         )).scalar_one_or_none()
         if not p:
             return None, []
-        return p, [d.id for d in p.domains]
+        rows = (await session.execute(
+            select(Domain.id)
+            .join(persona_domains, Domain.id == persona_domains.c.domain_id)
+            .where(persona_domains.c.persona_id == p.id)
+        )).all()
+        return p, [r.id for r in rows]
 
 
 async def _chat_stream(req: ChatRequest, user: UserInfo, conversation_id: UUID | None = None):

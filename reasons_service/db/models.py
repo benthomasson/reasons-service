@@ -358,7 +358,7 @@ class Persona(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    domains = relationship("Domain", secondary=persona_domains, lazy="selectin")
+    domains = relationship("Domain", secondary=persona_domains)
 
 
 class ChatConversation(Base):
