@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.sessions import SessionMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from reasons_service.api import audit as audit_api, domains, data, ask, public, tenants
+from reasons_service.api import audit as audit_api, domains, data, ask, public, tenants, personas
 from reasons_service.chat import router as chat_router
 from reasons_service.auth import router as auth_router, security, verify_auth, verify_auth_or_public, verify_auth_web, resolve_domain_role, _LoginRedirect
 from reasons_service.ratelimit import require_rate_limit
@@ -221,6 +221,7 @@ app.include_router(data.tag_router, dependencies=[Depends(verify_auth), Depends(
 app.include_router(ask.router, dependencies=[Depends(verify_auth_or_public), Depends(resolve_domain_role), Depends(require_rate_limit("search"))])
 app.include_router(audit_api.router, dependencies=[Depends(require_rate_limit("default"))])
 app.include_router(tenants.router, dependencies=[Depends(require_rate_limit("default"))])
+app.include_router(personas.router, dependencies=[Depends(verify_auth), Depends(require_rate_limit("default"))])
 app.include_router(chat_router)
 
 # MCP OAuth discovery routes (RFC 9728 + RFC 8414)

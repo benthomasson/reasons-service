@@ -339,6 +339,28 @@ class AuditLog(Base):
     metadata_ = Column("metadata", JSON)
 
 
+persona_domains = Table(
+    "persona_domains",
+    Base.metadata,
+    Column("persona_id", Uuid(as_uuid=True), ForeignKey("personas.id", ondelete="CASCADE"), nullable=False),
+    Column("domain_id", Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False),
+    UniqueConstraint("persona_id", "domain_id"),
+)
+
+
+class Persona(Base):
+    __tablename__ = "personas"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    name = Column(String, nullable=False, unique=True)
+    description = Column(String, nullable=False, default="")
+    system_prompt = Column(Text)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    domains = relationship("Domain", secondary=persona_domains, lazy="selectin")
+
+
 class ChatConversation(Base):
     __tablename__ = "chat_conversations"
     __table_args__ = (
@@ -348,12 +370,14 @@ class ChatConversation(Base):
 
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     domain_id = Column(Uuid(as_uuid=True), ForeignKey("domains.id", ondelete="CASCADE"), nullable=False)
+    persona_id = Column(Uuid(as_uuid=True), ForeignKey("personas.id", ondelete="SET NULL"))
     user_email = Column(String, nullable=False)
     title = Column(String)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     messages = relationship("ChatMessage", back_populates="conversation", cascade="all, delete-orphan", order_by="ChatMessage.created_at")
+    persona = relationship("Persona")
 
 
 class ChatMessage(Base):

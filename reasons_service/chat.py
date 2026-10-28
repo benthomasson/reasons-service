@@ -17,7 +17,7 @@ from reasons_service.auth import security, verify_auth, _resolve_member_visible_
 from reasons_service.ratelimit import check_rate_limit
 from reasons_service.config import settings
 from reasons_service.db.connection import get_session
-from reasons_service.db.models import ChatConversation, ChatMessage as ChatMessageModel, Domain, DomainMember, TenantMember
+from reasons_service.db.models import ChatConversation, ChatMessage as ChatMessageModel, Domain, DomainMember, Persona, TenantMember
 from reasons_service.rbac import Role, UserInfo
 from reasons_service.db.search import quick_belief_search, search_source_chunks
 from reasons_service.rms import api as rms_api
@@ -105,33 +105,55 @@ Do not make up belief IDs or claim beliefs exist without searching first."""
 
 class ChatRequest(BaseModel):
     message: str
-    domain_id: str
+    domain_id: str | None = None
+    persona_id: str | None = None
     conversation_id: str | None = None
     history: list[dict] | None = None
 
 
-def _execute_tool(tool_name: str, args: dict, domain_id: UUID, visible_to: list[str] | None) -> str:
+def _execute_tool(tool_name: str, args: dict, domain_ids: list[UUID], visible_to: list[str] | None) -> str:
     try:
         if tool_name == "search_beliefs":
-            belief_ctx, belief_sources = quick_belief_search(domain_id, args["query"], 20)
-            chunk_ctx, chunk_sources = search_source_chunks(domain_id, args["query"], 10)
-            if not belief_ctx and not chunk_ctx:
+            all_belief_ctx = []
+            all_chunk_ctx = []
+            for did in domain_ids:
+                belief_ctx, _ = quick_belief_search(did, args["query"], 20)
+                chunk_ctx, _ = search_source_chunks(did, args["query"], 10)
+                if belief_ctx:
+                    all_belief_ctx.append(belief_ctx)
+                if chunk_ctx:
+                    all_chunk_ctx.append(chunk_ctx)
+            if not all_belief_ctx and not all_chunk_ctx:
                 return json.dumps({"results": [], "message": "No results found. Try different keywords."})
             result = {}
-            if belief_ctx:
-                result["belief_context"] = belief_ctx
-            if chunk_ctx:
-                result["source_context"] = chunk_ctx
+            if all_belief_ctx:
+                result["belief_context"] = "\n".join(all_belief_ctx)
+            if all_chunk_ctx:
+                result["source_context"] = "\n".join(all_chunk_ctx)
             return json.dumps(result)
         elif tool_name == "show_belief":
-            result = rms_api.show_node(domain_id, args["belief_id"], visible_to=visible_to)
-            return json.dumps(result)
+            for did in domain_ids:
+                result = rms_api.show_node(did, args["belief_id"], visible_to=visible_to)
+                if result and result.get("id"):
+                    return json.dumps(result)
+            return json.dumps({"error": "Belief not found in any domain"})
         elif tool_name == "explain_belief":
-            result = rms_api.explain_node(domain_id, args["belief_id"], visible_to=visible_to)
-            return json.dumps(result)
+            for did in domain_ids:
+                result = rms_api.explain_node(did, args["belief_id"], visible_to=visible_to)
+                if result and result.get("id"):
+                    return json.dumps(result)
+            return json.dumps({"error": "Belief not found in any domain"})
         elif tool_name == "list_topics":
-            result = rms_api.topics(domain_id, limit=20)
-            return json.dumps(result)
+            all_topics = []
+            for did in domain_ids:
+                result = rms_api.topics(did, limit=20)
+                all_topics.extend(result.get("topics", []))
+            merged = {}
+            for t in all_topics:
+                key = t["topic"]
+                merged[key] = merged.get(key, 0) + t["count"]
+            sorted_topics = sorted(merged.items(), key=lambda x: x[1], reverse=True)[:20]
+            return json.dumps({"topics": [{"topic": k, "count": v} for k, v in sorted_topics]})
         else:
             return json.dumps({"error": f"Unknown tool: {tool_name}"})
     except Exception as e:
@@ -145,6 +167,7 @@ async def _save_messages(
     user_email: str,
     user_message: str,
     assistant_message: str,
+    persona_id: UUID | None = None,
 ) -> UUID:
     """Persist user and assistant messages. Creates conversation if needed."""
     from reasons_service.db.connection import async_session
@@ -152,6 +175,7 @@ async def _save_messages(
         if not conversation_id:
             conv = ChatConversation(
                 domain_id=domain_id,
+                persona_id=persona_id,
                 user_email=user_email,
                 title=user_message[:100].strip(),
             )
@@ -185,6 +209,17 @@ async def _save_messages(
     return conversation_id
 
 
+async def _resolve_persona_domains(persona_id: str) -> tuple[Persona | None, list[UUID]]:
+    from reasons_service.db.connection import async_session
+    async with async_session() as session:
+        p = (await session.execute(
+            select(Persona).where(Persona.id == UUID(persona_id))
+        )).scalar_one_or_none()
+        if not p:
+            return None, []
+        return p, [d.id for d in p.domains]
+
+
 async def _chat_stream(req: ChatRequest, user: UserInfo, conversation_id: UUID | None = None):
     try:
         from openai import OpenAI
@@ -197,9 +232,26 @@ async def _chat_stream(req: ChatRequest, user: UserInfo, conversation_id: UUID |
         return
 
     client = OpenAI(api_key=settings.openai_api_key)
-    domain_id = UUID(req.domain_id)
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    persona = None
+    if req.persona_id:
+        persona, domain_ids = await _resolve_persona_domains(req.persona_id)
+        if not persona:
+            yield f"data: {json.dumps({'type': 'error', 'content': 'Persona not found'})}\n\n"
+            return
+        if not domain_ids:
+            yield f"data: {json.dumps({'type': 'error', 'content': 'Persona has no domains'})}\n\n"
+            return
+        domain_id = domain_ids[0]
+    elif req.domain_id:
+        domain_id = UUID(req.domain_id)
+        domain_ids = [domain_id]
+    else:
+        yield f"data: {json.dumps({'type': 'error', 'content': 'Either domain_id or persona_id is required'})}\n\n"
+        return
+
+    system_prompt = (persona.system_prompt if persona and persona.system_prompt else SYSTEM_PROMPT)
+    messages = [{"role": "system", "content": system_prompt}]
     if req.history:
         for h in req.history[-10:]:
             role = h.get("role", "user")
@@ -252,7 +304,7 @@ async def _chat_stream(req: ChatRequest, user: UserInfo, conversation_id: UUID |
 
                 try:
                     result = await asyncio.to_thread(
-                        _execute_tool, fn_name, fn_args, domain_id, user.visible_tags
+                        _execute_tool, fn_name, fn_args, domain_ids, user.visible_tags
                     )
                 except Exception as e:
                     logger.exception("Tool execution thread failed: %s", e)
@@ -274,6 +326,7 @@ async def _chat_stream(req: ChatRequest, user: UserInfo, conversation_id: UUID |
             try:
                 conversation_id = await _save_messages(
                     conversation_id, domain_id, user.identity, req.message, content,
+                    persona_id=UUID(req.persona_id) if req.persona_id else None,
                 )
             except Exception:
                 logger.exception("Failed to save chat messages")
@@ -354,8 +407,16 @@ async def chat(
         if e.status_code != 401:
             raise
     await check_rate_limit(request, "chat")
-    domain_id = UUID(req.domain_id)
-    effective_user = await _resolve_chat_user(domain_id, user, session)
+
+    if req.persona_id:
+        persona, domain_ids = await _resolve_persona_domains(req.persona_id)
+        if not persona or not domain_ids:
+            raise HTTPException(status_code=404, detail="Persona not found or has no domains")
+        effective_user = await _resolve_chat_user(domain_ids[0], user, session)
+    elif req.domain_id:
+        effective_user = await _resolve_chat_user(UUID(req.domain_id), user, session)
+    else:
+        raise HTTPException(status_code=400, detail="Either domain_id or persona_id is required")
 
     conversation_id = UUID(req.conversation_id) if req.conversation_id else None
 
@@ -388,6 +449,7 @@ async def list_conversations(
         {
             "id": str(c.id),
             "domain_id": str(c.domain_id),
+            "persona_id": str(c.persona_id) if c.persona_id else None,
             "title": c.title,
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "updated_at": c.updated_at.isoformat() if c.updated_at else None,

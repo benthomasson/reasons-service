@@ -171,7 +171,7 @@ export async function listTopics(domainId: string): Promise<{ topics: Topic[] }>
 // --- Chat ---
 
 export function streamChat(
-  body: { domain_id: string; message: string; conversation_id?: string; history?: { role: string; content: string }[] },
+  body: { domain_id?: string; persona_id?: string; message: string; conversation_id?: string; history?: { role: string; content: string }[] },
 ): { response: Promise<Response>; abort: () => void } {
   const controller = new AbortController()
   const response = fetch('/api/chat', {
@@ -187,6 +187,7 @@ export function streamChat(
 export interface Conversation {
   id: string
   domain_id: string
+  persona_id: string | null
   title: string | null
   created_at: string | null
   updated_at: string | null
@@ -211,6 +212,34 @@ export async function getConversation(conversationId: string): Promise<Conversat
 
 export async function deleteConversation(conversationId: string): Promise<void> {
   await fetchJSON(`/api/chat/conversations/${conversationId}`, { method: 'DELETE' })
+}
+
+// --- Personas ---
+
+export interface PersonaSummary {
+  id: string
+  name: string
+  description: string
+  system_prompt: string | null
+  domain_ids: string[]
+  domains: { id: string; name: string }[]
+}
+
+export async function listPersonas(): Promise<PersonaSummary[]> {
+  const data = await fetchJSON<{ items: PersonaSummary[] }>('/api/personas')
+  return data.items
+}
+
+export async function createPersona(body: { name: string; description?: string; system_prompt?: string; domain_ids?: string[] }): Promise<PersonaSummary> {
+  return fetchJSON('/api/personas', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function updatePersona(id: string, body: { name?: string; description?: string; system_prompt?: string; domain_ids?: string[] }): Promise<PersonaSummary> {
+  return fetchJSON(`/api/personas/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+}
+
+export async function deletePersona(id: string): Promise<void> {
+  await fetchJSON(`/api/personas/${id}`, { method: 'DELETE' })
 }
 
 // --- Documents (import) ---

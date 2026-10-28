@@ -229,6 +229,25 @@ CREATE TABLE IF NOT EXISTS rms_network_meta (
     PRIMARY KEY (key, domain_id)
 );
 
+-- Personas (named collections of domains for multi-domain chat)
+CREATE TABLE IF NOT EXISTS personas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    system_prompt TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS persona_domains (
+    persona_id UUID NOT NULL REFERENCES personas(id) ON DELETE CASCADE,
+    domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    UNIQUE(persona_id, domain_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_persona_domains_persona ON persona_domains(persona_id);
+CREATE INDEX IF NOT EXISTS idx_persona_domains_domain ON persona_domains(domain_id);
+
 -- MCP OAuth token persistence
 CREATE TABLE IF NOT EXISTS mcp_clients (
     client_id TEXT PRIMARY KEY,
@@ -283,6 +302,7 @@ CREATE INDEX IF NOT EXISTS ix_audit_log_timestamp ON audit_log(timestamp);
 CREATE TABLE IF NOT EXISTS chat_conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    persona_id UUID REFERENCES personas(id) ON DELETE SET NULL,
     user_email TEXT NOT NULL,
     title TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
