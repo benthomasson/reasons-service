@@ -86,8 +86,8 @@ export default function TasksPage() {
                 onOpenChange={setCreateOpen}
                 onSelect={(_e, value) => {
                   setCreateOpen(false)
-                  if (value === 'document_forge') handleCreate('document_forge', { model: 'claude', rounds: 1 })
-                  else if (value === 'derive_review_repair') handleCreate('derive_review_repair', { model: 'claude', rounds: 3 })
+                  if (value === 'document_forge') handleCreate('document_forge', { model: 'openai:gpt-5.6-luna', rounds: 1 })
+                  else if (value === 'derive_review_repair') handleCreate('derive_review_repair', { model: 'openai:gpt-5.6-luna', rounds: 3 })
                   else if (value === 'echo') handleCreate('echo', { message: 'Test task', steps: 5, delay: 2 })
                 }}
                 toggle={(ref: React.Ref<MenuToggleElement>) => (

@@ -89,6 +89,50 @@ async def _run_echo(task_id: str, config: dict):
         log.info("Task %s progress: %s", task_id, progress)
 
 
+async def _build_reasons_db(db_path: Path, domain_id: str, base_url: str, headers: dict):
+    """Build a reasons.db from domain beliefs fetched via the API."""
+    from reasonsforge.network import Network
+    from reasonsforge.storage import Storage
+
+    network = Network()
+
+    async with httpx.AsyncClient(timeout=120) as client:
+        offset = 0
+        limit = 500
+        total = 0
+        while True:
+            resp = await client.get(
+                f"{base_url}/api/domains/{domain_id}/beliefs",
+                headers=headers,
+                params={"offset": offset, "limit": limit},
+            )
+            if resp.status_code != 200:
+                log.warning("Failed to fetch beliefs (offset=%d): %d", offset, resp.status_code)
+                break
+            data = resp.json()
+            items = data.get("items", [])
+            if not items:
+                break
+            for item in items:
+                if item["id"] not in network.nodes:
+                    network.add_node(
+                        id=item["id"],
+                        text=item.get("text", ""),
+                        source=item.get("source", ""),
+                        source_hash=item.get("source_hash", ""),
+                    )
+            total += len(items)
+            offset += limit
+            if len(items) < limit:
+                break
+
+    storage = Storage(str(db_path))
+    storage.save(network)
+    storage.close()
+
+    log.info("Built reasons.db with %d beliefs from domain %s", total, domain_id)
+
+
 async def _run_document_forge(task_id: str, domain_id: str, config: dict):
     work_dir = Path(tempfile.mkdtemp(prefix=f"forge-{task_id[:8]}-"))
     try:
@@ -127,7 +171,7 @@ async def _do_document_forge(task_id: str, domain_id: str, config: dict, work_di
     except Exception as e:
         log.warning("Could not init reasons.db: %s", e)
 
-    model = config.get("model", "claude")
+    model = config.get("model", "openai:gpt-5.6-luna")
     domain = config.get("domain", "")
     rounds = config.get("rounds", 1)
     max_derive = config.get("max_derive_rounds", 10)
@@ -195,25 +239,9 @@ async def _do_derive_review_repair(task_id: str, domain_id: str, config: dict, w
 
     await _update_task(task_id, progress={"stage": "downloading", "percent": 5})
 
-    # Try to download existing reasons.db from the domain
-    db_url = config.get("reasons_db_url")
-    if not db_url:
-        db_url = f"{base_url}/api/domains/{domain_id}/download-db"
+    await _build_reasons_db(db_path, domain_id, base_url, headers)
 
-    try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.get(db_url, headers=headers)
-            if resp.status_code == 200:
-                db_path.write_bytes(resp.content)
-                log.info("Downloaded existing DB (%d bytes)", db_path.stat().st_size)
-            else:
-                raise ValueError(f"Download failed: {resp.status_code}")
-    except Exception:
-        from reasonsforge.storage import Storage
-        Storage(str(db_path))
-        log.info("Initialized empty reasons.db (no existing DB available)")
-
-    model = config.get("model", "claude")
+    model = config.get("model", "openai:gpt-5.6-luna")
     rounds = config.get("rounds", 3)
     max_derive = config.get("max_derive_rounds", 10)
     domain = config.get("domain", "")
